@@ -2,6 +2,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
+#include <linux/clk-provider.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -15,6 +16,19 @@
 static void __init aspeed_dt_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
+
+static const struct of_device_id aspeed_clk_match[] __initconst = {
+	{
+		.compatible = "fixed-clock",
+		.data = of_fixed_clk_setup,
+	},
+	{}
+};
+
+void __init aspeed_clk_init(void __iomem *base)
+{
+	of_clk_init(aspeed_clk_match);
 }
 
 #define AST_IO_VA	0xf0000000
