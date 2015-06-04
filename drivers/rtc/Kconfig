@@ -1814,6 +1814,16 @@ config RTC_DRV_RTD119X
 	  If you say yes here, you get support for the RTD1295 SoC
 	  Real Time Clock.
 
+config RTC_DRV_ASPEED
+	tristate "Aspeed RTC"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	help
+	  If you say yes here you get support for the ASPEED AST2400 and
+	  AST2500 SoC real time clocks.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-aspeed".
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
