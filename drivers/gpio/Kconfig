@@ -969,6 +969,13 @@ config GPIO_SODAVILLE
 	help
 	  Say Y here to support Intel Sodaville GPIO.
 
+config GPIO_ASPEED
+	bool "Aspeed AST2400 GPIO support"
+	depends on ARCH_ASPEED && OF
+	select GENERIC_IRQ_CHIP
+	help
+	  Say Y here to support Aspeed AST2400 GPIO.
+
 endmenu
 
 menu "SPI GPIO expanders"
