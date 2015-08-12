@@ -92,13 +92,17 @@
 			i2c: i2c@1e78a040 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "aspeed,ast2400-i2c-common";
+				#interrupt-cells = <1>;
+
+				compatible = "aspeed,ast2400-i2c-controller";
 				reg = <0x1e78a000 0x40>;
 				ranges = <0 0x1e78a000 0x1000>;
 				interrupts = <12>;
 				clocks = <&clk_apb>;
+				clock-ranges;
+				interrupt-controller;
 
-				i2c0: i2c-bus@0x40 {
+				i2c0: i2c-bus@40 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x40 0x40>;
@@ -106,19 +110,11 @@
 					bus = <0>;
 					clock-frequency = <100000>;
 					status = "okay";
-					eeprom@50 {
-						compatible = "atmel,24c256";
-						reg = <0x50>;
-						pagesize = <64>;
-					};
-					rtc@68 {
-						compatible = "dallas,ds3231";
-						reg = <0x68>;
-						// interrupts = <GPIOF0>
-					};
+					interrupts = <0>;
+					interrupt-parent = <&i2c>;
 				};
 
-				i2c1: i2c-bus@0x80 {
+				i2c1: i2c-bus@80 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x80 0x40>;
@@ -126,9 +122,10 @@
 					bus = <1>;
 					clock-frequency = <100000>;
 					status = "okay";
+					interrupts = <1>;
 				};
 
-				i2c2: i2c-bus@0xC0 {
+				i2c2: i2c-bus@c0 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0xC0 0x40>;
@@ -136,13 +133,10 @@
 					bus = <2>;
 					clock-frequency = <100000>;
 					status = "okay";
-					tmp423@4c {
-						compatible = "ti,tmp423";
-						reg = <0x4c>;
-					};
+					interrupts = <2>;
 				};
 
-				i2c3: i2c-bus@0x100 {
+				i2c3: i2c-bus@100 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x100 0x40>;
@@ -150,9 +144,10 @@
 					bus = <3>;
 					clock-frequency = <100000>;
 					status = "okay";
+					interrupts = <3>;
 				};
 
-				i2c4: i2c-bus@0x140 {
+				i2c4: i2c-bus@140 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x140 0x40>;
@@ -160,6 +155,7 @@
 					bus = <4>;
 					clock-frequency = <100000>;
 					status = "okay";
+					interrupts = <4>;
 				};
 
 				i2c5: i2c-bus@0x180 {
@@ -170,9 +166,10 @@
 					bus = <5>;
 					clock-frequency = <100000>;
 					status = "okay";
+					interrupts = <5>;
 				};
 
-				i2c6: i2c-bus@0x1C0 {
+				i2c6: i2c-bus@1c0 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x1C0 0x40>;
@@ -180,9 +177,10 @@
 					bus = <6>;
 					clock-frequency = <100000>;
 					status = "okay";
+					interrupts = <6>;
 				};
 
-				i2c7: i2c-bus@0x300 {
+				i2c7: i2c-bus@300 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x300 0x40>;
@@ -190,9 +188,10 @@
 					bus = <7>;
 					clock-frequency = <100000>;
 					status = "okay";
+					interrupts = <7>;
 				};
 
-				i2c8: i2c-bus@0x340 {
+				i2c8: i2c-bus@340 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x340 0x40>;
@@ -200,9 +199,10 @@
 					bus = <8>;
 					clock-frequency = <100000>;
 					status = "okay";
+					interrupts = <8>;
 				};
 
-				i2c9: i2c-bus@0x380 {
+				i2c9: i2c-bus@380 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x380 0x40>;
@@ -210,25 +210,28 @@
 					bus = <9>;
 					clock-frequency = <100000>;
 					status = "disabled";
+					interrupts = <9>;
 				};
 
-				i2c10: i2c-bus@0x3C0 {
+				i2c10: i2c-bus@3c0 {
 					reg = <0x380 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <10>;
 					clock-frequency = <100000>;
 					status = "disabled";
+					interrupts = <10>;
 				};
 
-				i2c11: i2c-bus@0x400 {
+				i2c11: i2c-bus@400 {
 					reg = <0x400 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <11>;
 					clock-frequency = <100000>;
 					status = "disabled";
+					interrupts = <11>;
 				};
 
-				i2c12: i2c-bus@0x440 {
+				i2c12: i2c-bus@440 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x400 0x40>;
@@ -236,9 +239,10 @@
 					bus = <12>;
 					clock-frequency = <100000>;
 					status = "disabled";
+					interrupts = <12>;
 				};
 
-				i2c13: i2c-bus@0x480 {
+				i2c13: i2c-bus@480 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x480 0x40>;
@@ -246,6 +250,7 @@
 					bus = <13>;
 					clock-frequency = <100000>;
 					status = "disabled";
+					interrupts = <13>;
 				};
 
 			};
