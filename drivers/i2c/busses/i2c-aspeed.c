@@ -1,9 +1,8 @@
 /*
- *  i2c_adap_ast.c
- *
  *  I2C adapter for the ASPEED I2C bus access.
  *
  *  Copyright (C) 2012-2020  ASPEED Technology Inc.
+ *  Copyright 2015 IBM Corporation
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -12,6 +11,7 @@
  *  History:
  *    2012.07.26: Initial version [Ryan Chen]
  */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -359,7 +359,7 @@ static u32 select_i2c_clock(struct ast_i2c_dev *i2c_dev)
 	u32 SCL_Low, SCL_High, data;
 
 	clk = i2c_dev->ast_i2c_data->get_i2c_clock();
-//	printk("pclk = %d \n",clk);
+	printk("pclk = %d \n",clk);
 	divider_ratio = clk / i2c_dev->ast_i2c_data->bus_clk;
 	for (div = 0; divider_ratio >= 16; div++)
 	{
@@ -2033,6 +2033,11 @@ static const struct i2c_algorithm i2c_ast_algorithm = {
 	.functionality	= ast_i2c_functionality,
 };
 
+static u32 get_pclk(void)
+{
+	return 48000000;
+}
+
 static int ast_i2c_probe(struct platform_device *pdev)
 {
 	struct ast_i2c_dev *i2c_dev;
@@ -2041,18 +2046,39 @@ static int ast_i2c_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "ast_i2c_probe \n");
 
-	i2c_dev = kzalloc(sizeof(struct ast_i2c_dev), GFP_KERNEL);
+	i2c_dev = kzalloc(sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev) {
 		ret = -ENOMEM;
 		goto err_no_mem;
 	}
 
-	i2c_dev->ast_i2c_data = pdev->dev.platform_data;
+	i2c_dev->ast_i2c_data  = kzalloc(sizeof(*i2c_dev->ast_i2c_data), GFP_KERNEL);
+	if (!i2c_dev->ast_i2c_data ) {
+		return -ENOMEM;
+	}
+
+	i2c_dev->ast_i2c_data->master_dma = BYTE_MODE;
+	i2c_dev->ast_i2c_data->get_i2c_clock = get_pclk;
+	i2c_dev->ast_i2c_data->bus_clk = 100000;              //bus clock 100KHz
+
+	/* JS: this was in the platform code. It's global for all the i2c devices */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	i2c_dev->ast_i2c_data->reg_gr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(i2c_dev->ast_i2c_data->reg_gr))
+		return PTR_ERR(i2c_dev->ast_i2c_data->reg_gr);
+
+	/* JS: this is the ast_i2c_dev1_resources */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	i2c_dev->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(i2c_dev->reg_base))
+		return PTR_ERR(i2c_dev->reg_base);
+
 	//master xfer mode 
 	if(i2c_dev->ast_i2c_data->master_dma == BUFF_MODE) {
 		dev_dbg(&pdev->dev, "use buffer pool mode\n");	
-	} else if ((i2c_dev->ast_i2c_data->master_dma >= DEC_DMA_MODE) || (i2c_dev->ast_i2c_data->slave_dma >= DEC_DMA_MODE)) {
-		dev_dbg(&pdev->dev, "use dma mode \n");	
+	} else if ((i2c_dev->ast_i2c_data->master_dma >= DEC_DMA_MODE) ||
+			(i2c_dev->ast_i2c_data->slave_dma >= DEC_DMA_MODE)) {
+		printk("use dma mode \n");	
 		if (!i2c_dev->dma_buf) {
 			i2c_dev->dma_buf = dma_alloc_coherent(NULL, AST_I2C_DMA_SIZE, &i2c_dev->dma_addr, GFP_KERNEL);
 			if (!i2c_dev->dma_buf) {
@@ -2065,7 +2091,8 @@ static int ast_i2c_probe(struct platform_device *pdev)
 				ret = -ENOMEM;
 				goto err_no_dma;	
 			}				
-			dev_dbg(&pdev->dev, "dma_buf = [0x%x] dma_addr = [0x%x], please check 4byte boundary \n",(u32)i2c_dev->dma_buf,i2c_dev->dma_addr);	
+			dev_dbg(&pdev->dev, "dma_buf = [0x%x] dma_addr = [0x%x], please check 4byte boundary \n",
+					(u32)i2c_dev->dma_buf,i2c_dev->dma_addr);	
 			memset (i2c_dev->dma_buf, 0, AST_I2C_DMA_SIZE);
 		}
 
@@ -2074,23 +2101,6 @@ static int ast_i2c_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "use default byte mode \n");
 	}
 	
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (NULL == res) {
-		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
-		ret = -ENOENT;
-		goto err_no_io_res;
-	}
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-        dev_err(&pdev->dev, "cannot reserved region\n");
-        ret = -ENXIO;
-        goto err_no_io_res;
-	}
-
-	i2c_dev->reg_base = ioremap(res->start, resource_size(res));
-	if (!i2c_dev->reg_base) {
-		ret = -EIO;
-		goto release_mem;
-	}
 
 	i2c_dev->irq = platform_get_irq(pdev, 0);
 	if (i2c_dev->irq < 0) {
@@ -2100,21 +2110,8 @@ static int ast_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c_dev->dev = &pdev->dev;
-
-#if defined (CONFIG_ARCH_AST1070)
-	if(i2c_dev->irq == IRQ_C0_I2C) {
-		i2c_dev->bus_id = pdev->id - NUM_BUS;
-		dev_dbg(&pdev->dev, "C0 :: pdev->id %d , i2c_dev->bus_id = %d, i2c_dev->irq =%d\n",pdev->id, i2c_dev->bus_id,i2c_dev->irq);
-	} else if(i2c_dev->irq == IRQ_C1_I2C) {
-		i2c_dev->bus_id = pdev->id - (NUM_BUS + 8);
-		dev_dbg(&pdev->dev, "C1 :: pdev->id %d , i2c_dev->bus_id = %d, i2c_dev->irq =%d\n",pdev->id, i2c_dev->bus_id,i2c_dev->irq);			
-	} else {
-		i2c_dev->bus_id = pdev->id;
-		dev_dbg(&pdev->dev, "AST pdev->id %d , i2c_dev->bus_id = %d, i2c_dev->irq =%d\n",pdev->id, i2c_dev->bus_id,i2c_dev->irq);
-	}
-#else
-	i2c_dev->bus_id = pdev->id;
-#endif
+	/* JS: make this 0 not -1, as we use it to look up the irq */
+	i2c_dev->bus_id = pdev->id != -1 ? pdev->id : 0;
 
  	/* Initialize the I2C adapter */
 	i2c_dev->adap.owner   = THIS_MODULE;
@@ -2194,7 +2191,7 @@ static int ast_i2c_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&i2c_dev->adap);
-	
+
 	free_irq(i2c_dev->irq, i2c_dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2206,55 +2203,22 @@ static int ast_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ast_i2c_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	//TODO
-//	struct ast_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
-	return 0;
-}
-
-static int ast_i2c_resume(struct platform_device *pdev)
-{
-	//TODO
-//	struct ast_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
-	//Should reset i2c ??? 
-	return 0;
-}
-#else
-#define ast_i2c_suspend        NULL
-#define ast_i2c_resume         NULL
-#endif
+static const struct of_device_id aspeed_i2c_of_table[] = {
+	{ .compatible = "aspeed,ast2400-i2c", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, aspeed_i2c_of_table);
 
 static struct platform_driver i2c_ast_driver = {
-	.probe			= ast_i2c_probe,
-	.remove 		= ast_i2c_remove,
-    .suspend        = ast_i2c_suspend,
-    .resume         = ast_i2c_resume,
-    .driver         = {
-            .name   = "ast-i2c",
-            .owner  = THIS_MODULE,
-    },
+	.probe		= ast_i2c_probe,
+	.remove 	= ast_i2c_remove,
+	.driver         = {
+		.name   = KBUILD_MODNAME,
+		.of_match_table = aspeed_i2c_of_table,
+	},
 };
 
-static int __init ast_i2c_init(void)
-{
-	return platform_driver_register(&i2c_ast_driver);
-}
-
-static void __exit ast_i2c_exit(void)
-{
-	platform_driver_unregister(&i2c_ast_driver);
-}
-//TODO : check module init sequence
-
-#if defined(CONFIG_VGA_DDC)
-subsys_initcall(ast_i2c_init);
-#else
-module_init(ast_i2c_init);
-#endif
-
-module_exit(ast_i2c_exit);
+module_platform_driver(i2c_ast_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("ASPEED AST I2C Bus Driver");
