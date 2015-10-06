@@ -75,7 +75,7 @@ struct ftgmac100 {
 	struct phy_device *phydev;
 	int old_speed;
 
-	bool use_nc_si;
+	bool use_ncsi;
 };
 
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
@@ -1150,11 +1150,11 @@ static int ftgmac100_open(struct net_device *netdev)
 		goto err_hw;
 
 	ftgmac100_init_hw(priv);
-	ftgmac100_start_hw(priv, priv->use_nc_si ? 100 : 10);
+	ftgmac100_start_hw(priv, priv->use_ncsi ? 100 : 10);
 
 	if (priv->phydev)
 		phy_start(priv->phydev);
-	else if (priv->use_nc_si)
+	else if (priv->use_ncsi)
 		netif_carrier_on(priv->netdev);
 
 	napi_enable(&priv->napi);
@@ -1275,7 +1275,7 @@ err_alloc_mdiobus:
 
 static void ftgmac100_destroy_mdio(struct ftgmac100 *priv)
 {
-	if (!priv->use_nc_si)
+	if (!priv->use_ncsi)
 		return;
 	phy_disconnect(priv->phydev);
 	mdiobus_unregister(priv->mii_bus);
@@ -1359,9 +1359,9 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	/* Check for NC-SI mode */
 	if (pdev->dev.of_node &&
 	    of_get_property(pdev->dev.of_node, "use-nc-si", NULL))
-		priv->use_nc_si = true;
+		priv->use_ncsi = true;
 	else
-		priv->use_nc_si = false;
+		priv->use_ncsi = false;
 
 	/* If we use NC-SI, we need to set that up, which isn't implemented yet
 	 * so we pray things were setup by the bootloader and just mark our link
@@ -1370,7 +1370,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	 * Eventually, we'll have a proper NC-SI stack as a helper we can
 	 * instanciate
 	 */
-	if (priv->use_nc_si) {
+	if (priv->use_ncsi) {
 		/* XXX */
 		priv->phydev = NULL;
 		dev_info(&pdev->dev, "Using NC-SI interface\n");
