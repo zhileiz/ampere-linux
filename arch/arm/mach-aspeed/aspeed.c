@@ -128,6 +128,8 @@ static void udbg_uart_putc(char c)
 
 static void __init aspeed_init_early(void)
 {
+	u32 reg;
+
 	// XXX UART stuff to fix to pinmux & co
 	printk("UART IO MUX...\n");
 	writel(0x02010023, AST_IO(AST_BASE_LPC | 0x9c));
@@ -137,6 +139,14 @@ static void __init aspeed_init_early(void)
 	writel(0xcb000000, AST_IO(AST_BASE_SCU | 0x80));
 	writel(0x00fff0c0, AST_IO(AST_BASE_SCU | 0x84));
 	writel(0x10CC5E80, AST_IO(AST_BASE_SCU | 0x0c));
+
+	/* We enable the UART clock divisor in the SCU's misc control
+	 * register, as the baud rates in aspeed.dtb all assume that the
+	 * divisor is active
+	 */
+	reg = readl(AST_IO(AST_BASE_SCU | 0x2c));
+	writel(reg | 0x00001000, AST_IO(AST_BASE_SCU | 0x2c));
+
 	printk("DONE, MUX=%08x %08x\n", readl(AST_IO(AST_BASE_SCU | 0x80)),
 	       readl(AST_IO(AST_BASE_SCU | 0x84)));
 	printk("CLOCK_CTRL=%08x\n", readl(AST_IO(AST_BASE_SCU)));
