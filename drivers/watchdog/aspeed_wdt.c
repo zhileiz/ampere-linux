@@ -33,20 +33,20 @@ static const struct of_device_id aspeed_wdt_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, aspeed_wdt_of_table);
 
-#define WDT_STATUS	0x00
-#define WDT_BITE_COUNT	0x04
-#define WDT_RELOAD	0x08
-#define WDT_CTRL	0x0C
+#define WDT_STATUS		0x00
+#define WDT_RELOAD_VALUE	0x04
+#define WDT_RESTART		0x08
+#define WDT_CTRL		0x0C
 
-#define	WDT_RELOAD_MAGIC 0x4755
+#define	WDT_RESTART_MAGIC	0x4755
 
 static int aspeed_wdt_start(struct watchdog_device *wdd)
 {
 	struct aspeed_wdt *wdt = container_of(wdd, struct aspeed_wdt, wdd);
 
 	writel(0, wdt->base + WDT_CTRL);
-	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BITE_COUNT);
-	writel(WDT_RELOAD_MAGIC, wdt->base + WDT_RELOAD);
+	writel(wdd->timeout * wdt->rate, wdt->base + WDT_RELOAD_VALUE);
+	writel(WDT_RESTART_MAGIC, wdt->base + WDT_RESTART);
 	writel(3, wdt->base + WDT_CTRL);
 
 	dev_dbg(wdd->dev, "starting with timeout of %d (rate %lu)\n",
@@ -68,7 +68,7 @@ static int aspeed_wdt_ping(struct watchdog_device *wdd)
 	struct aspeed_wdt *wdt = container_of(wdd, struct aspeed_wdt, wdd);
 
 	dev_dbg(wdd->dev, "ping\n");
-	writel(WDT_RELOAD_MAGIC, wdt->base + WDT_RELOAD);
+	writel(WDT_RESTART_MAGIC, wdt->base + WDT_RESTART);
 	return 0;
 }
 
@@ -88,13 +88,13 @@ static int aspeed_wdt_restart(struct notifier_block *nb, unsigned long action,
 
 	/*
 	 * Trigger watchdog bite:
-	 *    Setup BITE_TIME to be 128ms, and enable WDT.
+	 *    Setup reload count to be 128ms, and enable WDT.
 	 */
 	timeout = 128 * wdt->rate / 1000;
 
 	writel(0, wdt->base + WDT_CTRL);
-	writel(timeout, wdt->base + WDT_BITE_COUNT);
-	writel(WDT_RELOAD_MAGIC, wdt->base + WDT_RELOAD);
+	writel(timeout, wdt->base + WDT_RELOAD_VALUE);
+	writel(WDT_RESTART_MAGIC, wdt->base + WDT_RESTART);
 	writel(3, wdt->base + WDT_CTRL);
 	return NOTIFY_DONE;
 }
