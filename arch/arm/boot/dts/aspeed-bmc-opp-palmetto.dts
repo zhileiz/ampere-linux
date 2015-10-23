@@ -145,34 +145,9 @@
 				clocks = <&clk_apb>;
 			};
 
-			gpio0: gpio@1e780000 {
+			gpio: gpio@1e780000 {
 			       compatible = "aspeed,ast2400-gpio";
-			       reg = <0x1e780000 0x20>;
-			};
-
-			gpio1: gpio@1e780020 {
-			       compatible = "aspeed,ast2400-gpio";
-			       reg = <0x1e780020 0x20>;
-			};
-
-			gpio2: gpio@1e780070 {
-			       compatible = "aspeed,ast2400-gpio";
-			       reg = <0x1e780070 0x8>;
-			};
-
-			gpio3: gpio@1e780078 {
-			       compatible = "aspeed,ast2400-gpio";
-			       reg = <0x1e780078 0x8>;
-			};
-
-			gpio4: gpio@1e780080 {
-			       compatible = "aspeed,ast2400-gpio";
-			       reg = <0x1e780080 0x8>;
-			};
-
-			gpio5: gpio@1e780088 {
-			       compatible = "aspeed,ast2400-gpio";
-			       reg = <0x1e780088 0x8>;
+			       reg = <0x1e780000 0x1000>;
 			};
 
 			uart1: serial@1e783000 {
