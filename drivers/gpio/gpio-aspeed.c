@@ -104,8 +104,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	gpio->base = devm_ioremap_nocache(&pdev->dev, res->start,
-					  resource_size(res));
+	gpio->base = devm_ioremap_resource(&pdev->dev, res);
 	if (!gpio->base)
 		return -ENOMEM;
 
