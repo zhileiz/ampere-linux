@@ -332,35 +332,6 @@ static struct irq_chip aspeed_gpio_irqchip = {
 	.irq_set_type	= aspeed_gpio_set_type,
 };
 
-static void aspeed_gpio_set_names(struct aspeed_gpio *gpio)
-{
-	const char format[] = "GPIOXn";
-	char *namebuf, **names;
-	unsigned int i;
-
-	/* our buffer of name pointers */
-	names = devm_kmalloc_array(gpio->chip.dev, gpio->chip.ngpio,
-			sizeof(char *), GFP_KERNEL);
-
-	/* and one contiguous buffer for the names themselves */
-	namebuf = devm_kmalloc_array(gpio->chip.dev, gpio->chip.ngpio,
-			sizeof(format), GFP_KERNEL);
-
-	for (i = 0; i < gpio->chip.ngpio; i++) {
-		struct aspeed_gpio_bank *bank = to_bank(i);
-		char *name = namebuf + (i * sizeof(format));
-		int bit = GPIO_OFFSET(i);
-
-		memcpy(name, format, 4);
-		name[4] = bank->names[bit >> 3];
-		name[5] = '0' + (bit % 8);
-		name[6] = '\0';
-		names[i] = name;
-	}
-
-	gpio->chip.names = (const char * const *)names;
-}
-
 static int aspeed_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct aspeed_gpio *gpio = to_aspeed_gpio(chip);
@@ -426,8 +397,6 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->chip.to_irq = aspeed_gpio_to_irq;
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
-
-	aspeed_gpio_set_names(gpio);
 
 	platform_set_drvdata(pdev, gpio);
 
