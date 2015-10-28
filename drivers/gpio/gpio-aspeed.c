@@ -29,10 +29,10 @@ struct aspeed_gpio {
 struct aspeed_gpio_bank {
 	uint16_t	val_regs;
 	uint16_t	irq_regs;
-	char		names[4];
+	const char	names[4];
 };
 
-static struct aspeed_gpio_bank aspeed_gpio_banks[] = {
+static const struct aspeed_gpio_bank aspeed_gpio_banks[] = {
 	{
 		.val_regs = 0x0000,
 		.irq_regs = 0x0008,
@@ -83,7 +83,7 @@ static inline struct aspeed_gpio *to_aspeed_gpio(struct gpio_chip *chip)
 	return container_of(chip, struct aspeed_gpio, chip);
 }
 
-static struct aspeed_gpio_bank *to_bank(unsigned int offset)
+static const struct aspeed_gpio_bank *to_bank(unsigned int offset)
 {
 	unsigned int bank = GPIO_BANK(offset);
 	WARN_ON(bank > ARRAY_SIZE(aspeed_gpio_banks));
@@ -91,14 +91,14 @@ static struct aspeed_gpio_bank *to_bank(unsigned int offset)
 }
 
 static void *bank_val_reg(struct aspeed_gpio *gpio,
-		struct aspeed_gpio_bank *bank,
+		const struct aspeed_gpio_bank *bank,
 		unsigned int reg)
 {
 	return gpio->base + bank->val_regs + reg;
 }
 
 static void *bank_irq_reg(struct aspeed_gpio *gpio,
-		struct aspeed_gpio_bank *bank,
+		const struct aspeed_gpio_bank *bank,
 		unsigned int reg)
 {
 	return gpio->base + bank->irq_regs + reg;
@@ -107,7 +107,7 @@ static void *bank_irq_reg(struct aspeed_gpio *gpio,
 static int aspeed_gpio_get(struct gpio_chip *gc, unsigned int offset)
 {
 	struct aspeed_gpio *gpio = to_aspeed_gpio(gc);
-	struct aspeed_gpio_bank *bank = to_bank(offset);
+	const struct aspeed_gpio_bank *bank = to_bank(offset);
 
 	return !!(ioread32(bank_val_reg(gpio, bank, GPIO_DATA))
 			& GPIO_BIT(offset));
@@ -117,7 +117,7 @@ static void aspeed_gpio_set(struct gpio_chip *gc, unsigned int offset,
 			    int val)
 {
 	struct aspeed_gpio *gpio = to_aspeed_gpio(gc);
-	struct aspeed_gpio_bank *bank = to_bank(offset);
+	const struct aspeed_gpio_bank *bank = to_bank(offset);
 	unsigned long flags;
 	u32 reg;
 
@@ -137,7 +137,7 @@ static void aspeed_gpio_set(struct gpio_chip *gc, unsigned int offset,
 static int aspeed_gpio_dir_in(struct gpio_chip *gc, unsigned int offset)
 {
 	struct aspeed_gpio *gpio = to_aspeed_gpio(gc);
-	struct aspeed_gpio_bank *bank = to_bank(offset);
+	const struct aspeed_gpio_bank *bank = to_bank(offset);
 	unsigned long flags;
 	u32 reg;
 
@@ -155,7 +155,7 @@ static int aspeed_gpio_dir_out(struct gpio_chip *gc,
 			       unsigned int offset, int val)
 {
 	struct aspeed_gpio *gpio = to_aspeed_gpio(gc);
-	struct aspeed_gpio_bank *bank = to_bank(offset);
+	const struct aspeed_gpio_bank *bank = to_bank(offset);
 	unsigned long flags;
 	u32 reg;
 
@@ -171,7 +171,7 @@ static int aspeed_gpio_dir_out(struct gpio_chip *gc,
 
 static inline int irqd_to_aspeed_gpio_data(struct irq_data *d,
 		struct aspeed_gpio **gpio,
-		struct aspeed_gpio_bank **bank,
+		const struct aspeed_gpio_bank **bank,
 		u32 *bit)
 {
 	int offset;
@@ -187,7 +187,7 @@ static inline int irqd_to_aspeed_gpio_data(struct irq_data *d,
 
 static void aspeed_gpio_irq_ack(struct irq_data *d)
 {
-	struct aspeed_gpio_bank *bank;
+	const struct aspeed_gpio_bank *bank;
 	struct aspeed_gpio *gpio;
 	unsigned long flags;
 	void *status_addr;
@@ -207,7 +207,7 @@ static void aspeed_gpio_irq_ack(struct irq_data *d)
 
 static void __aspeed_gpio_irq_set_mask(struct irq_data *d, bool set)
 {
-	struct aspeed_gpio_bank *bank;
+	const struct aspeed_gpio_bank *bank;
 	struct aspeed_gpio *gpio;
 	unsigned long flags;
 	u32 reg, bit;
@@ -245,7 +245,7 @@ static void aspeed_gpio_irq_unmask(struct irq_data *d)
 static int aspeed_gpio_set_type(struct irq_data *d, unsigned int type)
 {
 	u32 type0, type1, type2, bit, reg;
-	struct aspeed_gpio_bank *bank;
+	const struct aspeed_gpio_bank *bank;
 	irq_flow_handler_t handler;
 	struct aspeed_gpio *gpio;
 	unsigned long flags;
@@ -310,7 +310,7 @@ static void aspeed_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_gpio_banks); i++) {
-		struct aspeed_gpio_bank *bank = &aspeed_gpio_banks[i];
+		const struct aspeed_gpio_bank *bank = &aspeed_gpio_banks[i];
 
 		reg = ioread32(bank_irq_reg(gpio, bank, GPIO_IRQ_STATUS));
 
