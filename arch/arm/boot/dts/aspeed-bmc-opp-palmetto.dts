@@ -91,28 +91,26 @@
 				reg = <0x1e789140 0x18>;
 			};
 
-			i2c0: i2c@1e78a040 {
-				compatible = "aspeed,ast2400-i2c", "i2c";
-				reg = <0x1e78a040 0x40>, <0x1e78a000 0x40>;
+			i2c: i2c@1e78a040 {
+				compatible = "aspeed,ast2400-i2c-common";
+				reg = <0x1e78a000 0x40>;
+				ranges = <0 0x1e78a000 0x1000>;
 				interrupts = <12>;
 				clocks = <&clk_apb>;
-				clock-frequency = <100000>;
 
-				#address-cells = <1>;
-				#size-cells = <0>;
-				rtc@68 {
-					compatible = "dallas,ds3231";
-					reg = <0x68>;
-					// interrupts = <GPIOF0>
+				i2c0: i2c-bus@0x40 {
+					reg = <0x40 0x40>;
+					compatible = "aspeed,ast2400-i2c-bus";
+					bus = <0>;
+					clock-frequency = <100000>;
 				};
-			};
 
-			i2c1: i2c@1e78a080 {
-				compatible = "aspeed,ast2400-i2c", "i2c";
-				reg = <0x1e78a080 0x40>, <0x1e78a000 0x40>;
-				interrupts = <12>;
-				clocks = <&clk_apb>;
-				clock-frequency = <100000>;
+				i2c1: i2c-bus@0x80 {
+					reg = <0x80 0x40>;
+					compatible = "aspeed,ast2400-i2c-bus";
+					bus = <1>;
+					clock-frequency = <100000>;
+				};
 			};
 
 			syscon: syscon@1e6e2000 {
