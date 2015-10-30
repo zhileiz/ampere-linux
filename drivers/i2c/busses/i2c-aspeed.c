@@ -1287,8 +1287,6 @@ static int aspeed_i2c_add_bus(struct device_node *np,
 	if (ret < 0)
 		return -ENXIO;
 
-	printk("i2c: adding adapter done\n");
-
 	return 0;
 }
 
@@ -1325,18 +1323,16 @@ static int ast_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(dev->pclk);
 	}
 
-	for_each_child_of_node(pdev->dev.of_node, np) {
-
-		printk("i2c: trying %s\n", np->name);
-
+	for_each_available_child_of_node(pdev->dev.of_node, np) {
 		if (!of_device_is_compatible(np, "aspeed,ast2400-i2c-bus"))
 			continue;
 
-		aspeed_i2c_add_bus(np, dev, pdev);
+		ret = aspeed_i2c_add_bus(np, dev, pdev);
+		if (ret < 0)
+			dev_err(&pdev->dev, "faield to add i2c bus %s\n", np->name);
 	}
 
 	platform_set_drvdata(pdev, dev);
-
 
 	return 0;
 }
