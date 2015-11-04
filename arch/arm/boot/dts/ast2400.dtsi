@@ -90,6 +90,8 @@
 			};
 
 			i2c: i2c@1e78a040 {
+				#address-cells = <1>;
+				#size-cells = <1>;
 				compatible = "aspeed,ast2400-i2c-common";
 				reg = <0x1e78a000 0x40>;
 				ranges = <0 0x1e78a000 0x1000>;
@@ -97,6 +99,8 @@
 				clocks = <&clk_apb>;
 
 				i2c0: i2c-bus@0x40 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x40 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <0>;
@@ -115,6 +119,8 @@
 				};
 
 				i2c1: i2c-bus@0x80 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x80 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <1>;
@@ -123,6 +129,8 @@
 				};
 
 				i2c2: i2c-bus@0xC0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0xC0 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <2>;
@@ -135,6 +143,8 @@
 				};
 
 				i2c3: i2c-bus@0x100 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x100 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <3>;
@@ -143,6 +153,8 @@
 				};
 
 				i2c4: i2c-bus@0x140 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x140 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <4>;
@@ -151,6 +163,8 @@
 				};
 
 				i2c5: i2c-bus@0x180 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x180 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <5>;
@@ -159,6 +173,8 @@
 				};
 
 				i2c6: i2c-bus@0x1C0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x1C0 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <6>;
@@ -167,6 +183,8 @@
 				};
 
 				i2c7: i2c-bus@0x300 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x300 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <7>;
@@ -175,6 +193,8 @@
 				};
 
 				i2c8: i2c-bus@0x340 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x340 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <8>;
@@ -183,6 +203,8 @@
 				};
 
 				i2c9: i2c-bus@0x380 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x380 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <9>;
@@ -207,6 +229,8 @@
 				};
 
 				i2c12: i2c-bus@0x440 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x400 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <12>;
@@ -215,6 +239,8 @@
 				};
 
 				i2c13: i2c-bus@0x480 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0x480 0x40>;
 					compatible = "aspeed,ast2400-i2c-bus";
 					bus = <13>;
