@@ -1257,6 +1257,7 @@ static int aspeed_i2c_add_bus(struct device_node *np,
 	bus->adap.algo = &i2c_ast_algorithm;
 	bus->adap.algo_data = bus;
 	bus->adap.dev.parent = &pdev->dev;
+	bus->adap.dev.of_node = np;
 	snprintf(bus->adap.name, sizeof(bus->adap.name), "Aspeed i2c at %p",
 			bus->base);
 
