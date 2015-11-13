@@ -124,11 +124,34 @@ static void udbg_uart_putc(char c)
 	udbg_uart_out(UART_THR, c);
 }
 
+void aspeed_dump_scu(void)
+{
+	int i;
+
+	for (i = 0; i <= 0xE4; i+=4) {
+		if (i == 0x78 || i == 0xE0 || i == 0xE4)
+			continue;
+		printk("SCU %03x  %08x\n", i,
+			readl(AST_IO(AST_BASE_SCU | i)));
+	}
+
+	printk("SCU %02x  %08x\n", 0x160, readl(AST_IO(AST_BASE_SCU | 0x160)));
+
+	for (i = 0x180; i <= 0x19C; i+=4)
+		printk("SCU %02x  %08x\n", i,
+			readl(AST_IO(AST_BASE_SCU | i)));
+
+	printk("SCU %02x  %08x\n", 0x1a4, readl(AST_IO(AST_BASE_SCU | 0x1a4)));
+}
+EXPORT_SYMBOL_GPL(aspeed_dump_scu);
+
 #define SCU_PASSWORD	0x1688A8A8
 
 static void __init aspeed_init_early(void)
 {
 	u32 reg;
+
+	aspeed_dump_scu();
 
 	// XXX UART stuff to fix to pinmux & co
 	printk("UART IO MUX...\n");
@@ -159,6 +182,8 @@ static void __init aspeed_init_early(void)
 	udbg_uart_putc('O');
 	udbg_uart_putc('O');
 	udbg_uart_putc('\n');
+
+	aspeed_dump_scu();
 }
 
 static void __init aspeed_map_io(void)

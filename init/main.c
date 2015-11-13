@@ -88,6 +88,8 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
+extern void aspeed_dump_scu(void);
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -678,6 +680,8 @@ asmlinkage __visible void __init start_kernel(void)
 	}
 
 	ftrace_init();
+
+	aspeed_dump_scu();
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
