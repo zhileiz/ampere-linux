@@ -43,10 +43,24 @@ MODULE_DEVICE_TABLE(of, aspeed_wdt_of_table);
 
 #define	WDT_RESTART_MAGIC	0x4755
 
+static void aspeed_wdt_dump_regs(struct aspeed_wdt *wdt)
+{
+	printk("WDT_STATUS: %p %08x\n", wdt->base + WDT_STATUS,
+			readl(wdt->base + WDT_STATUS));
+	printk("WDT_RELOAD_VALUE: %p %08x\n", wdt->base + WDT_RELOAD_VALUE,
+			readl(wdt->base + WDT_RELOAD_VALUE));
+	printk("WDT_RESTART: %p %08x\n", wdt->base + WDT_RESTART,
+			readl(wdt->base + WDT_RESTART));
+	printk("WDT_CTRL: %p %08x\n", wdt->base + WDT_CTRL,
+			readl(wdt->base + WDT_CTRL));
+}
+
 static void aspeed_wdt_enable(struct aspeed_wdt *wdt, int count)
 {
 	u32 ctrl = WDT_CTRL_RESET_MODE_FULL_CHIP | WDT_CTRL_RESET_SYSTEM |
 		WDT_CTRL_ENABLE;
+
+	printk("%s\n", __func__);
 
 	writel(0, wdt->base + WDT_CTRL);
 	writel(count, wdt->base + WDT_RELOAD_VALUE);
@@ -94,11 +108,16 @@ static int aspeed_wdt_restart(struct notifier_block *nb, unsigned long action,
 	struct aspeed_wdt *wdt = container_of(nb,
 			struct aspeed_wdt, restart_nb);
 
+	printk("%s\n", __func__);
+	aspeed_wdt_dump_regs(wdt);
+
 	/*
 	 * Trigger watchdog bite:
 	 *    Setup reload count to be 128ms, and enable WDT.
 	 */
 	aspeed_wdt_enable(wdt, 128 * wdt->rate / 1000);
+
+	aspeed_wdt_dump_regs(wdt);
 
 	return NOTIFY_DONE;
 }
