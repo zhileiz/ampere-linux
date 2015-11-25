@@ -1115,6 +1115,7 @@ int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
 	struct ncsi_dev_priv *ndp;
 	struct ncsi_req *nr;
 	struct ncsi_pkt_hdr *hdr;
+	unsigned long flags;
 	int ret;
 
 	/* Find the NCSI device */
@@ -1145,15 +1146,15 @@ int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
 
 	/* Associate with the request */
 	nr = &ndp->ndp_reqs[hdr->id];
-	spin_lock(&ndp->ndp_req_lock);
+	spin_lock_irqsave(&ndp->ndp_req_lock, flags);
 	if (!nr->nr_used) {
-		spin_unlock(&ndp->ndp_req_lock);
+		spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 		return -ENODEV;
 	}
 
 	nr->nr_rsp = skb;
 	if (!nr->nr_timer_enabled) {
-		spin_unlock(&ndp->ndp_req_lock);
+		spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 		ret = -ENOENT;
 		goto out;
 	}

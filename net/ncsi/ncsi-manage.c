@@ -301,8 +301,9 @@ struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_req *nr = NULL;
 	int idx, limit = 256;
+	unsigned long flags;
 
-	spin_lock(&ndp->ndp_req_lock);
+	spin_lock_irqsave(&ndp->ndp_req_lock, flags);
 
 	/* Check if there is one available request until the ceiling */
 	for (idx = atomic_read(&ndp->ndp_last_req_idx);
@@ -329,7 +330,7 @@ struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp)
 			atomic_set(&ndp->ndp_last_req_idx, 0);
 	}
 
-	spin_unlock(&ndp->ndp_req_lock);
+	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 	return nr;
 }
 
@@ -337,19 +338,20 @@ void ncsi_free_req(struct ncsi_req *nr, bool check, bool timeout)
 {
 	struct ncsi_dev_priv *ndp = nr->nr_ndp;
 	struct sk_buff *cmd, *rsp;
+	unsigned long flags;
 
 	if (nr->nr_timer_enabled) {
 		nr->nr_timer_enabled = false;
 		del_timer_sync(&nr->nr_timer);
 	}
 
-	spin_lock(&ndp->ndp_req_lock);
+	spin_lock_irqsave(&ndp->ndp_req_lock, flags);
 	cmd = nr->nr_cmd;
 	rsp = nr->nr_rsp;
 	nr->nr_cmd = NULL;
 	nr->nr_rsp = NULL;
 	nr->nr_used = false;
-	spin_unlock(&ndp->ndp_req_lock);
+	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 
 	/* If the NCSI command was sent because of netlink
 	 * messages, we need reply with the result or error.
@@ -790,17 +792,18 @@ static void ncsi_req_timeout(unsigned long data)
 {
 	struct ncsi_req *nr = (struct ncsi_req *)data;
 	struct ncsi_dev_priv *ndp = nr->nr_ndp;
+	unsigned long flags;
 
 	/* If the request already had associated response,
 	 * let the response handler to release it.
 	 */
-	spin_lock(&ndp->ndp_req_lock);
+	spin_lock_irqsave(&ndp->ndp_req_lock, flags);
 	nr->nr_timer_enabled = false;
 	if (nr->nr_rsp || !nr->nr_cmd) {
-		spin_unlock(&ndp->ndp_req_lock);
+		spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 		return;
 	}
-	spin_unlock(&ndp->ndp_req_lock);
+	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 
 	/* Release the request */
 	ncsi_free_req(nr, true, true);
