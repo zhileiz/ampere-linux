@@ -1213,7 +1213,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 
 	/* Stop NCSI device */
 	if (priv->use_ncsi) {
-		ncsi_stop_dev(priv->ndev);
+		ncsi_suspend_dev(priv->ndev);
 		return 0;
 	}
 

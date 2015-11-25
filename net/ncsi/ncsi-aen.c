@@ -89,7 +89,7 @@ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
 	 * we have to choose another channel to be active one.
 	 */
 	ndp->ndp_flags |= NCSI_DEV_PRIV_FLAG_CHANGE_ACTIVE;
-	ncsi_stop_dev(nd);
+	ncsi_suspend_dev(nd);
 
 	return 0;
 }
@@ -152,7 +152,7 @@ static int ncsi_aen_handler_hncdsc(struct ncsi_dev_priv *ndp,
 	 * is down on the active channel.
 	 */
 	ndp->ndp_flags |= NCSI_DEV_PRIV_FLAG_CHANGE_ACTIVE;
-	ncsi_stop_dev(nd);
+	ncsi_suspend_dev(nd);
 
 	return 0;
 }

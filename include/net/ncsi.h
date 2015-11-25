@@ -19,7 +19,7 @@ enum {
 	ncsi_dev_state_functional	= 0x0100,
 	ncsi_dev_state_start		= 0x0200,
 	ncsi_dev_state_config		= 0x0300,
-	ncsi_dev_state_stop		= 0x0400
+	ncsi_dev_state_suspend		= 0x0400
 };
 
 struct ncsi_dev {
@@ -33,7 +33,7 @@ struct ncsi_dev {
 struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 				   void (*notifier)(struct ncsi_dev *nd));
 int ncsi_start_dev(struct ncsi_dev *nd);
-int ncsi_stop_dev(struct ncsi_dev *nd);
+int ncsi_suspend_dev(struct ncsi_dev *nd);
 void ncsi_unregister_dev(struct ncsi_dev *nd);
 #else /* !CONFIG_NET_NCSI */
 static inline struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
@@ -47,7 +47,7 @@ static inline int ncsi_start_dev(struct ncsi_dev *nd)
 	return -ENOTTY;
 }
 
-static inline int ncsi_stop_dev(struct ncsi_dev *nd)
+static inline int ncsi_suspend_dev(struct ncsi_dev *nd)
 {
 	return -ENOTTY;
 }

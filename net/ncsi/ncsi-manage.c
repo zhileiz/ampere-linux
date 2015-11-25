@@ -687,7 +687,7 @@ error:
 	nd->nd_handler(nd);
 }
 
-static void ncsi_dev_stop(struct ncsi_dev_priv *ndp)
+static void ncsi_dev_suspend(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_dev *nd = &ndp->ndp_ndev;
 	struct ncsi_package *np, *tmp;
@@ -698,52 +698,52 @@ static void ncsi_dev_stop(struct ncsi_dev_priv *ndp)
 	nca.nca_ndp = ndp;
 	nca.nca_nlh = NULL;
 	switch (nd->nd_state) {
-	case ncsi_dev_state_stop:
+	case ncsi_dev_state_suspend:
 		/* If there're no active channel, we're done */
 		if (!ndp->ndp_active_channel) {
-			nd->nd_state = ncsi_dev_state_stop_done;
+			nd->nd_state = ncsi_dev_state_suspend_done;
 			goto done;
 		}
 
-		nd->nd_state = ncsi_dev_state_stop_select;
+		nd->nd_state = ncsi_dev_state_suspend_select;
 		/* Fall through */
-	case ncsi_dev_state_stop_select:
-	case ncsi_dev_state_stop_dcnt:
-	case ncsi_dev_state_stop_dc:
-	case ncsi_dev_state_stop_deselect:
+	case ncsi_dev_state_suspend_select:
+	case ncsi_dev_state_suspend_dcnt:
+	case ncsi_dev_state_suspend_dc:
+	case ncsi_dev_state_suspend_deselect:
 		atomic_set(&ndp->ndp_pending_reqs, 1);
 
 		np = ndp->ndp_active_package;
 		nc = ndp->ndp_active_channel;
 		nca.nca_package = np->np_id;
-		if (nd->nd_state == ncsi_dev_state_stop_select) {
+		if (nd->nd_state == ncsi_dev_state_suspend_select) {
 			nca.nca_type = NCSI_PKT_CMD_SP;
 			nca.nca_channel = 0x1f;
 			nca.nca_bytes[0] = 1;
-			nd->nd_state = ncsi_dev_state_stop_dcnt;
-		} else if (nd->nd_state == ncsi_dev_state_stop_dcnt) {
+			nd->nd_state = ncsi_dev_state_suspend_dcnt;
+		} else if (nd->nd_state == ncsi_dev_state_suspend_dcnt) {
 			nca.nca_type = NCSI_PKT_CMD_DCNT;
 			nca.nca_channel = nc->nc_id;
-			nd->nd_state = ncsi_dev_state_stop_dc;
-		} else if (nd->nd_state == ncsi_dev_state_stop_dc) {
+			nd->nd_state = ncsi_dev_state_suspend_dc;
+		} else if (nd->nd_state == ncsi_dev_state_suspend_dc) {
 			nca.nca_type = NCSI_PKT_CMD_DC;
 			nca.nca_channel = nc->nc_id;
 			nca.nca_bytes[0] = 1;
-			nd->nd_state = ncsi_dev_state_stop_deselect;
-		} else if (nd->nd_state == ncsi_dev_state_stop_deselect) {
+			nd->nd_state = ncsi_dev_state_suspend_deselect;
+		} else if (nd->nd_state == ncsi_dev_state_suspend_deselect) {
 			nca.nca_type = NCSI_PKT_CMD_DP;
 			nca.nca_channel = 0x1f;
-			nd->nd_state = ncsi_dev_state_stop_done;
+			nd->nd_state = ncsi_dev_state_suspend_done;
 		}
 
 		ret = ncsi_xmit_cmd(&nca);
 		if (ret) {
-			nd->nd_state = ncsi_dev_state_stop_done;
+			nd->nd_state = ncsi_dev_state_suspend_done;
 			goto done;
 		}
 
 		break;
-	case ncsi_dev_state_stop_done:
+	case ncsi_dev_state_suspend_done:
 done:
 		spin_lock(&ndp->ndp_package_lock);
 		list_for_each_entry_safe(np, tmp, &ndp->ndp_packages, np_node)
@@ -776,8 +776,8 @@ static void ncsi_dev_work(struct work_struct *work)
 	case ncsi_dev_state_start:
 		ncsi_dev_start(ndp);
 		break;
-	case ncsi_dev_state_stop:
-		ncsi_dev_stop(ndp);
+	case ncsi_dev_state_suspend:
+		ncsi_dev_suspend(ndp);
 		break;
 	case ncsi_dev_state_config:
 		ncsi_dev_config(ndp);
@@ -888,19 +888,19 @@ int ncsi_config_dev(struct ncsi_dev *nd)
 	return 0;
 }
 
-int ncsi_stop_dev(struct ncsi_dev *nd)
+int ncsi_suspend_dev(struct ncsi_dev *nd)
 {
 	struct ncsi_dev_priv *ndp = TO_NCSI_DEV_PRIV(nd);
 
 	if (nd->nd_state != ncsi_dev_state_functional)
 		return -ENOTTY;
 
-	nd->nd_state = ncsi_dev_state_stop;
+	nd->nd_state = ncsi_dev_state_suspend;
 	schedule_work(&ndp->ndp_work);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ncsi_stop_dev);
+EXPORT_SYMBOL_GPL(ncsi_suspend_dev);
 
 void ncsi_unregister_dev(struct ncsi_dev *nd)
 {

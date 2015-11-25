@@ -75,11 +75,11 @@ enum {
 	ncsi_dev_state_config_ec,
 	ncsi_dev_state_config_gls,
 	ncsi_dev_state_config_done,
-	ncsi_dev_state_stop_select	= 0x0401,
-	ncsi_dev_state_stop_dcnt,
-	ncsi_dev_state_stop_dc,
-	ncsi_dev_state_stop_deselect,
-	ncsi_dev_state_stop_done
+	ncsi_dev_state_suspend_select	= 0x0401,
+	ncsi_dev_state_suspend_dcnt,
+	ncsi_dev_state_suspend_dc,
+	ncsi_dev_state_suspend_deselect,
+	ncsi_dev_state_suspend_done
 };
 
 struct ncsi_dev_priv {
