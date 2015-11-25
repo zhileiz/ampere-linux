@@ -78,6 +78,7 @@ struct ftgmac100 {
 	int old_speed;
 
 	bool use_ncsi;
+	bool enabled;
 };
 
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
@@ -1174,6 +1175,8 @@ static int ftgmac100_open(struct net_device *netdev)
 		if (err)
 			goto err_ncsi;
 	}
+
+	priv->enabled = true;
 	return 0;
 
 err_ncsi:
@@ -1192,7 +1195,11 @@ static int ftgmac100_stop_dev(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 
+	if (!priv->enabled)
+		return 0;
+
 	/* disable all interrupts */
+	priv->enabled = false;
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
 	netif_stop_queue(netdev);
@@ -1212,10 +1219,8 @@ static int ftgmac100_stop(struct net_device *netdev)
 	struct ftgmac100 *priv = netdev_priv(netdev);
 
 	/* Stop NCSI device */
-	if (priv->use_ncsi) {
-		ncsi_suspend_dev(priv->ndev);
-		return 0;
-	}
+	if (priv->use_ncsi)
+		ncsi_stop_dev(priv->ndev);
 
 	return ftgmac100_stop_dev(netdev);
 }
