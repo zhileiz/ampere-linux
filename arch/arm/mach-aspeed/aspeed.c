@@ -134,6 +134,11 @@ static void __init aspeed_init_early(void)
 	reg = readl(AST_IO(AST_BASE_SCU | 0x90));
 	reg |= 0x3E0000;
 	writel(reg, AST_IO(AST_BASE_SCU | 0x90));
+
+	/*
+	 * ensure all IPs are reset on watchdog expiry
+	 */
+	writel(0x003ffff3, AST_IO(AST_BASE_SCU | 0x9C));
 }
 
 static void __init aspeed_map_io(void)
