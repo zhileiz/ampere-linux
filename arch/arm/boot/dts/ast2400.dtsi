@@ -287,6 +287,8 @@
 			};
 
 			gpio: gpio@1e780000 {
+			       #gpio-cells = <2>;
+			       gpio-controller;
 			       compatible = "aspeed,ast2400-gpio";
 			       reg = <0x1e780000 0x1000>;
 			       interrupts = <20>;
