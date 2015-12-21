@@ -580,7 +580,7 @@ config LPC18XX_WATCHDOG
 
 config ASPEED_24xx_WATCHDOG
 	tristate "Aspeed 23xx 24xx SoCs watchdog support"
-	depends on ARCH_ASPEED
+	depends on ARCH_ASPEED || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  Say Y here to include support for the watchdog timer
