@@ -573,17 +573,23 @@ static uint8_t occ_send_cmd(struct i2c_client *client, uint8_t seq,
 
 static int occ_get_all(struct i2c_client *client, struct occ_response *occ_resp)
 {
-	uint8_t occ_data[OCC_DATA_MAX];
+	uint8_t *occ_data;
 	uint16_t num_bytes;
 	int i;
 	int ret;
 	uint8_t poll_cmd_data;
 
-	poll_cmd_data = 0x10;
+	/*
+	 * TODO: fetch header, and then allocate the rest of the buffer based
+	 * on the header size. Assuming the OCC has a fixed sized header
+	 */
+	occ_data = devm_kzalloc(&client->dev, OCC_DATA_MAX, GFP_KERNEL);
+
 	ret = occ_send_cmd(client, 0, 0, 1, &poll_cmd_data, occ_data);
 	if (ret) {
 		dev_err(&client->dev, "ERROR: OCC Poll: 0x%x\n", ret);
-		return -1;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	num_bytes = get_occdata_length(occ_data);
@@ -592,12 +598,14 @@ static int occ_get_all(struct i2c_client *client, struct occ_response *occ_resp)
 
 	if (num_bytes > OCC_DATA_MAX) {
 		dev_err(&client->dev, "ERROR: OCC data length must be < 4KB\n");
-		return -1;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (num_bytes <= 0) {
 		dev_err(&client->dev, "ERROR: OCC data length is zero\n");
-		return -1;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/* read remaining data */
@@ -606,6 +614,8 @@ static int occ_get_all(struct i2c_client *client, struct occ_response *occ_resp)
 
 	ret = parse_occ_response(client, occ_data, occ_resp);
 
+out:
+	devm_kfree(&client->dev, occ_data);
 	return ret;
 }
 
