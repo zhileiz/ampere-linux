@@ -20,7 +20,8 @@
 #include "8250/8250.h"
 
 #define AST_VUART_GCRA		0x20
-#define AST_VUART_GCRA_VUART_EN		0x1
+#define AST_VUART_GCRA_VUART_EN		0x01
+#define AST_VUART_GCRA_HOST_TX_DISCARD	0x20
 #define AST_VUART_GCRB		0x24
 #define AST_VUART_GCRB_HOST_SIRQ_MASK	0xf0
 #define AST_VUART_GCRB_HOST_SIRQ_SHIFT	4
@@ -143,6 +144,17 @@ static ssize_t ast_vuart_set_sirq(struct device *dev,
 static DEVICE_ATTR(sirq, S_IWUSR | S_IRUGO,
 		ast_vuart_show_sirq, ast_vuart_set_sirq);
 
+static void ast_vuart_setup(struct ast_vuart *vuart)
+{
+	u8 reg;
+
+	/* disable TX discard mode */
+	reg = readb(vuart->regs + AST_VUART_GCRA);
+	reg |= AST_VUART_GCRA_HOST_TX_DISCARD;
+	writeb(reg, vuart->regs + AST_VUART_GCRA);
+}
+
+
 /**
  * The device tree parsinc code here is heavily based on that of the of_serial
  * driver, but we have a few core differences, as we need to use our own
@@ -261,6 +273,7 @@ static int ast_vuart_probe(struct platform_device *pdev)
 
 	vuart->line = rc;
 	platform_set_drvdata(pdev, vuart);
+	ast_vuart_setup(vuart);
 
 	/* extra sysfs control */
 	rc = device_create_file(&pdev->dev, &dev_attr_lpc_address);
