@@ -682,7 +682,7 @@ static const struct i2c_algorithm i2c_ast_algorithm = {
 static int ast_i2c_probe_bus(struct platform_device *pdev)
 {
 	struct ast_i2c_bus *bus;
-	struct resource res;
+	struct resource *res;
 	int ret, bus_num;
 
 	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
@@ -693,17 +693,14 @@ static int ast_i2c_probe_bus(struct platform_device *pdev)
 	if (ret)
 		return -ENXIO;
 
-	ret = of_address_to_resource(pdev->dev.of_node, 0, &res);
-	if (ret < 0)
-		return -ENXIO;
-
 	bus->pclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(bus->pclk)) {
 		dev_dbg(&pdev->dev, "clk_get failed\n");
 		return PTR_ERR(bus->pclk);
 	}
 
-	bus->base = devm_ioremap_resource(&pdev->dev, &res);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	bus->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(bus->base))
 		return PTR_ERR(bus->base);
 
