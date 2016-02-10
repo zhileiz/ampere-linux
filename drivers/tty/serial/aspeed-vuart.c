@@ -156,7 +156,7 @@ static void ast_vuart_setup(struct ast_vuart *vuart)
 
 
 /**
- * The device tree parsinc code here is heavily based on that of the of_serial
+ * The device tree parsing code here is heavily based on that of the of_serial
  * driver, but we have a few core differences, as we need to use our own
  * ioremapping for extra register support
  */
