@@ -693,6 +693,13 @@ static int ast_i2c_probe_bus(struct platform_device *pdev)
 	if (ret)
 		return -ENXIO;
 
+	/*
+	 * Set a useful name derived from the bus number; the device tree
+	 * should provide us with one that corresponds to the hardware
+	 * numbering
+	 */
+	dev_set_name(&pdev->dev, "i2c-%d", bus_num);
+
 	bus->pclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(bus->pclk)) {
 		dev_dbg(&pdev->dev, "clk_get failed\n");
@@ -711,7 +718,7 @@ static int ast_i2c_probe_bus(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, bus->irq, ast_i2c_bus_irq,
-			0, "ast-i2c-bus", bus);
+			0, dev_name(&pdev->dev), bus);
 	if (ret) {
 		dev_err(&pdev->dev, "devm_request_irq failed\n");
 		return -ENXIO;
@@ -727,8 +734,8 @@ static int ast_i2c_probe_bus(struct platform_device *pdev)
 	bus->adap.algo_data = bus;
 	bus->adap.dev.parent = &pdev->dev;
 	bus->adap.dev.of_node = pdev->dev.of_node;
-	snprintf(bus->adap.name, sizeof(bus->adap.name), "Aspeed i2c at %p",
-			bus->base);
+	snprintf(bus->adap.name, sizeof(bus->adap.name), "Aspeed i2c-%d",
+			bus_num);
 
 	bus->dev = &pdev->dev;
 
