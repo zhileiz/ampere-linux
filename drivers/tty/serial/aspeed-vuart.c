@@ -144,14 +144,43 @@ static ssize_t ast_vuart_set_sirq(struct device *dev,
 static DEVICE_ATTR(sirq, S_IWUSR | S_IRUGO,
 		ast_vuart_show_sirq, ast_vuart_set_sirq);
 
-static void ast_vuart_setup(struct ast_vuart *vuart)
+static void ast_vuart_set_host_tx_discard(struct ast_vuart *vuart, bool discard)
 {
 	u8 reg;
 
-	/* disable TX discard mode */
 	reg = readb(vuart->regs + AST_VUART_GCRA);
-	reg |= AST_VUART_GCRA_HOST_TX_DISCARD;
+
+	/* if the HOST_TX_DISCARD bit is set, discard is *disabled* */
+	reg &= ~AST_VUART_GCRA_HOST_TX_DISCARD;
+	if (!discard)
+		reg |= AST_VUART_GCRA_HOST_TX_DISCARD;
+
 	writeb(reg, vuart->regs + AST_VUART_GCRA);
+}
+
+static int ast_vuart_startup(struct uart_port *uart_port)
+{
+	struct uart_8250_port *uart_8250_port = up_to_u8250p(uart_port);
+	struct ast_vuart *vuart = uart_8250_port->port.private_data;
+	int rc;
+
+	rc = serial8250_do_startup(uart_port);
+	if (rc)
+		return rc;
+
+	ast_vuart_set_host_tx_discard(vuart, false);
+
+	return 0;
+}
+
+static void ast_vuart_shutdown(struct uart_port *uart_port)
+{
+	struct uart_8250_port *uart_8250_port = up_to_u8250p(uart_port);
+	struct ast_vuart *vuart = uart_8250_port->port.private_data;
+
+	ast_vuart_set_host_tx_discard(vuart, true);
+
+	serial8250_do_shutdown(uart_port);
 }
 
 
@@ -190,9 +219,12 @@ static int ast_vuart_probe(struct platform_device *pdev)
 	}
 
 	memset(&port, 0, sizeof(port));
+	port.port.private_data = vuart;
 	port.port.membase = vuart->regs;
 	port.port.mapbase = resource.start;
 	port.port.mapsize = resource_size(&resource);
+	port.port.startup = ast_vuart_startup;
+	port.port.shutdown = ast_vuart_shutdown;
 
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 		vuart->clk = devm_clk_get(&pdev->dev, NULL);
@@ -272,8 +304,8 @@ static int ast_vuart_probe(struct platform_device *pdev)
 
 
 	vuart->line = rc;
+	ast_vuart_set_host_tx_discard(vuart, true);
 	platform_set_drvdata(pdev, vuart);
-	ast_vuart_setup(vuart);
 
 	/* extra sysfs control */
 	rc = device_create_file(&pdev->dev, &dev_attr_lpc_address);
