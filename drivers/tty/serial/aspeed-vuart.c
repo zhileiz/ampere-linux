@@ -35,42 +35,6 @@ struct ast_vuart {
 	int			line;
 };
 
-static ssize_t ast_vuart_show_enabled(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct ast_vuart *vuart = dev_get_drvdata(dev);
-	u8 reg;
-
-	reg = readb(vuart->regs + AST_VUART_GCRA) & AST_VUART_GCRA_VUART_EN;
-
-	return snprintf(buf, PAGE_SIZE - 1, "%u\n", reg ? 1 : 0);
-}
-
-static ssize_t ast_vuart_set_enabled(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	struct ast_vuart *vuart = dev_get_drvdata(dev);
-	unsigned long val;
-	int err;
-	u8 reg;
-
-	err = kstrtoul(buf, 0, &val);
-	if (err)
-		return err;
-
-	reg = readb(vuart->regs + AST_VUART_GCRA);
-	reg &= ~AST_VUART_GCRA_VUART_EN;
-	if (val)
-		reg |= AST_VUART_GCRA_VUART_EN;
-	writeb(reg, vuart->regs + AST_VUART_GCRA);
-
-	return count;
-}
-
-static DEVICE_ATTR(enabled, S_IWUSR | S_IRUGO,
-		ast_vuart_show_enabled, ast_vuart_set_enabled);
-
 static ssize_t ast_vuart_show_addr(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -143,6 +107,17 @@ static ssize_t ast_vuart_set_sirq(struct device *dev,
 
 static DEVICE_ATTR(sirq, S_IWUSR | S_IRUGO,
 		ast_vuart_show_sirq, ast_vuart_set_sirq);
+
+static void ast_vuart_set_enabled(struct ast_vuart *vuart, bool enabled)
+{
+	u8 reg;
+
+	reg = readb(vuart->regs + AST_VUART_GCRA);
+	reg &= ~AST_VUART_GCRA_VUART_EN;
+	if (enabled)
+		reg |= AST_VUART_GCRA_VUART_EN;
+	writeb(reg, vuart->regs + AST_VUART_GCRA);
+}
 
 static void ast_vuart_set_host_tx_discard(struct ast_vuart *vuart, bool discard)
 {
@@ -304,6 +279,7 @@ static int ast_vuart_probe(struct platform_device *pdev)
 
 
 	vuart->line = rc;
+	ast_vuart_set_enabled(vuart, true);
 	ast_vuart_set_host_tx_discard(vuart, true);
 	platform_set_drvdata(pdev, vuart);
 
@@ -314,9 +290,6 @@ static int ast_vuart_probe(struct platform_device *pdev)
 	rc = device_create_file(&pdev->dev, &dev_attr_sirq);
 	if (rc)
 		dev_warn(&pdev->dev, "can't create sirq file\n");
-	rc = device_create_file(&pdev->dev, &dev_attr_enabled);
-	if (rc)
-		dev_warn(&pdev->dev, "can't create enabled file\n");
 
 	return 0;
 
@@ -331,6 +304,8 @@ err_clk_disable:
 static int ast_vuart_remove(struct platform_device *pdev)
 {
 	struct ast_vuart *vuart = platform_get_drvdata(pdev);
+
+	ast_vuart_set_enabled(vuart, false);
 
 	if (vuart->clk)
 		clk_disable_unprepare(vuart->clk);
