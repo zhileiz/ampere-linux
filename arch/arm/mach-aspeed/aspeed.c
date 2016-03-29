@@ -118,7 +118,6 @@ static void __init do_common_setup(void)
 	/* SCU setup */
 	writel(0x01C000FF, AST_IO(AST_BASE_SCU | 0x88));
 	writel(0xC1C000FF, AST_IO(AST_BASE_SCU | 0x8c));
-	writel(0x01C0007F, AST_IO(AST_BASE_SCU | 0x88));
 	writel(0x003FA008, AST_IO(AST_BASE_SCU | 0x90));
 
 	/* Setup scratch registers */
@@ -139,6 +138,9 @@ static void __init do_barreleye_setup(void)
 	/* GPIO setup */
 	writel(0x9E82FCE7, AST_IO(AST_BASE_GPIO | 0x00));
 	writel(0x0370E677, AST_IO(AST_BASE_GPIO | 0x04));
+
+	/* SCU setup */
+	writel(0x01C00000, AST_IO(AST_BASE_SCU | 0x88));
 
 	/*
 	 * Do read/modify/write on power gpio to prevent resetting power on
@@ -164,6 +166,9 @@ static void __init do_palmetto_setup(void)
 	writel(0x0370E677, AST_IO(AST_BASE_GPIO | 0x04));
 	writel(0xDF48F7FF, AST_IO(AST_BASE_GPIO | 0x20));
 	writel(0xC738F202, AST_IO(AST_BASE_GPIO | 0x24));
+
+	/* SCU setup */
+	writel(0x01C0007F, AST_IO(AST_BASE_SCU | 0x88));
 }
 
 #define SCU_PASSWORD	0x1688A8A8
