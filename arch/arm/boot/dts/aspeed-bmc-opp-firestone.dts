@@ -41,6 +41,9 @@
 #include "aspeed-bmc-opp-flash-layout.dtsi"
 			};
 		};
+		mac0: ethernet@1e660000 {
+			no-hw-checksum;
+		};
 		spi@1e630000 {
 			reg = < 0x1e630000 0x18
 				0x30000000 0x02000000 >;
