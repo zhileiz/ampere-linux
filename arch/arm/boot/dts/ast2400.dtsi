@@ -69,8 +69,6 @@
 			compatible = "faraday,ftgmac100", "aspeed,ast2400-mac";
 			reg = <0x1e660000 0x180>;
 			interrupts = <2>;
-			use-nc-si;
-			no-hw-checksum;
 		};
 
 		apb {

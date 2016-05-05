@@ -7,6 +7,11 @@
 	model = "Barrelye BMC";
 	compatible = "rackspace,barreleye-bmc", "aspeed,ast2400";
 	ahb {
+		mac0: ethernet@1e660000 {
+			use-nc-si;
+			no-hw-checksum;
+		};
+
 		fmc@1e620000 {
 			reg = < 0x1e620000 0x94
 				0x20000000 0x02000000 >;
