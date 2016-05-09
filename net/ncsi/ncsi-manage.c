@@ -353,13 +353,6 @@ void ncsi_free_req(struct ncsi_req *nr, bool check, bool timeout)
 	nr->nr_used = false;
 	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 
-	/* If the NCSI command was sent because of netlink
-	 * messages, we need reply with the result or error.
-	 */
-	if (check && cmd && NCSI_CB(cmd).nsp_valid)
-		ncsi_netlink_reply(&NCSI_CB(cmd).nsp_nlh,
-				   NCSI_CB(cmd).nsp_portid, timeout);
-
 	if (check && cmd && atomic_dec_return(&ndp->ndp_pending_reqs) == 0)
 		schedule_work(&ndp->ndp_work);
 	/* Release command and response */
@@ -410,7 +403,6 @@ static void ncsi_dev_config(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.nca_ndp = ndp;
-	nca.nca_nlh = NULL;
 
 	/* When we're reconfiguring the active channel, the active package
 	 * should be selected and the old setting on the active channel
@@ -522,7 +514,6 @@ static void ncsi_dev_start(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.nca_ndp = ndp;
-	nca.nca_nlh = NULL;
 	switch (nd->nd_state) {
 	case ncsi_dev_state_start:
 		nd->nd_state = ncsi_dev_state_start_deselect;
@@ -696,7 +687,6 @@ static void ncsi_dev_suspend(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.nca_ndp = ndp;
-	nca.nca_nlh = NULL;
 	switch (nd->nd_state) {
 	case ncsi_dev_state_suspend:
 		/* If there're no active channel, we're done */
