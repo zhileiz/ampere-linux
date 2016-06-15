@@ -1350,6 +1350,10 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "Using NCSI interface\n");
 		netdev->phydev = NULL;
 		priv->use_ncsi = true;
+
+#ifndef CONFIG_NET_NCSI
+		WARN(priv->use_ncsi, "NET_NCSI required for nc-si support");
+#endif
 	} else {
 		priv->use_ncsi = false;
 	}
