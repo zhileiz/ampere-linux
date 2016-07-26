@@ -12,7 +12,7 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,38400";
+		bootargs = "console=ttyS4,115200";
 	};
 
 	memory {
