@@ -351,19 +351,18 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 		eh->h_source[i] = 0xff;
 	}
 
+        /* Start the timer for the request that might not have
+         * corresponding response. Given NCSI is an internal
+         * connection a 1 second delay should be sufficient.
+         */
+	mod_timer(&nr->nr_timer, jiffies + 1 * HZ);
+	nr->nr_timer_enabled = true;
+
 	/* Send NCSI packet */
 	skb_get(nr->nr_cmd);
 	ret = dev_queue_xmit(nr->nr_cmd);
 	if (ret)
 		goto out;
-
-	/* Start the timer for the request that might not have
-	 * corresponding response. I'm not sure 1 second delay
-	 * here is enough. Anyway, NCSI is internal network, so
-	 * the responsiveness should be as fast as enough.
-	 */
-	nr->nr_timer_enabled = true;
-	mod_timer(&nr->nr_timer, jiffies + 1 * HZ);
 
 	return 0;
 out:
