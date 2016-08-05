@@ -113,23 +113,33 @@ static int aspeed_gpio_get(struct gpio_chip *gc, unsigned int offset)
 			& GPIO_BIT(offset));
 }
 
-static void aspeed_gpio_set(struct gpio_chip *gc, unsigned int offset,
-			    int val)
+static void __aspeed_gpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 {
+	u32 reg;
+	void __iomem *addr;
 	struct aspeed_gpio *gpio = to_aspeed_gpio(gc);
 	const struct aspeed_gpio_bank *bank = to_bank(offset);
-	unsigned long flags;
-	u32 reg;
 
-	spin_lock_irqsave(&gpio->lock, flags);
+	addr = bank_val_reg(gpio, bank, GPIO_DATA);
 
-	reg = ioread32(bank_val_reg(gpio, bank, GPIO_DATA));
+	reg = ioread32(addr);
 	if (val)
 		reg |= GPIO_BIT(offset);
 	else
 		reg &= ~GPIO_BIT(offset);
 
-	iowrite32(reg, bank_val_reg(gpio, bank, GPIO_DATA));
+	iowrite32(reg, addr);
+}
+
+static void aspeed_gpio_set(struct gpio_chip *gc, unsigned int offset,
+			    int val)
+{
+	struct aspeed_gpio *gpio = to_aspeed_gpio(gc);
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpio->lock, flags);
+
+	__aspeed_gpio_set(gc, offset, val);
 
 	spin_unlock_irqrestore(&gpio->lock, flags);
 }
@@ -163,6 +173,8 @@ static int aspeed_gpio_dir_out(struct gpio_chip *gc,
 
 	reg = ioread32(bank_val_reg(gpio, bank, GPIO_DIR));
 	iowrite32(reg | GPIO_BIT(offset), bank_val_reg(gpio, bank, GPIO_DIR));
+
+	__aspeed_gpio_set(gc, offset, val);
 
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
