@@ -200,9 +200,14 @@ static void __init aspeed_init_early(void)
 {
 	u32 reg;
 
+	/* Unlock SCU */
+	writel(SCU_PASSWORD, AST_IO(AST_BASE_SCU));
+
+	/* Reset AHB bridges */
+	writel(0x02, AST_IO(AST_BASE_SCU | 0x04));
+
 	// XXX UART stuff to fix to pinmux & co
 	writel(0x02010023, AST_IO(AST_BASE_LPC | 0x9c));
-	writel(SCU_PASSWORD, AST_IO(AST_BASE_SCU)); // UNLOCK SCU
 	writel(0xcb000000, AST_IO(AST_BASE_SCU | 0x80));
 	writel(0x00fff0c0, AST_IO(AST_BASE_SCU | 0x84));
 	writel(0x10CC5E80, AST_IO(AST_BASE_SCU | 0x0c));
