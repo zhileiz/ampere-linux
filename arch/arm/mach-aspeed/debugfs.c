@@ -78,7 +78,7 @@ static const struct file_operations aspeed_fops = {
 
 static struct dentry *aspeed_debugfs_root;
 
-static int __init aspeed_device_show(struct device *dev, void *data)
+static int aspeed_device_show(struct device *dev, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct aspeed_controller *ctrl;
@@ -104,7 +104,7 @@ static int __init aspeed_device_show(struct device *dev, void *data)
 	return 0;
 }
 
-static int aspeed_debugfs_init(void)
+static int __init aspeed_debugfs_init(void)
 {
 	aspeed_debugfs_root = debugfs_create_dir("aspeed", NULL);
 
