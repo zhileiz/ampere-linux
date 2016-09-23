@@ -1,0 +1,210 @@
+/dts-v1/;
+
+#include "aspeed-g5.dtsi"
+
+/ {
+	model = "Zaius BMC";
+	compatible = "ingrasys,zaius-bmc", "aspeed,ast2500";
+
+	aliases {
+		serial4 = &uart5;
+	};
+
+	chosen {
+		stdout-path = &uart5;
+		bootargs = "console=ttyS4,115200 earlyprintk";
+	};
+
+	memory {
+		reg = <0x80000000 0x40000000>;
+	};
+
+	ahb {
+		bmc_pnor: fmc@1e620000 {
+			reg = < 0x1e620000 0xc4
+				0x20000000 0x04000000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2500-fmc";
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor" ;
+#include "aspeed-bmc-opp-flash-layout.dtsi"
+			};
+		};
+
+		host_pnor: spi@1e630000 {
+			reg = < 0x1e630000 0xc4
+				0x30000000 0x04000000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2500-smc";
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor" ;
+				label = "pnor";
+			};
+		};
+
+		data_pnor: spi@1e631000 {
+			reg = < 0x1e631000 0xc4
+				0x38000000 0x00800000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2500-smc";
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor" ;
+			};
+		};
+	};
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&mac0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
+	use-ncsi;
+};
+
+&mac1 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
+};
+
+&i2c0 {
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+		pagesize = <32>;
+	};
+
+	rtc@68 {
+		compatible = "nxp,pcf8523";
+		reg = <0x68>;
+	};
+
+	/* Power sequencer UCD90160 PMBUS @64h
+	 * FRU AT24C64D @50h
+	 * RTC PCF8523 @68h
+	 * Clock buffer 9DBL04 @6dh
+	 */
+};
+
+&i2c1 {
+	status = "disabled";
+
+	/* MUX1 PCA9546A @71h
+	 *   PCIe 0
+	 *   PCIe 1
+	 *   PCIe 2
+	 *   TPM header
+	 */
+};
+
+&i2c2 {
+	status = "disabled";
+
+	/* OCP Mezz Connector A (OOB SMBUS) */
+};
+
+&i2c3 {
+	status = "disabled";
+
+	/* OCP Mezz Connector A (PCIe slot SMBUS) */
+};
+
+&i2c4 {
+	status = "disabled";
+
+	/* MUX1 PCA9546A @71h
+	 *   PCIe 3
+	 *   PCIe 4
+	 */
+};
+
+
+&i2c5 {
+	status = "disabled";
+
+	/* CPU0 PRM 0.7V */
+	/* CPU0 PRM 1.2V CH03 */
+	/* CPU0 PRM 0.8V */
+	/* CPU0 PRM 1.2V CH47 */
+};
+
+&i2c6 {
+	status = "disabled";
+
+	/* CPU1 PRM 0.7V */
+	/* CPU1 PRM 1.2V CH03 */
+	/* CPU1 PRM 0.8V */
+	/* CPU1 PRM 1.2V CH47 */
+};
+
+&i2c7 {
+	status = "disabled";
+
+	/* MUX PCA9541A (other master: CPU0 PCIe 1)
+	 *   ADM1272 PMBUS @10h
+	 */
+	/* 12V SMPS Q54SH12050NNDH @61h */
+	/* CPU0 VR ISL68137 0.7V, 0.96V PMBUS @64h */
+	/* CPU0 VR ISL68137 1.2V CH03 PMBUS @40h */
+	/* CPU0 VR ISL68137 0.8V PMBUS @60h */
+	/* CPU0 VR 1.0V IR38064 I2C @11h, PMBUS @41h */
+	/* CPU0 VR ISL68137 1.2V CH47 PMBUS @41h */
+};
+
+&i2c8 {
+	status = "disabled";
+
+	/* CPU1 VR ISL68137 0.7V, 0.96V PMBUS @65h */
+	/* CPU1 VR ISL68137 1.2V CH03 PMBUS @44h */
+	/* CPU1 VR ISL68137 0.8V PMBUS @61h */
+	/* CPU1 VR 1.0V IR38064 I2C @12h, PMBUS @42h */
+	/* CPU0 VR ISL68137 1.2V CH47 PMBUS @45h */
+};
+
+
+&i2c9 {
+	status = "disabled";
+
+	/* Fan board */
+};
+
+&i2c10 {
+	status = "disabled";
+};
+
+&i2c11 {
+	status = "disabled";
+
+	/* GPU sideband */
+};
+
+&i2c12 {
+	status = "disabled";
+};
+
+&i2c13 {
+	status = "disabled";
+
+	/* MUX PI3USB102
+	 *   CPU0 debug
+	 *   CPU1 debug
+	 */
+};
+
+&vuart {
+	status = "okay";
+};
