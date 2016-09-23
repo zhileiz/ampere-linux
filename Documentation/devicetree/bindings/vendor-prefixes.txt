@@ -130,6 +130,7 @@ iom	Iomega Corporation
 img	Imagination Technologies Ltd.
 inforce	Inforce Computing
 ingenic	Ingenic Semiconductor
+ingrasys	Ingrasys Technology Inc.
 innolux	Innolux Corporation
 intel	Intel Corporation
 intercontrol	Inter Control Group
