@@ -102,7 +102,14 @@
 };
 
 &i2c1 {
-	status = "disabled";
+	status = "okay";
+
+	i2c-switch@71 {
+		compatible = "nxp,pca9546";
+		reg = <0x71>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 
 	/* MUX1 PCA9546A @71h
 	 *   PCIe 0
@@ -125,7 +132,14 @@
 };
 
 &i2c4 {
-	status = "disabled";
+	status = "okay";
+
+	i2c-switch@71 {
+		compatible = "nxp,pca9546";
+		reg = <0x71>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 
 	/* MUX1 PCA9546A @71h
 	 *   PCIe 3
@@ -153,7 +167,7 @@
 };
 
 &i2c7 {
-	status = "disabled";
+	status = "okay";
 
 	/* MUX PCA9541A (other master: CPU0 PCIe 1)
 	 *   ADM1272 PMBUS @10h
@@ -167,7 +181,7 @@
 };
 
 &i2c8 {
-	status = "disabled";
+	status = "okay";
 
 	/* CPU1 VR ISL68137 0.7V, 0.96V PMBUS @65h */
 	/* CPU1 VR ISL68137 1.2V CH03 PMBUS @44h */
