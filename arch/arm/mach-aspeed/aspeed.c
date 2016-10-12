@@ -170,6 +170,31 @@ static void __init do_witherspoon_setup(void)
 	do_ast2500_common_setup();
 }
 
+static void __init do_zaius_setup(void)
+{
+	unsigned long reg;
+	unsigned long board_rev;
+
+	do_ast2500_common_setup();
+
+	/* Read BOARD_REV[4:0] fuses from GPIOM[7:3] */
+	reg = readl(AST_IO(AST_BASE_GPIO | 0x78));
+	board_rev = (reg >> 3) & 0x1F;
+
+	/* EVT1 hacks */
+	if (board_rev == 0) {
+		/* Set strap[13:12] to 01, Enable SPI master */
+		/* Set bits in writes to SCU7C are cleared from SCU70 */
+		writel(BIT(13), AST_IO(AST_BASE_SCU | 0x7C));
+		/* SCU70 is set-only, so no read-modify-write needed */
+		writel(BIT(12), AST_IO(AST_BASE_SCU | 0x70));
+
+		/* Disable GPIO I, G/AB pulldowns due to weak driving buffers */
+		reg = readl(AST_IO(AST_BASE_SCU | 0x8C));
+		writel(reg | BIT(24) | BIT(22), AST_IO(AST_BASE_SCU | 0x8C));
+	}
+}
+
 
 #define SCU_PASSWORD	0x1688A8A8
 
@@ -216,6 +241,8 @@ static void __init aspeed_init_early(void)
 		do_ast2500evb_setup();
 	if (of_machine_is_compatible("ibm,witherspoon-bmc"))
 		do_witherspoon_setup();
+	if (of_machine_is_compatible("ingrasys,zaius-bmc"))
+		do_zaius_setup();
 }
 
 static void __init aspeed_map_io(void)
