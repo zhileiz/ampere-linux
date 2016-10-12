@@ -59,6 +59,30 @@
 			};
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		sys_boot_status {
+			label = "System boot status";
+			gpios = <&gpio ASPEED_GPIO(H, 4) GPIO_ACTIVE_LOW>;
+		};
+
+		attention {
+			label = "Attention";
+			gpios = <&gpio ASPEED_GPIO(H, 5) GPIO_ACTIVE_LOW>;
+		};
+
+		plt_fault {
+			label = "Platform fault";
+			gpios = <&gpio ASPEED_GPIO(H, 6) GPIO_ACTIVE_LOW>;
+		};
+
+		hdd_fault {
+			label = "Onboard drive fault";
+			gpios = <&gpio ASPEED_GPIO(H, 7) GPIO_ACTIVE_LOW>;
+		};
+	};
 };
 
 &uart5 {
