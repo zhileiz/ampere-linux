@@ -159,9 +159,12 @@ static void __init do_ast2500evb_setup(void)
 
 	do_ast2500_common_setup();
 
-	/* Set strap to RGMII for dedicated PHY networking */
 	reg = readl(AST_IO(AST_BASE_SCU | 0x70));
+
+	/* Set strap to RGMII for dedicated PHY networking */
 	reg |= BIT(6) | BIT(7);
+	/* Enable SPI Master and SPI Slave to AHB Bridge */
+	reg |= BIT(13);
 	writel(reg, AST_IO(AST_BASE_SCU | 0x70));
 }
 
