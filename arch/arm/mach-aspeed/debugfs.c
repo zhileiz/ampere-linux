@@ -23,21 +23,36 @@
 #define AST_IO(__pa)	((void __iomem *)(((__pa) & 0x001fffff) | AST_IO_VA))
 
 struct aspeed_controller {
+	struct device *dev;
 	const char *name;
 	unsigned int base;
 	unsigned int nregs;
 };
 
-static int aspeed_show(struct seq_file *s, void *unused)
+static ssize_t aspeed_read(struct file *filp, char __user *ubuf,
+			   size_t count, loff_t *ppos)
 {
-	struct aspeed_controller *ctrl = s->private;
+	struct aspeed_controller *ctrl = filp->private_data;
+	char *kbuf;
+	int ret, n = 0;
+	size_t size;
 	int i;
 
-	for (i = 0; i < ctrl->nregs; i += 4)
-		seq_printf(s, "0x%08X: 0x%08X\n", ctrl->base | i,
-			   readl(AST_IO(ctrl->base | i)));
+	size = ctrl->nregs * 23 + 1;
+	kbuf = kzalloc(size, GFP_KERNEL);
+	if (!kbuf)
+		return -ENOMEM;
 
-	return 0;
+	for (i = 0; i < ctrl->nregs; i += 4) {
+		n += scnprintf(kbuf + n, size - n, "0x%08X: 0x%08X\n",
+			       ctrl->base | i, readl(AST_IO(ctrl->base | i)));
+	}
+
+	ret = simple_read_from_buffer(ubuf, count, ppos, kbuf, n);
+
+	kfree(kbuf);
+
+	return ret;
 }
 
 static ssize_t aspeed_write(struct file *filp, const char __user *ubuf,
@@ -45,35 +60,44 @@ static ssize_t aspeed_write(struct file *filp, const char __user *ubuf,
 {
 	struct aspeed_controller *ctrl = filp->private_data;
 	unsigned int reg, val;
-	char buf[50];
+	char *kbuf = kmalloc(count + 1, GFP_KERNEL);
 	int ret;
 
-	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, ubuf, count);
-	if (!ret)
-		return -EFAULT;
+	if (!kbuf)
+		return -ENOMEM;
 
-	ret = sscanf(buf, "%x=%x", &reg, &val);
+	ret = simple_write_to_buffer(kbuf, count, ppos, ubuf, count);
+	if (ret != count) {
+		kfree(kbuf);
+		return ret >= 0 ? -EIO : ret;
+	}
+	kbuf[count] = '\0';
+
+	ret = sscanf(kbuf, "%x=%x", &reg, &val);
+	kfree(kbuf);
+
 	if (ret != 2)
 		return -EINVAL;
 
-	if (reg >= ctrl->nregs)
+	if ((ctrl->base & reg) != ctrl->base) {
+		dev_err(ctrl->dev, "wrong base address: %x\n", reg);
 		return -EINVAL;
+	}
 
-	writel(val, AST_IO(ctrl->base | reg));
+	if ((~ctrl->base & reg) >= ctrl->nregs) {
+		dev_err(ctrl->dev, "wrong register: %x\n", reg);
+		return -EINVAL;
+	}
+
+	writel(val, AST_IO(reg));
 	return count;
 }
 
-static int aspeed_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, aspeed_show, inode->i_private);
-}
-
 static const struct file_operations aspeed_fops = {
-	.open		= aspeed_open,
-	.read		= seq_read,
+	.open		= simple_open,
+	.read		= aspeed_read,
 	.write		= aspeed_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.llseek		= generic_file_llseek,
 };
 
 static struct dentry *aspeed_debugfs_root;
@@ -95,6 +119,7 @@ static int aspeed_device_show(struct device *dev, void *data)
 	if (!ctrl)
 		return -ENOMEM;
 
+	ctrl->dev = dev;
 	ctrl->name = pdev->name;
 	ctrl->base = r->start;
 	ctrl->nregs = resource_size(r);
