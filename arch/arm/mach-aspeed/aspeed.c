@@ -11,6 +11,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -186,6 +187,9 @@ static void __init do_zaius_setup(void)
 
 	/* EVT1 hacks */
 	if (board_rev == 0) {
+		/* D3 in GPIOA/B/C/D direction and data registers */
+		unsigned long phy_reset_mask = BIT(27);
+
 		/* Set strap[13:12] to 01, Enable SPI master */
 		/* Set bits in writes to SCU7C are cleared from SCU70 */
 		writel(BIT(13), AST_IO(AST_BASE_SCU | 0x7C));
@@ -195,6 +199,18 @@ static void __init do_zaius_setup(void)
 		/* Disable GPIO I, G/AB pulldowns due to weak driving buffers */
 		reg = readl(AST_IO(AST_BASE_SCU | 0x8C));
 		writel(reg | BIT(24) | BIT(22), AST_IO(AST_BASE_SCU | 0x8C));
+
+		/* Assert MAC2 PHY hardware reset */
+		/* Set pin low */
+		reg = readl(AST_IO(AST_BASE_GPIO | 0x00));
+		writel(reg & ~phy_reset_mask, AST_IO(AST_BASE_GPIO | 0x00));
+		/* Enable pin for output */
+		reg = readl(AST_IO(AST_BASE_GPIO | 0x04));
+		writel(reg | phy_reset_mask, AST_IO(AST_BASE_GPIO | 0x04));
+		udelay(3);
+		/* Set pin high */
+		reg = readl(AST_IO(AST_BASE_GPIO | 0x00));
+		writel(reg | phy_reset_mask, AST_IO(AST_BASE_GPIO | 0x00));
 	}
 }
 
