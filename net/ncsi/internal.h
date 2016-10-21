@@ -41,6 +41,8 @@ struct ncsi_package {
 struct ncsi_req {
 	unsigned char		nr_id;
 	bool			nr_used;
+	unsigned int		nr_flags;
+#define NCSI_REQ_FLAG_EVENT_DRIVEN	1
 	struct ncsi_dev_priv	*nr_ndp;
 	struct sk_buff		*nr_cmd;
 	struct sk_buff		*nr_rsp;
@@ -103,6 +105,7 @@ struct ncsi_cmd_arg {
 	unsigned char		nca_channel;
 	unsigned short		nca_payload;
 	unsigned int		nca_portid;
+	unsigned int		nca_req_flags;
 	union {
 		unsigned char	nca_bytes[16];
 		unsigned short	nca_words[8];
@@ -140,7 +143,8 @@ void ncsi_find_package_and_channel(struct ncsi_dev_priv *ndp,
 				   unsigned char id,
 				   struct ncsi_package **np,
 				   struct ncsi_channel **nc);
-struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp);
+struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp,
+				unsigned int req_flags);
 void ncsi_free_req(struct ncsi_req *nr);
 struct ncsi_dev *ncsi_find_dev(struct net_device *dev);
 int ncsi_config_dev(struct ncsi_dev *nd);

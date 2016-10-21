@@ -279,7 +279,7 @@ static struct ncsi_req *ncsi_alloc_cmd_req(struct ncsi_cmd_arg *nca)
 	struct sk_buff *skb;
 	struct ncsi_req *nr;
 
-	nr = ncsi_alloc_req(ndp);
+	nr = ncsi_alloc_req(ndp, nca->nca_req_flags);
 	if (!nr)
 		return NULL;
 

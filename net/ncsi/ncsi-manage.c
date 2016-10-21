@@ -297,7 +297,8 @@ void ncsi_find_package_and_channel(struct ncsi_dev_priv *ndp,
  * same. Otherwise, the bogus response might be replied. So the
  * available IDs are allocated in round-robin fasion.
  */
-struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp)
+struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp,
+				unsigned int req_flags)
 {
 	struct ncsi_req *nr = NULL;
 	int idx, limit = 256;
@@ -312,6 +313,7 @@ struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp)
 
 		nr = &ndp->ndp_reqs[idx];
 		nr->nr_used = true;
+		nr->nr_flags = req_flags;
 		atomic_set(&ndp->ndp_last_req_idx, idx + 1);
 		goto found;
 	}
@@ -324,6 +326,7 @@ struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp)
 
 		nr = &ndp->ndp_reqs[idx];
 		nr->nr_used = true;
+		nr->nr_flags = req_flags;
 		atomic_set(&ndp->ndp_last_req_idx, idx + 1);
 		goto found;
 	}
@@ -338,6 +341,7 @@ void ncsi_free_req(struct ncsi_req *nr)
 	struct ncsi_dev_priv *ndp = nr->nr_ndp;
 	struct sk_buff *cmd, *rsp;
 	unsigned long flags;
+	bool driven;
 
 	if (nr->nr_timer_enabled) {
 		nr->nr_timer_enabled = false;
@@ -350,9 +354,10 @@ void ncsi_free_req(struct ncsi_req *nr)
 	nr->nr_cmd = NULL;
 	nr->nr_rsp = NULL;
 	nr->nr_used = false;
+	driven = !!(nr->nr_flags & NCSI_REQ_FLAG_EVENT_DRIVEN);
 	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 
-	if (cmd && atomic_dec_return(&ndp->ndp_pending_reqs) == 0)
+	if (driven && cmd && atomic_dec_return(&ndp->ndp_pending_reqs) == 0)
 		schedule_work(&ndp->ndp_work);
 	/* Release command and response */
 	consume_skb(cmd);
@@ -382,6 +387,7 @@ static void ncsi_dev_config(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.nca_ndp = ndp;
+	nca.nca_req_flags = NCSI_REQ_FLAG_EVENT_DRIVEN;
 
 	/* When we're reconfiguring the active channel, the active package
 	 * should be selected and the old setting on the active channel
@@ -523,6 +529,7 @@ static void ncsi_dev_probe(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.nca_ndp = ndp;
+	nca.nca_req_flags = NCSI_REQ_FLAG_EVENT_DRIVEN;
 	switch (nd->nd_state) {
 	case ncsi_dev_state_probe:
 		nd->nd_state = ncsi_dev_state_probe_deselect;
@@ -694,6 +701,7 @@ static void ncsi_dev_suspend(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.nca_ndp = ndp;
+	nca.nca_req_flags = NCSI_REQ_FLAG_EVENT_DRIVEN;
 	switch (nd->nd_state) {
 	case ncsi_dev_state_suspend:
 		/* If there're no active channel, we're done */
