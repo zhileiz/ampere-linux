@@ -18,21 +18,25 @@
 	memory {
 		reg = <0x80000000 0x20000000>;
 	};
+};
 
-	ahb {
-		bmc_pnor: fmc@1e620000 {
-			reg = < 0x1e620000 0x94
-				0x20000000 0x02000000 >;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "aspeed,ast2500-fmc";
-			flash@0 {
-				reg = < 0 >;
-				compatible = "jedec,spi-nor" ;
+&fmc {
+	status = "okay";
+	flash@0 {
+		status = "okay";
 #include "aspeed-bmc-opp-flash-layout.dtsi"
-			};
-		};
 	};
+};
+
+&spi1 {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+	};
+};
+
+&spi2 {
+	status = "okay";
 };
 
 &uart5 {
