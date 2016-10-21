@@ -306,30 +306,29 @@ struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp)
 	spin_lock_irqsave(&ndp->ndp_req_lock, flags);
 
 	/* Check if there is one available request until the ceiling */
-	for (idx = atomic_read(&ndp->ndp_last_req_idx);
-	     !nr && idx < limit; idx++) {
+	for (idx = atomic_read(&ndp->ndp_last_req_idx); idx < limit; idx++) {
 		if (ndp->ndp_reqs[idx].nr_used)
 			continue;
 
-		ndp->ndp_reqs[idx].nr_used = true;
 		nr = &ndp->ndp_reqs[idx];
-		atomic_inc(&ndp->ndp_last_req_idx);
-		if (atomic_read(&ndp->ndp_last_req_idx) >= limit)
-			atomic_set(&ndp->ndp_last_req_idx, 0);
+		nr->nr_used = true;
+		atomic_set(&ndp->ndp_last_req_idx, idx + 1);
+		goto found;
 	}
 
 	/* Fail back to check from the starting cursor */
-	for (idx = 0; !nr && idx < atomic_read(&ndp->ndp_last_req_idx); idx++) {
+	for (idx = NCSI_REQ_START_IDX;
+	     idx < atomic_read(&ndp->ndp_last_req_idx); idx++) {
 		if (ndp->ndp_reqs[idx].nr_used)
 			continue;
 
-		ndp->ndp_reqs[idx].nr_used = true;
 		nr = &ndp->ndp_reqs[idx];
-		atomic_inc(&ndp->ndp_last_req_idx);
-		if (atomic_read(&ndp->ndp_last_req_idx) >= limit)
-			atomic_set(&ndp->ndp_last_req_idx, 0);
+		nr->nr_used = true;
+		atomic_set(&ndp->ndp_last_req_idx, idx + 1);
+		goto found;
 	}
 
+found:
 	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 	return nr;
 }
@@ -834,7 +833,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	INIT_LIST_HEAD(&ndp->ndp_packages);
 	INIT_WORK(&ndp->ndp_work, ncsi_dev_work);
 	spin_lock_init(&ndp->ndp_req_lock);
-	atomic_set(&ndp->ndp_last_req_idx, 0);
+	atomic_set(&ndp->ndp_last_req_idx, NCSI_REQ_START_IDX);
 	for (idx = 0; idx < 256; idx++) {
 		ndp->ndp_reqs[idx].nr_id = idx;
 		ndp->ndp_reqs[idx].nr_ndp = ndp;
