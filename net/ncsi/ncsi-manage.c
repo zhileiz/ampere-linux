@@ -616,12 +616,12 @@ static void ncsi_dev_probe(struct ncsi_dev_priv *ndp)
 		nd->nd_state = ncsi_dev_state_probe_cis;
 		break;
 	case ncsi_dev_state_probe_cis:
-		atomic_set(&ndp->ndp_pending_reqs, 0x20);
+		atomic_set(&ndp->ndp_pending_reqs, NCSI_RESERVED_CHANNEL);
 
 		/* Clear initial state */
 		nca.nca_type = NCSI_PKT_CMD_CIS;
 		nca.nca_package = ndp->ndp_active_package->np_id;
-		for (index = 0; index < 0x20; index++) {
+		for (index = 0; index < NCSI_RESERVED_CHANNEL; index++) {
 			nca.nca_channel = index;
 			ret = ncsi_xmit_cmd(&nca);
 			if (ret)
