@@ -5,6 +5,7 @@ struct ncsi_dev_priv;
 struct ncsi_package;
 
 #define NCSI_PACKAGE_INDEX(c)	(((c) >> 5) & 0x7)
+#define NCSI_RESERVED_CHANNEL	0x1f
 #define NCSI_CHANNEL_INDEX(c)	((c) & 0x1ffff)
 #define NCSI_TO_CHANNEL(p, c)	((((p) & 0x7) << 5) | ((c) & 0x1ffff))
 

@@ -397,7 +397,7 @@ static void ncsi_dev_config(struct ncsi_dev_priv *ndp)
 		nca.nca_type = NCSI_PKT_CMD_SP;
 		nca.nca_bytes[0] = 1;
 		nca.nca_package = np->np_id;
-		nca.nca_channel = 0x1f;
+		nca.nca_channel = NCSI_RESERVED_CHANNEL;
 		ret = ncsi_xmit_cmd(&nca);
 		if (ret)
 			goto error;
@@ -533,7 +533,7 @@ static void ncsi_dev_probe(struct ncsi_dev_priv *ndp)
 
 		/* Deselect all possible packages */
 		nca.nca_type = NCSI_PKT_CMD_DP;
-		nca.nca_channel = 0x1f;
+		nca.nca_channel = NCSI_RESERVED_CHANNEL;
 		for (index = 0; index < 8; index++) {
 			nca.nca_package = index;
 			ret = ncsi_xmit_cmd(&nca);
@@ -549,7 +549,7 @@ static void ncsi_dev_probe(struct ncsi_dev_priv *ndp)
 		/* Select all possible packages */
 		nca.nca_type = NCSI_PKT_CMD_SP;
 		nca.nca_bytes[0] = 1;
-		nca.nca_channel = 0x1f;
+		nca.nca_channel = NCSI_RESERVED_CHANNEL;
 		for (index = 0; index < 8; index++) {
 			nca.nca_package = index;
 			ret = ncsi_xmit_cmd(&nca);
@@ -608,7 +608,7 @@ static void ncsi_dev_probe(struct ncsi_dev_priv *ndp)
 		nca.nca_type = NCSI_PKT_CMD_SP;
 		nca.nca_bytes[0] = 1;
 		nca.nca_package = ndp->ndp_active_package->np_id;
-		nca.nca_channel = 0x1f;
+		nca.nca_channel = NCSI_RESERVED_CHANNEL;
 		ret = ncsi_xmit_cmd(&nca);
 		if (ret)
 			goto error;
@@ -666,7 +666,7 @@ static void ncsi_dev_probe(struct ncsi_dev_priv *ndp)
 		/* Deselect the active package */
 		nca.nca_type = NCSI_PKT_CMD_DP;
 		nca.nca_package = ndp->ndp_active_package->np_id;
-		nca.nca_channel = 0x1f;
+		nca.nca_channel = NCSI_RESERVED_CHANNEL;
 		ret = ncsi_xmit_cmd(&nca);
 		if (ret)
 			goto error;
@@ -716,7 +716,7 @@ static void ncsi_dev_suspend(struct ncsi_dev_priv *ndp)
 		nca.nca_package = np->np_id;
 		if (nd->nd_state == ncsi_dev_state_suspend_select) {
 			nca.nca_type = NCSI_PKT_CMD_SP;
-			nca.nca_channel = 0x1f;
+			nca.nca_channel = NCSI_RESERVED_CHANNEL;
 			nca.nca_bytes[0] = 1;
 			nd->nd_state = ncsi_dev_state_suspend_dcnt;
 		} else if (nd->nd_state == ncsi_dev_state_suspend_dcnt) {
@@ -730,7 +730,7 @@ static void ncsi_dev_suspend(struct ncsi_dev_priv *ndp)
 			nd->nd_state = ncsi_dev_state_suspend_deselect;
 		} else if (nd->nd_state == ncsi_dev_state_suspend_deselect) {
 			nca.nca_type = NCSI_PKT_CMD_DP;
-			nca.nca_channel = 0x1f;
+			nca.nca_channel = NCSI_RESERVED_CHANNEL;
 			nd->nd_state = ncsi_dev_state_suspend_done;
 		}
 
