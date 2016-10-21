@@ -141,13 +141,17 @@
 
 	/* TPM */
 	/* 9552 */
-	/* UCD Pmbus */
 	/* RTC */
 	/* EEPROM */
 
 	eeprom@51 {
 		compatible = "atmel,24c64";
 		reg = <0x51>;
+	};
+
+	ucd90160@64 {
+		compatible = "ti,ucd90160";
+		reg = <0x64>;
 	};
 };
 
