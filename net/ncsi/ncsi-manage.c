@@ -718,10 +718,37 @@ static void ncsi_dev_suspend(struct ncsi_dev_priv *ndp)
 		nca.nca_channel = NCSI_RESERVED_CHANNEL;
 		nca.nca_bytes[0] = 1;
 
-		nd->nd_state = ncsi_dev_state_suspend_dcnt;
+		/* To retrieve the last link states of channels in current
+		 * package when current active channel needs fail over to
+		 * another one. It means we will possibly select another
+		 * channel as next active one. The link states of channels
+		 * are most important factor of the selection. So we need
+		 * accurate link states. Unfortunately, the link states on
+		 * inactive channels can't be updated with LSC AEN in time.
+		 */
+		if (ndp->ndp_flags & NCSI_DEV_PRIV_FLAG_CHANGE_ACTIVE)
+			nd->nd_state = ncsi_dev_state_suspend_gls;
+		else
+			nd->nd_state = ncsi_dev_state_suspend_dcnt;
 		ret = ncsi_xmit_cmd(&nca);
 		if (ret)
 			goto error;
+
+		break;
+	case ncsi_dev_state_suspend_gls:
+		atomic_set(&ndp->ndp_pending_reqs,
+			   atomic_read(&np->np_channel_num));
+
+		nca.nca_type = NCSI_PKT_CMD_GLS;
+		nca.nca_package = np->np_id;
+
+		nd->nd_state = ncsi_dev_state_suspend_dcnt;
+		NCSI_FOR_EACH_CHANNEL(np, nc) {
+			nca.nca_channel = nc->nc_id;
+			ret = ncsi_xmit_cmd(&nca);
+			if (ret)
+				goto error;
+		}
 
 		break;
 	case ncsi_dev_state_suspend_dcnt:
