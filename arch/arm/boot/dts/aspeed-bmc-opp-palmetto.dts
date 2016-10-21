@@ -43,6 +43,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2400-fmc";
+			aspeed,fmc-has-dma;
+			interrupts = <19>;
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;

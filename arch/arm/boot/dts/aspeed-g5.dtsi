@@ -31,6 +31,8 @@
 			#size-cells = <0>;
 			compatible = "aspeed,ast2500-fmc";
 			status = "disabled";
+			aspeed,fmc-has-dma;
+			interrupts = <19>;
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
