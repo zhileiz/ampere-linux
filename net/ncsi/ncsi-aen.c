@@ -142,8 +142,7 @@ static int ncsi_aen_handler_hncdsc(struct ncsi_dev_priv *ndp,
 	ncm = &nc->nc_modes[NCSI_MODE_LINK];
 	hncdsc = (struct ncsi_aen_hncdsc_pkt *)h;
 	ncm->ncm_data[3] = ntohl(hncdsc->status);
-	if (ndp->ndp_active_channel != nc ||
-	    ncm->ncm_data[3] & 0x1)
+	if (ndp->ndp_active_channel != nc)
 		return 0;
 
 	/* If this channel is the active one and the link doesn't
@@ -151,7 +150,8 @@ static int ncsi_aen_handler_hncdsc(struct ncsi_dev_priv *ndp,
 	 * The logic here is exactly similar to what we do when link
 	 * is down on the active channel.
 	 */
-	ndp->ndp_flags |= NCSI_DEV_PRIV_FLAG_CHANGE_ACTIVE;
+	if (!(ncm->ncm_data[3] & 0x1))
+		ndp->ndp_flags |= NCSI_DEV_PRIV_FLAG_CHANGE_ACTIVE;
 	ncsi_suspend_dev(nd);
 
 	return 0;
