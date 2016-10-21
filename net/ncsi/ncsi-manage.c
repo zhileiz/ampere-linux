@@ -334,7 +334,7 @@ struct ncsi_req *ncsi_alloc_req(struct ncsi_dev_priv *ndp)
 	return nr;
 }
 
-void ncsi_free_req(struct ncsi_req *nr, bool check, bool timeout)
+void ncsi_free_req(struct ncsi_req *nr)
 {
 	struct ncsi_dev_priv *ndp = nr->nr_ndp;
 	struct sk_buff *cmd, *rsp;
@@ -353,7 +353,7 @@ void ncsi_free_req(struct ncsi_req *nr, bool check, bool timeout)
 	nr->nr_used = false;
 	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 
-	if (check && cmd && atomic_dec_return(&ndp->ndp_pending_reqs) == 0)
+	if (cmd && atomic_dec_return(&ndp->ndp_pending_reqs) == 0)
 		schedule_work(&ndp->ndp_work);
 	/* Release command and response */
 	consume_skb(cmd);
@@ -802,7 +802,7 @@ static void ncsi_req_timeout(unsigned long data)
 	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
 
 	/* Release the request */
-	ncsi_free_req(nr, true, true);
+	ncsi_free_req(nr);
 }
 
 struct ncsi_dev *ncsi_register_dev(struct net_device *dev,

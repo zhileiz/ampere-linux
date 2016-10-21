@@ -296,7 +296,7 @@ static struct ncsi_req *ncsi_alloc_cmd_req(struct ncsi_cmd_arg *nca)
 	/* Allocate skb */
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb) {
-		ncsi_free_req(nr, false, false);
+		ncsi_free_req(nr);
 		return NULL;
 	}
 
@@ -366,6 +366,6 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 
 	return 0;
 out:
-	ncsi_free_req(nr, false, false);
+	ncsi_free_req(nr);
 	return ret;
 }

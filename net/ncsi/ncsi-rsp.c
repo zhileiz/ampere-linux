@@ -1166,6 +1166,6 @@ int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
 
 out:
 	spin_unlock_irqrestore(&ndp->ndp_req_lock, flags);
-	ncsi_free_req(nr, true, false);
+	ncsi_free_req(nr);
 	return ret;
 }
