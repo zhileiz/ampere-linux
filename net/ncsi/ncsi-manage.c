@@ -382,6 +382,7 @@ static void ncsi_dev_config(struct ncsi_dev_priv *ndp)
 	struct net_device *dev = nd->nd_dev;
 	struct ncsi_package *np = ndp->ndp_active_package;
 	struct ncsi_channel *nc = ndp->ndp_active_channel;
+	struct ncsi_channel *hot_nc = NULL;
 	struct ncsi_cmd_arg nca;
 	unsigned char index;
 	int ret;
@@ -472,8 +473,15 @@ static void ncsi_dev_config(struct ncsi_dev_priv *ndp)
 	case ncsi_dev_state_config_done:
 		nd->nd_state = ncsi_dev_state_functional;
 		nd->nd_link_up = 0;
-		if (nc->nc_modes[NCSI_MODE_LINK].ncm_data[2] & 0x1)
+		if (nc->nc_modes[NCSI_MODE_LINK].ncm_data[2] & 0x1) {
 			nd->nd_link_up = 1;
+			hot_nc = nc;
+		} else {
+			hot_nc = NULL;
+		}
+
+		/* Update the hot channel */
+		ndp->ndp_hot_channel = hot_nc;
 
 		nd->nd_handler(nd);
 		ndp->ndp_flags &= ~NCSI_DEV_PRIV_FLAG_CHANGE_ACTIVE;
@@ -497,14 +505,21 @@ error:
 static void ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_package *np;
-	struct ncsi_channel *nc;
+	struct ncsi_channel *nc, *hot_nc;
 	struct ncsi_channel_mode *ncm;
 
 	ndp->ndp_active_package = NULL;
 	ndp->ndp_active_channel = NULL;
+
+	hot_nc = ndp->ndp_hot_channel;
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
 			if (!ndp->ndp_active_channel) {
+				ndp->ndp_active_package = np;
+				ndp->ndp_active_channel = nc;
+			}
+
+			if (nc == hot_nc) {
 				ndp->ndp_active_package = np;
 				ndp->ndp_active_channel = nc;
 			}

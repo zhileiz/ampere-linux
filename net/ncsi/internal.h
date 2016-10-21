@@ -88,6 +88,7 @@ struct ncsi_dev_priv {
 	atomic_t		ndp_package_num;
 	spinlock_t		ndp_package_lock;
 	struct list_head	ndp_packages;
+	struct ncsi_channel	*ndp_hot_channel;
 	atomic_t		ndp_pending_reqs;
 	atomic_t		ndp_last_req_idx;
 #define NCSI_REQ_START_IDX	1
