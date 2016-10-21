@@ -695,8 +695,8 @@ error:
 static void ncsi_dev_suspend(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_dev *nd = &ndp->ndp_ndev;
-	struct ncsi_package *np;
-	struct ncsi_channel *nc;
+	struct ncsi_package *np = ndp->ndp_active_package;
+	struct ncsi_channel *nc = ndp->ndp_active_channel;
 	struct ncsi_cmd_arg nca;
 	int ret;
 
@@ -705,51 +705,66 @@ static void ncsi_dev_suspend(struct ncsi_dev_priv *ndp)
 	switch (nd->nd_state) {
 	case ncsi_dev_state_suspend:
 		/* If there're no active channel, we're done */
-		if (!ndp->ndp_active_channel) {
-			nd->nd_state = ncsi_dev_state_suspend_done;
-			goto done;
-		}
+		if (!ndp->ndp_active_channel)
+			goto error;
 
 		nd->nd_state = ncsi_dev_state_suspend_select;
 		/* Fall through */
 	case ncsi_dev_state_suspend_select:
+		atomic_set(&ndp->ndp_pending_reqs, 1);
+
+		nca.nca_type = NCSI_PKT_CMD_SP;
+		nca.nca_package = np->np_id;
+		nca.nca_channel = NCSI_RESERVED_CHANNEL;
+		nca.nca_bytes[0] = 1;
+
+		nd->nd_state = ncsi_dev_state_suspend_dcnt;
+		ret = ncsi_xmit_cmd(&nca);
+		if (ret)
+			goto error;
+
+		break;
 	case ncsi_dev_state_suspend_dcnt:
+		atomic_set(&ndp->ndp_pending_reqs, 1);
+
+		nca.nca_type = NCSI_PKT_CMD_DCNT;
+		nca.nca_package = np->np_id;
+		nca.nca_channel = nc->nc_id;
+
+		nd->nd_state = ncsi_dev_state_suspend_dc;
+		ret = ncsi_xmit_cmd(&nca);
+		if (ret)
+			goto error;
+
+		break;
 	case ncsi_dev_state_suspend_dc:
+		atomic_set(&ndp->ndp_pending_reqs, 1);
+
+		nca.nca_type = NCSI_PKT_CMD_DC;
+		nca.nca_package = np->np_id;
+		nca.nca_channel = nc->nc_id;
+		nca.nca_bytes[0] = 1;
+
+		nd->nd_state = ncsi_dev_state_suspend_deselect;
+		ret = ncsi_xmit_cmd(&nca);
+		if (ret)
+			goto error;
+
+		break;
 	case ncsi_dev_state_suspend_deselect:
 		atomic_set(&ndp->ndp_pending_reqs, 1);
 
-		np = ndp->ndp_active_package;
-		nc = ndp->ndp_active_channel;
+		nca.nca_type = NCSI_PKT_CMD_DP;
 		nca.nca_package = np->np_id;
-		if (nd->nd_state == ncsi_dev_state_suspend_select) {
-			nca.nca_type = NCSI_PKT_CMD_SP;
-			nca.nca_channel = NCSI_RESERVED_CHANNEL;
-			nca.nca_bytes[0] = 1;
-			nd->nd_state = ncsi_dev_state_suspend_dcnt;
-		} else if (nd->nd_state == ncsi_dev_state_suspend_dcnt) {
-			nca.nca_type = NCSI_PKT_CMD_DCNT;
-			nca.nca_channel = nc->nc_id;
-			nd->nd_state = ncsi_dev_state_suspend_dc;
-		} else if (nd->nd_state == ncsi_dev_state_suspend_dc) {
-			nca.nca_type = NCSI_PKT_CMD_DC;
-			nca.nca_channel = nc->nc_id;
-			nca.nca_bytes[0] = 1;
-			nd->nd_state = ncsi_dev_state_suspend_deselect;
-		} else if (nd->nd_state == ncsi_dev_state_suspend_deselect) {
-			nca.nca_type = NCSI_PKT_CMD_DP;
-			nca.nca_channel = NCSI_RESERVED_CHANNEL;
-			nd->nd_state = ncsi_dev_state_suspend_done;
-		}
+		nca.nca_channel = NCSI_RESERVED_CHANNEL;
 
+		nd->nd_state = ncsi_dev_state_suspend_done;
 		ret = ncsi_xmit_cmd(&nca);
-		if (ret) {
-			nd->nd_state = ncsi_dev_state_suspend_done;
-			goto done;
-		}
+		if (ret)
+			goto error;
 
 		break;
 	case ncsi_dev_state_suspend_done:
-done:
 		if (ndp->ndp_flags & NCSI_DEV_PRIV_FLAG_CHANGE_ACTIVE)
 			ncsi_choose_active_channel(ndp);
 
@@ -767,6 +782,10 @@ done:
 		pr_warn("%s: Unsupported NCSI dev state 0x%x\n",
 			__func__, nd->nd_state);
 	}
+
+	return;
+error:
+	nd->nd_state = ncsi_dev_state_functional;
 }
 
 static void ncsi_dev_work(struct work_struct *work)
