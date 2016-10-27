@@ -1,0 +1,156 @@
+/dts-v1/;
+
+#include "aspeed-g5.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Romulus BMC";
+	compatible = "ibm,romulus-bmc", "aspeed,ast2500";
+
+	aliases {
+		serial4 = &uart5;
+	};
+
+	chosen {
+		stdout-path = &uart5;
+		bootargs = "console=ttyS4,115200 earlyprintk";
+	};
+
+	memory {
+		reg = <0x80000000 0x40000000>;
+	};
+};
+
+&fmc {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+#include "aspeed-bmc-opp-flash-layout.dtsi"
+	};
+	flash@1 {
+		status = "okay";
+		label = "alt";
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1debug_default>;
+
+	flash@0 {
+		status = "okay";
+	};
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&mac0 {
+	status = "okay";
+
+	use-ncsi;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii1_default>;
+};
+
+&i2c0 {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "enabled";
+
+	/* CPU1 */
+};
+
+&i2c2 {
+	/* FSI Mux */
+
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+
+	/* Clock chip */
+};
+
+&i2c4 {
+	status = "okay";
+
+	/* Voltage regulators:
+	 *  CPU0 VDD/VCS
+	 *  CPU0 VDN/VIO
+	 *  CPU0 VDDR A
+	 *  CPU0 VDDR B
+	 */
+};
+
+&i2c5 {
+	status = "okay";
+
+	/* Voltage regulators:
+	 *  CPU1 VDD/VCS
+	 *  CPU1 VDN/VIO
+	 *  CPU1 VDDR A
+	 *  CPU1 VDDR B
+	 */
+};
+
+&i2c6 {
+	/* PCIe slot 1 (x8) */
+	status = "enabled";
+};
+
+&i2c7 {
+	/* PCIe slot 2 (x16) */
+	status = "enabled";
+};
+
+&i2c8 {
+	/* PCIe slot 3 (x16) */
+	status = "enabled";
+};
+
+&i2c9 {
+	/* PCIe slot 4 (x16) */
+	status = "enabled";
+};
+
+&i2c10 {
+	/* PCIe slot 5 (x8) */
+	status = "enabled";
+};
+
+&i2c11 {
+	status = "okay";
+
+	rtc@32 {
+		compatible = "epson,rx8900";
+		reg = <0x32>;
+	};
+
+	/* TPM */
+};
+
+&i2c12 {
+	status = "okay";
+
+	/* CPLD */
+	/* Fan Controller 0xa4/a5 */
+	/* Power Supply */
+	/* Temp Sensor */
+	/* Temp Sensor */
+
+};
+
+&i2c13 {
+	status = "disabled";
+};
+
+&vuart {
+	status = "okay";
+};
