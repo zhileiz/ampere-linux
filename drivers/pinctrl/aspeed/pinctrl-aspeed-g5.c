@@ -26,7 +26,7 @@
 
 #define ASPEED_G5_NR_PINS 232
 
-#define COND1		SIG_DESC_BIT(SCU90, 6, 0)
+#define COND1		{ SCU90, BIT(6), 0, 0 }
 #define COND2		{ SCU94, GENMASK(1, 0), 0, 0 }
 
 #define LHCR0		SIG_DESC_TO_REG(ASPEED_IP_LPC, 0xA0)
