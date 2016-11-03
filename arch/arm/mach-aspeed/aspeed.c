@@ -144,21 +144,9 @@ static void __init do_garrison_setup(void)
 	writel(0xd7000000, AST_IO(AST_BASE_SCU | 0x88));
 }
 
-static void __init do_ast2500_common_setup(void)
-{
-	unsigned long reg;
-
-	/* Set old MDIO interface */
-	reg = readl(AST_IO(AST_BASE_MAC0 | 0x40));
-	reg &= ~0x80000000;
-	writel(reg, AST_IO(AST_BASE_MAC0 | 0x40));
-}
-
 static void __init do_ast2500evb_setup(void)
 {
 	unsigned long reg;
-
-	do_ast2500_common_setup();
 
 	reg = readl(AST_IO(AST_BASE_SCU | 0x70));
 
@@ -169,17 +157,10 @@ static void __init do_ast2500evb_setup(void)
 	writel(reg, AST_IO(AST_BASE_SCU | 0x70));
 }
 
-static void __init do_witherspoon_setup(void)
-{
-	do_ast2500_common_setup();
-}
-
 static void __init do_zaius_setup(void)
 {
 	unsigned long reg;
 	unsigned long board_rev;
-
-	do_ast2500_common_setup();
 
 	/* Read BOARD_REV[4:0] fuses from GPIOM[7:3] */
 	reg = readl(AST_IO(AST_BASE_GPIO | 0x78));
@@ -258,8 +239,6 @@ static void __init aspeed_init_early(void)
 		do_garrison_setup();
 	if (of_machine_is_compatible("aspeed,ast2500-evb"))
 		do_ast2500evb_setup();
-	if (of_machine_is_compatible("ibm,witherspoon-bmc"))
-		do_witherspoon_setup();
 	if (of_machine_is_compatible("ingrasys,zaius-bmc"))
 		do_zaius_setup();
 }
