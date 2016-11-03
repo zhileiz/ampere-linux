@@ -16,6 +16,8 @@
 
 const char *const aspeed_pinmux_ips[] = { "SCU", "SIO", "GFX", "LPC" };
 
+#define SPI1_REG_MASK   0x3000
+
 int aspeed_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
@@ -178,6 +180,7 @@ static bool aspeed_sig_expr_eval(const struct aspeed_sig_expr *expr,
  *
  * @return true if the expression is configured as requested, false otherwise
  */
+
 static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 				bool enable, struct regmap *map)
 {
@@ -197,13 +200,28 @@ static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 
 		/*
 		 * Strap registers are configured in hardware or by early-boot
-		 * firmware. Treat them as read-only despite that we can write
+		 * firmware. With the exception of SPI1 interface bits, treat
+		 * them as read-only despite that we can write
 		 * them. This may mean that certain functions cannot be
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 */
-		if (is_scu && (offset == HW_STRAP1 || offset == HW_STRAP2))
+		if (is_scu && (offset == HW_STRAP2 ||
+			offset == HW_STRAP1 && !(desc->mask & SPI1_REG_MASK)))
 			continue;
+
+		/*
+		 * HW_STRAP1 bits can only be set to 0 by writing 1 into
+		 * bits of same offset in SCU7C. To configure different SPI1
+		 * modes, we write 1 to SCU7C[13:12] to clear SPI1 mask to make
+		 * sure later write to strap register can take effect.
+		 */
+		if (is_scu && offset == HW_STRAP1 &&
+		    (desc->mask & SPI1_REG_MASK)) {
+			ret = regmap_write(map, HW_STRAP1_CLEAR, desc->mask);
+			if (ret)
+				return false;
+		};
 
 		/*
 		 * Sometimes we need help from IP outside the SCU to activate a
