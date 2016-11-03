@@ -111,6 +111,11 @@
 		reg = <0x68>;
 	};
 
+	ucd90160@64 {
+		compatible = "ti,ucd90160";
+		reg = <0x64>;
+	};
+
 	/* Power sequencer UCD90160 PMBUS @64h
 	 * FRU AT24C64D @50h
 	 * RTC PCF8523 @68h
