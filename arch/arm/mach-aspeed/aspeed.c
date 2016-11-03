@@ -42,19 +42,9 @@ static void __init do_common_setup(void)
 	/* Enable LPC FWH cycles, Enable LPC to AHB bridge */
 	writel(0x00000500, AST_IO(AST_BASE_LPC | 0x80));
 
-	/* Flash controller */
-	writel(0x00000003, AST_IO(AST_BASE_SPI | 0x00));
-	writel(0x00002404, AST_IO(AST_BASE_SPI | 0x04));
-
 	/* Set UART routing */
 	writel(0x00000000, AST_IO(AST_BASE_LPC | 0x9c));
 
-	/* SCU setup
-	 *  - GPIOC{4,5,6} are FUNC_MODE{0,1,2}. These nets are
-	 *    connected to the Ethernet phy and to ensure the correct
-	 *    operation they all need to be in GPIO mode (SCU90[0] = 0)
-	 *    and then pulled down
-	 */
 	/* TODO: This should go in the GPIO driver device tree bindings */
 	writel(0x01C000FF, AST_IO(AST_BASE_SCU | 0x88));
 	writel(0xC1C000FF, AST_IO(AST_BASE_SCU | 0x8c));
