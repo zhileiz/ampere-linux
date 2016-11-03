@@ -115,9 +115,6 @@ static void __init do_palmetto_setup(void)
 	/* Setup PNOR address mapping for 32M flash */
 	writel(0x30000E00, AST_IO(AST_BASE_LPC | 0x88));
 	writel(0xFE0001FF, AST_IO(AST_BASE_LPC | 0x8C));
-
-	/* SCU setup */
-	writel(0x01C0007F, AST_IO(AST_BASE_SCU | 0x88));
 }
 
 static void __init do_firestone_setup(void)
