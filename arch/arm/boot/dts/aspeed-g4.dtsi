@@ -820,6 +820,13 @@
 				};
 			};
 
+			clk_ahb: clk_ahb@1e6e2070 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g4-ahb-clock";
+				reg = <0x1e6e2070 0x4>;
+				clocks = <&clk_hpll>;
+			};
+
 			clk_apb: clk_apb@1e6e2008 {
 				#clock-cells = <0>;
 				compatible = "aspeed,g4-apb-clock";

@@ -68,6 +68,54 @@ static void __init aspeed_of_hpll_clk_init(struct device_node *node)
 CLK_OF_DECLARE(aspeed_hpll_clock, "aspeed,g4-hpll-clock",
 	       aspeed_of_hpll_clk_init);
 
+static void __init aspeed_of_ahb_clk_init(struct device_node *node)
+{
+	struct clk *clk, *hpll_clk;
+	void __iomem *base;
+	int reg, rate, hpll;
+	const char *name = node->name;
+	const char *parent_name;
+
+	of_property_read_string(node, "clock-output-names", &name);
+	parent_name = of_clk_get_parent_name(node, 0);
+
+	/* Strap register SCU70 */
+	base = of_iomap(node, 0);
+	if (!base) {
+		pr_err("%s: of_iomap failed\n", node->full_name);
+		return;
+	}
+
+	/* bits 11:10 define the CPU/AHB clock frequency ratio */
+	reg = (readl(base) >> 10) & 0x03;
+	iounmap(base);
+
+	/* A value of zero is undefined */
+	WARN_ON(reg == 0);
+
+	hpll_clk = of_clk_get(node, 0);
+	if (IS_ERR(hpll_clk)) {
+		pr_err("%s: of_clk_get failed\n", node->full_name);
+		return;
+	}
+
+	hpll = clk_get_rate(hpll_clk);
+
+	rate = hpll / (reg + 1);
+
+	clk = clk_register_fixed_rate(NULL, name, parent_name, 0, rate);
+	if (IS_ERR(clk)) {
+		pr_err("%s: failed to register clock\n", node->full_name);
+		return;
+	}
+
+	clk_register_clkdev(clk, NULL, name);
+	of_clk_add_provider(node, of_clk_src_simple_get, clk);
+}
+CLK_OF_DECLARE(aspeed_ahb_clock, "aspeed,g4-ahb-clock",
+	       aspeed_of_ahb_clk_init);
+
+
 static void __init aspeed_of_apb_clk_init(struct device_node *node)
 {
 	struct clk *clk, *hpll_clk;

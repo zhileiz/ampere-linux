@@ -119,7 +119,9 @@ static void __init aspeed_of_ahb_clk_init(struct device_node *node)
 		pr_err("%s: of_iomap failed\n", node->full_name);
 		return;
 	}
-	reg = (readl(base) >> 9) & 0x03;
+
+	/* bits 11:9 define the AXI/AHB clock frequency ratio */
+	reg = (readl(base) >> 9) & 0x07;
 	iounmap(base);
 
 	/* A value of zero is undefined */
