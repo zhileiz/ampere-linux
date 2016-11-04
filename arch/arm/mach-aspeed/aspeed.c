@@ -134,13 +134,8 @@ static void __init do_ast2500evb_setup(void)
 {
 	unsigned long reg;
 
-	reg = readl(AST_IO(AST_BASE_SCU | 0x70));
-
 	/* Set strap to RGMII for dedicated PHY networking */
-	reg |= BIT(6) | BIT(7);
-	/* Enable SPI Master and SPI Slave to AHB Bridge */
-	reg |= BIT(13);
-	writel(reg, AST_IO(AST_BASE_SCU | 0x70));
+	writel(BIT(6) | BIT(7), AST_IO(AST_BASE_SCU | 0x70));
 }
 
 static void __init do_zaius_setup(void)
@@ -156,12 +151,6 @@ static void __init do_zaius_setup(void)
 	if (board_rev == 0) {
 		/* D3 in GPIOA/B/C/D direction and data registers */
 		unsigned long phy_reset_mask = BIT(27);
-
-		/* Set strap[13:12] to 01, Enable SPI master */
-		/* Set bits in writes to SCU7C are cleared from SCU70 */
-		writel(BIT(13), AST_IO(AST_BASE_SCU | 0x7C));
-		/* SCU70 is set-only, so no read-modify-write needed */
-		writel(BIT(12), AST_IO(AST_BASE_SCU | 0x70));
 
 		/* Disable GPIO I, G/AB pulldowns due to weak driving buffers */
 		reg = readl(AST_IO(AST_BASE_SCU | 0x8C));
