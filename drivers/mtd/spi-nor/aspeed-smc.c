@@ -756,7 +756,7 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 {
 	struct aspeed_smc_controller *controller = chip->controller;
 	const struct aspeed_smc_info *info = controller->info;
-	u32 reg;
+	u32 reg, base_reg;
 
 	/*
 	 * Always turn on the write enable bit to allow opcodes to be
@@ -789,12 +789,13 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 	reg = readl(chip->ctl);
 	dev_dbg(controller->dev, "control register: %08x\n", reg);
 
-	if ((reg & CONTROL_SPI_KEEP_MASK) != reg) {
-		chip->ctl_val[smc_base] = reg & CONTROL_SPI_KEEP_MASK;
+	base_reg = reg & CONTROL_SPI_KEEP_MASK;
+	if (base_reg != reg) {
 		dev_info(controller->dev,
 			 "control register changed to: %08x\n",
-			 chip->ctl_val[smc_base]);
+			 base_reg);
 	}
+	chip->ctl_val[smc_base] = base_reg;
 
 	/*
 	 * Retain the prior value of the control register as the
