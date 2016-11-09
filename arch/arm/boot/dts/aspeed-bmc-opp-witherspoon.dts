@@ -84,10 +84,13 @@
 	 *    Power Supply 1
 	 *    Fir Card ->
 	 *      MAX31785 Fan Cntl
-	 *      BMP180 thermal sense
 	 *    Regs 3.3VS, 1.1VCS, 5VCS, 1.8V
 	 */
 
+	bmp180@77 {
+		compatible = "bosch,bmp180";
+		reg = <0x77>;
+	};
 };
 
 &i2c4 {
