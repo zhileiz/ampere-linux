@@ -759,8 +759,6 @@ static void aspeed_smc_chip_enable_write(struct aspeed_smc_chip *chip)
 	u32 reg;
 
 	reg = readl(controller->regs + CONFIG_REG);
-	dev_dbg(controller->dev, "config reg @%p: 0x%08x\n",
-		controller->regs + CONFIG_REG, reg);
 
 	reg |= aspeed_smc_chip_write_bit(chip);
 	writel(reg, controller->regs + CONFIG_REG);
@@ -772,8 +770,6 @@ static void aspeed_smc_chip_set_type(struct aspeed_smc_chip *chip, int type)
 	u32 reg;
 
 	reg = readl(controller->regs + CONFIG_REG);
-	dev_dbg(controller->dev, "config reg @%p: 0x%08x\n",
-		controller->regs + CONFIG_REG, reg);
 
 	chip->type = type;
 
@@ -868,6 +864,8 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 		chip->ctl_val[smc_read] = chip->ctl_val[smc_base] |
 			CONTROL_SPI_COMMAND_MODE_NORMAL;
 
+	dev_dbg(controller->dev, "default control register: %08x\n",
+		 chip->ctl_val[smc_read]);
 	return 0;
 }
 
@@ -882,6 +880,9 @@ static void aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 	chip->ctl_val[smc_write] = chip->ctl_val[smc_base] |
 		spi_control_fill_opcode(chip->nor.program_opcode) |
 		CONTROL_SPI_COMMAND_MODE_WRITE;
+
+	dev_dbg(controller->dev, "write control register: %08x\n",
+		 chip->ctl_val[smc_write]);
 
 	/*
 	 * XXX TODO
