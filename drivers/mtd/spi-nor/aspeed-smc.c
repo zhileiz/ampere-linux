@@ -261,16 +261,36 @@ struct aspeed_smc_controller {
 };
 
 /*
- * FMC Type setting Register
- *   or
- * SPI Flash Configuration Register
+ * SPI Flash Configuration Register (AST2400 SPI)
  */
 #define CONFIG_REG			0x0
+#define    CONFIG_ENABLE_CE_INACTIVE	    BIT(1)
+#define    CONFIG_WRITE			    BIT(0)
 
 /*
- * CE Control Register
+ * SPI Flash Configuration Register (AST2500 SPI)
+ * Type setting Register (AST2500 FMC and AST2400 FMC)
+ */
+#define TYPE_SETTING_REG		0x0
+#define    CONFIG_DISABLE_LEGACY	    BIT(31) /* 1 on AST2500 FMC */
+
+#define    CONFIG_CE2_WRITE		    BIT(18)
+#define    CONFIG_CE1_WRITE		    BIT(17)
+#define    CONFIG_CE0_WRITE		    BIT(16)
+
+#define    CONFIG_CE2_TYPE		    BIT(4) /* FMC only */
+#define    CONFIG_CE1_TYPE		    BIT(2) /* FMC only */
+#define    CONFIG_CE0_TYPE		    BIT(0) /* FMC only */
+
+/*
+ * CE Control Register (AST2500 SPI,FMC and AST2400 FMC)
  */
 #define CE_CONTROL_REG			0x4
+#define    CE2_ENABLE_CE_INACTIVE           BIT(10)
+#define    CE1_ENABLE_CE_INACTIVE           BIT(9)
+#define    CE0_ENABLE_CE_INACTIVE           BIT(8)
+#define    CE2_CONTROL_EXTENDED		    BIT(2)
+#define    CE1_CONTROL_EXTENDED		    BIT(1)
 #define    CE0_CONTROL_EXTENDED		    BIT(0)
 
 /* CE0 Control Register (depends on the controller type) */
@@ -287,8 +307,8 @@ struct aspeed_smc_controller {
 #define CONTROL_SPI_DUMMY_CYCLE_COMMAND_OUTPUT BIT(15)
 #define CONTROL_SPI_IO_DUMMY_CYCLES_HI BIT(14)
 #define CONTROL_SPI_IO_DUMMY_CYCLES_HI_SHIFT (14 - 2)
-#define CONTROL_SPI_IO_ADDRESS_4B BIT(13) /* 2400-smc */
-#define CONTROL_SPI_CLK_DIV4 BIT(13) /* FMC, 2500 */
+#define CONTROL_SPI_IO_ADDRESS_4B BIT(13) /* AST2400 SPI */
+#define CONTROL_SPI_CLK_DIV4 BIT(13) /* others */
 #define CONTROL_SPI_RW_MERGE BIT(12)
 #define CONTROL_SPI_IO_DUMMY_CYCLES_LO_SHIFT 6
 #define CONTROL_SPI_IO_DUMMY_CYCLES_LO GENMASK(7, \
