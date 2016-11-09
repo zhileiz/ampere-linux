@@ -151,6 +151,8 @@ enum smc_flash_type {
 	smc_type_spi = 2,	/* controller connected to spi flash */
 };
 
+struct aspeed_smc_chip;
+
 struct aspeed_smc_info {
 	u32 maxsize;		/* maximum size of 1 chip window */
 	u8 nce;			/* number of chip enables */
@@ -160,7 +162,12 @@ struct aspeed_smc_info {
 	u8 ctl0;		/* offset in regs of ctl for ce 0 */
 	u8 time;		/* offset in regs of timing */
 	u8 misc;		/* offset in regs of misc settings */
+
+	void (*set_4b)(struct aspeed_smc_chip *chip);
 };
+
+static void aspeed_smc_chip_set_4b_smc_2400(struct aspeed_smc_chip *chip);
+static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip);
 
 static const struct aspeed_smc_info fmc_2400_info = {
 	.maxsize = 64 * 1024 * 1024,
@@ -171,6 +178,7 @@ static const struct aspeed_smc_info fmc_2400_info = {
 	.ctl0 = 0x10,
 	.time = 0x94,
 	.misc = 0x54,
+	.set_4b = aspeed_smc_chip_set_4b,
 };
 
 static const struct aspeed_smc_info smc_2400_info = {
@@ -182,6 +190,7 @@ static const struct aspeed_smc_info smc_2400_info = {
 	.ctl0 = 0x04,
 	.time = 0x14,
 	.misc = 0x10,
+	.set_4b = aspeed_smc_chip_set_4b_smc_2400,
 };
 
 static const struct aspeed_smc_info fmc_2500_info = {
@@ -193,6 +202,7 @@ static const struct aspeed_smc_info fmc_2500_info = {
 	.ctl0 = 0x10,
 	.time = 0x94,
 	.misc = 0x54,
+	.set_4b = aspeed_smc_chip_set_4b,
 };
 
 static const struct aspeed_smc_info smc_2500_info = {
@@ -204,6 +214,7 @@ static const struct aspeed_smc_info smc_2500_info = {
 	.ctl0 = 0x10,
 	.time = 0x94,
 	.misc = 0x54,
+	.set_4b = aspeed_smc_chip_set_4b,
 };
 
 enum smc_ctl_reg_value {
@@ -751,6 +762,34 @@ static void aspeed_smc_chip_set_type(struct aspeed_smc_chip *chip, int type)
 	writel(reg, controller->regs + CONFIG_REG);
 }
 
+/*
+ * The AST2500 FMC and AST2400 FMC flash controllers should be
+ * strapped by hardware, or autodetected, but the AST2500 SPI flash
+ * needs to be set.
+ */
+static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip)
+{
+	struct aspeed_smc_controller *controller = chip->controller;
+	u32 reg;
+
+	if (chip->controller->info == &smc_2500_info) {
+		reg = readl(controller->regs + CE_CONTROL_REG);
+		reg |= 1 << chip->cs;
+		writel(reg, controller->regs + CE_CONTROL_REG);
+	}
+}
+
+/*
+ * The AST2400 SPI flash controller does not have a CE Control
+ * register. It uses the CE0 control register to set 4Byte mode at the
+ * controller level.
+ */
+static void aspeed_smc_chip_set_4b_smc_2400(struct aspeed_smc_chip *chip)
+{
+	chip->ctl_val[smc_base] |= CONTROL_SPI_IO_ADDRESS_4B;
+	chip->ctl_val[smc_read] |= CONTROL_SPI_IO_ADDRESS_4B;
+}
+
 static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 				      struct resource *r)
 {
@@ -815,27 +854,10 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 static void aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 {
 	struct aspeed_smc_controller *controller = chip->controller;
-	u32 reg;
+	const struct aspeed_smc_info *info = controller->info;
 
-	/*
-	 * Set 4 byte mode in the chip controller register and also in
-	 * controller config register. The BMC flash controller is
-	 * strapped by hardware, or autodetected, but the SPI flash
-	 * controller of the AST2500 still needs to be set.
-	 */
-	if (chip->nor.mtd.size > SZ_16M) {
-		chip->ctl_val[smc_base] |= CONTROL_SPI_IO_ADDRESS_4B;
-
-		/*
-		 * The SPI flash controller of the AST2400 does not
-		 * have such a setting.
-		 */
-		if (chip->controller->info == &smc_2500_info) {
-			reg = readl(controller->regs + CE_CONTROL_REG);
-			reg |= 1 << chip->cs;
-			writel(reg, controller->regs + CE_CONTROL_REG);
-		}
-	}
+	if (chip->nor.addr_width == 4 && info->set_4b)
+		info->set_4b(chip);
 
 	chip->ctl_val[smc_write] = chip->ctl_val[smc_base] |
 		spi_control_fill_opcode(chip->nor.program_opcode) |
