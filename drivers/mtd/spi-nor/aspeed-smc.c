@@ -405,7 +405,7 @@ static int aspeed_smc_dma_start(struct aspeed_smc_chip *chip,
 	int ret;
 
 	aspeed_smc_chip_configure(chip, is_write ? chip->ctl_val[smc_write] :
-		chip->ctl_val[smc_base]);
+		chip->ctl_val[smc_read]);
 
 	dev_dbg(chip->nor.dev, "DMA %s to=0x%08x len=0x%08x\n",
 		is_write ? "write" : "read", offset, length);
@@ -446,7 +446,7 @@ static int aspeed_smc_dma_start(struct aspeed_smc_chip *chip,
 			 controller->dma_addr, controller->dma_length,
 			 (is_write ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
 out:
-	aspeed_smc_chip_configure(chip, chip->ctl_val[smc_base]);
+	aspeed_smc_chip_configure(chip, chip->ctl_val[smc_read]);
 	return ret;
 }
 
