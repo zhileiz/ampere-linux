@@ -992,7 +992,7 @@
 			};
 
 			ibt: ibt@1e789140 {
-				compatible = "aspeed,ast2400-bt-bmc";
+				compatible = "aspeed,ast2500-ibt-bmc";
 				reg = <0x1e789140 0x18>;
 				interrupts = <8>;
 			};
