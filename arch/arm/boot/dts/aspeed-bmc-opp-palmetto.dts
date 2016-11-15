@@ -58,10 +58,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2400-smc";
-			flash {
+			pnor@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;
-				label = "pnor";
 			};
 		};
 	};

@@ -30,7 +30,7 @@
 
 &spi1 {
 	status = "okay";
-	flash@0 {
+	pnor@0 {
 		status = "okay";
 	};
 };
