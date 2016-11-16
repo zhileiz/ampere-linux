@@ -30,6 +30,9 @@
 
 &spi1 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default>;
+
 	pnor@0 {
 		status = "okay";
 	};
