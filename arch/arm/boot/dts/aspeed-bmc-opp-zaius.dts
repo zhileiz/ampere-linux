@@ -191,8 +191,23 @@
 &i2c7 {
 	status = "okay";
 
-	/* MUX PCA9541A (other master: CPU0 PCIe 1)
-	 *   ADM1272 PMBUS @10h
+	pca9541a@70 {
+		compatible = "nxp,pca9541";
+		reg = <0x70>;
+
+		i2c-arb {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hotswap@10 {
+				compatible = "ti,lm5066";
+				reg = <0x10>;
+			};
+		};
+	};
+
+	/* Master selector PCA9541A @70h (other master: CPU0)
+	 *   LM5066I PMBUS @10h
 	 */
 	/* 12V SMPS Q54SH12050NNDH @61h */
 	/* CPU0 VR ISL68137 0.7V, 0.96V PMBUS @64h */
