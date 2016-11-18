@@ -207,7 +207,7 @@ static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 		 * all descriptor bits.
 		 */
 		if (is_scu && (offset == HW_STRAP2 ||
-			offset == HW_STRAP1 && !(desc->mask & SPI1_REG_MASK)))
+			(offset == HW_STRAP1 && !(desc->mask & SPI1_REG_MASK))))
 			continue;
 
 		/*
