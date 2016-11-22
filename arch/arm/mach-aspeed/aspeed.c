@@ -181,18 +181,6 @@ static void __init aspeed_init_early(void)
 	/* Reset AHB bridges */
 	writel(0x02, AST_IO(AST_BASE_SCU | 0x04));
 
-	/* Enable UART4 RXD4, TXD4, NRI4, NDCD4, NCTS4 */
-	/* TODO: This should be pinmux. Also, why are we enabling uart4? */
-	writel(0xcb000000, AST_IO(AST_BASE_SCU | 0x80));
-
-	/* Enable
-	 *  - UART1 RXD1, RXD1, NRTS1, NDTR1, NRI1, NDSR1, NDCD1, NCTS1.
-	 *  - VGA DDCDAT, DDCCLK, VGAVS, VGAHS.
-	 *  - NAND flash FLWP#, FLBUSY#
-	 */
-	/* TODO: This should be pinmux */
-	writel(0x00fff0c0, AST_IO(AST_BASE_SCU | 0x84));
-
 	/* Enables all the clocks except D2CLK, USB1.1 Host, USB1.1, LHCLK */
 	writel(0x10CC5E80, AST_IO(AST_BASE_SCU | 0x0c));
 
