@@ -46,7 +46,6 @@ static void __init do_common_setup(void)
 	writel(0x00000000, AST_IO(AST_BASE_LPC | 0x9c));
 
 	/* TODO: This should go in the GPIO driver device tree bindings */
-	writel(0x01C000FF, AST_IO(AST_BASE_SCU | 0x88));
 	writel(0xC1C000FF, AST_IO(AST_BASE_SCU | 0x8c));
 
 	/* Setup scratch registers */
