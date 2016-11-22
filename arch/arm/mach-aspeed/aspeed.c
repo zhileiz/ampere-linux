@@ -166,6 +166,28 @@ static void __init do_zaius_setup(void)
 	}
 }
 
+static void __init do_witherspoon_setup(void)
+{
+	do_common_setup();
+
+	/* Setup PNOR address mapping for 64M flash
+	 *
+	 *   ADRBASE: 0x3000 (0x30000000)
+	 *   HWMBASE: 0x0C00 (0x0C000000)
+	 *  ADDRMASK: 0xFC00 (0xFC000000)
+	 *   HWNCARE: 0x03FF (0x03FF0000)
+	 *
+	 * Mapping appears at 0x60300fc000000 on the host
+	 */
+	writel(0x30000C00, AST_IO(AST_BASE_LPC | 0x88));
+	writel(0xFC0003FF, AST_IO(AST_BASE_LPC | 0x8C));
+
+	/* Set SPI1 CE1 decoding window to 0x34000000 */
+	writel(0x70680000, AST_IO(AST_BASE_SPI | 0x34));
+
+	/* Set SPI1 CE0 decoding window to 0x30000000 */
+	writel(0x68600000, AST_IO(AST_BASE_SPI | 0x30));
+}
 
 #define SCU_PASSWORD	0x1688A8A8
 
@@ -200,6 +222,8 @@ static void __init aspeed_init_early(void)
 		do_ast2500evb_setup();
 	if (of_machine_is_compatible("ingrasys,zaius-bmc"))
 		do_zaius_setup();
+	if (of_machine_is_compatible("ibm,witherspoon-bmc"))
+		do_witherspoon_setup();
 }
 
 static void __init aspeed_map_io(void)
