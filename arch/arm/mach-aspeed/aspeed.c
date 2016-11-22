@@ -128,8 +128,6 @@ static void __init do_garrison_setup(void)
 
 static void __init do_ast2500evb_setup(void)
 {
-	unsigned long reg;
-
 	/* Set strap to RGMII for dedicated PHY networking */
 	writel(BIT(6) | BIT(7), AST_IO(AST_BASE_SCU | 0x70));
 }
