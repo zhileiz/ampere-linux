@@ -58,12 +58,12 @@
 			#size-cells = <0>;
 			compatible = "aspeed,ast2500-smc";
 			status = "disabled";
-			pnor@0 {
+			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
 				status = "disabled";
 			};
-			pnor@1 {
+			flash@1 {
 				reg = < 1 >;
 				compatible = "jedec,spi-nor";
 				status = "disabled";
