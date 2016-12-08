@@ -305,6 +305,53 @@ static int fsi_slave_set_smode(struct fsi_master *master, int link, int id)
 				&smode, sizeof(smode));
 }
 
+static ssize_t fsi_slave_sysfs_raw_read(struct file *file,
+		struct kobject *kobj, struct bin_attribute *attr, char *buf,
+		loff_t off, size_t count)
+{
+	struct fsi_slave *slave = to_fsi_slave(kobj_to_dev(kobj));
+	int rc;
+
+	if (count != 4 || off & 0x3)
+		return -EINVAL;
+
+	if (off > 0xffffffff)
+		return -EINVAL;
+
+	rc = fsi_slave_read(slave, off, buf, 4);
+
+	return rc ? rc : count;
+}
+
+static ssize_t fsi_slave_sysfs_raw_write(struct file *file,
+		struct kobject *kobj, struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
+{
+	struct fsi_slave *slave = to_fsi_slave(kobj_to_dev(kobj));
+	int rc;
+
+	if (count != 4 || off & 0x3)
+		return -EINVAL;
+
+	if (off > 0xffffffff)
+		return -EINVAL;
+
+	rc = fsi_slave_write(slave, off, buf, 4);
+
+	return rc ? rc : count;
+}
+
+
+static struct bin_attribute fsi_slave_raw_attr = {
+	.attr = {
+		.name = "raw",
+		.mode = S_IRUSR | S_IWUSR,
+	},
+	.size = 0,
+	.read = fsi_slave_sysfs_raw_read,
+	.write = fsi_slave_sysfs_raw_write,
+};
+
 static int fsi_slave_init(struct fsi_master *master,
 		int link, uint8_t slave_id)
 {
@@ -363,6 +410,11 @@ static int fsi_slave_init(struct fsi_master *master,
 		put_device(&slave->dev);
 		return rc;
 	}
+
+	rc = device_create_bin_file(&slave->dev, &fsi_slave_raw_attr);
+	if (rc)
+		dev_warn(&slave->dev, "failed to create raw attr: %d\n", rc);
+
 	list_add(&slave->list_link, &master->my_slaves);
 	fsi_slave_scan(slave);
 	return 0;
