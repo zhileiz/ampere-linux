@@ -509,6 +509,9 @@ static void fsi_master_unscan(struct fsi_master *master)
 
 int fsi_master_register(struct fsi_master *master)
 {
+	if (!master || !master->dev)
+		return -EINVAL;
+
 	master->idx = atomic_inc_return(&master_idx);
 	master->slave_list = false;
 	get_device(master->dev);

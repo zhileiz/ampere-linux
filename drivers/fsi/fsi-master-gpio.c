@@ -471,6 +471,7 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return -ENOMEM;
+	master->master.dev = &pdev->dev;
 
 	gpio = devm_gpiod_get(&pdev->dev, "clock", 0);
 	if (IS_ERR(gpio)) {
