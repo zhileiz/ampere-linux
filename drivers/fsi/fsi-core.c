@@ -240,7 +240,7 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 		 * Unused address areas are marked by a zero type value; this
 		 * skips the defined address areas
 		 */
-		if (type != 0) {
+		if (type != 0 && slots != 0) {
 
 			/* create device */
 			dev = fsi_create_device(slave);
