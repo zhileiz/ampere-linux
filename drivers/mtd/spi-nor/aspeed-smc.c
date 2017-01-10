@@ -349,7 +349,7 @@ static int aspeed_smc_dma_wait(struct aspeed_smc_chip *chip)
 }
 
 #define DMA_LENGTH(x) (((x) - 4) & ~0xFE000003)
-#define DMA_ADDR(x) ((x) & ~0xE0000003)
+#define DMA_ADDR(x) ((x) & ~0x00000003)
 
 static inline void aspeed_smc_chip_configure(struct aspeed_smc_chip *chip,
 					     u32 ctl)
