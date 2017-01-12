@@ -1,0 +1,78 @@
+ASpeed LPC Control
+==================
+This binding defines the LPC control for ASpeed SoCs. Partitions of
+the LPC bus can be access by other processors on the system, address
+ranges on the bus can map accesses from another processor to regions
+of the ASpeed SoC memory space.
+
+Reserved Memory:
+================
+The driver provides functionality to map the LPC bus to a region of
+ASpeed ram. A phandle to a reserved memory node must be provided so
+that the driver can safely use this region.
+
+Flash:
+======
+The driver provides functionality to unmap the LPC bus from ASpeed
+RAM, historically the default mapping has been to the SPI flash
+controller on the ASpeed SoC, a phandle to this node should be
+supplied.
+
+Device Node:
+============
+
+As LPC bus configuration registers are at the start of the LPC bus
+memory space, it makes most sense for the device to be within the LPC
+host node. See Documentation/devicetree/bindings/mfd/aspeed-lpc.txt
+for more information. This does not have to be the case, provided the
+reg property can give the full address of the LPC bus.
+
+Required properties:
+--------------------
+
+- compatible:		"aspeed,ast2400-lpc-ctrl" for ASpeed ast2400 SoCs
+					"aspeed,ast2500-lpc-ctrl" for ASpeed ast2500 SoCs
+
+- reg:				Location and size of the configuration registers
+					for the LPC bus. Note that if the device node is
+					within the LPC host node then base is relative to
+					that.
+
+- memory-region:	phandle of the reserved memory region
+- flash:			phandle of the SPI flash controller
+
+Example:
+--------
+
+reserved-memory {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	...
+
+	flash_memory: region@54000000 {
+		compatible = "aspeed,ast2400-lpc-ctrl";
+		no-map;
+		reg = <0x54000000 0x04000000>; /* 64M */
+	};
+};
+
+host_pnor: spi@1e630000 {
+	reg = < 0x1e630000 0x18
+			0x30000000 0x02000000 >;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "aspeed,ast2400-smc";
+
+	...
+
+};
+
+lpc-ctrl@0 {
+	compatible = "aspeed,ast2400-lpc-ctrl";
+	memory-region = <&flash_memory>;
+	flash = <&host_pnor>;
+	reg = <0x0 0x80>;
+};
+
