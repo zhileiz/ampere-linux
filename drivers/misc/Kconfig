@@ -804,6 +804,14 @@ config PANEL_BOOT_MESSAGE
 	  An empty message will only clear the display at driver init time. Any other
 	  printf()-formatted message is valid with newline and escape codes.
 
+config ASPEED_LPC_CTRL
+	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	bool "Aspeed BMC to HOST LPC bus controller"
+	---help---
+	  Provides a driver to control the HOST LPC to BMC mappings
+	  through ioctl()s, the driver aso provides a read/write interface to a
+	  BMC ram region where host LPC read/write region can be buffered.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
