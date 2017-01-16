@@ -20,6 +20,17 @@
 		reg = <0x80000000 0x40000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		flash_memory: region@94000000 {
+			no-map;
+			reg = <0x94000000 0x04000000>; /* 64M */
+		};
+	};
+
 	onewire0 {
 		compatible = "w1-gpio";
 		gpios = <&gpio ASPEED_GPIO(H, 0) GPIO_ACTIVE_HIGH>;
@@ -103,6 +114,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_txd1_default
 		     &pinctrl_rxd1_default>;
+};
+
+&lpc_ctrl {
+	status = "okay";
+	memory-region = <&flash_memory>;
+	flash = <&spi1>;
+};
+
+&mbox {
+	status = "okay";
 };
 
 &uart5 {
