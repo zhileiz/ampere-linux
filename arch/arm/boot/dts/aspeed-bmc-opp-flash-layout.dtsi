@@ -12,12 +12,8 @@
 					label = "u-boot-env";
 				};
 				kernel@80000 {
-					reg = < 0x80000 0x280000 >;
+					reg = < 0x80000 0x440000 >;
 					label = "kernel";
-				};
-				initramfs@300000 {
-					reg = < 0x300000 0x1c0000 >;
-					label = "initramfs";
 				};
 				rofs@0c0000 {
 					reg = < 0x4c0000 0x1740000 >;
