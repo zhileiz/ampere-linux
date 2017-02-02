@@ -23,9 +23,11 @@ struct fsi_device {
 	u8			engine_type;
 	u8			version;
 	u8			unit;
+	u8			si1s_bit;
 	struct fsi_slave	*slave;
 	uint32_t		addr;
 	uint32_t		size;
+	int (*irq_handler)(int, void *);
 };
 
 extern int fsi_device_read(struct fsi_device *dev, uint32_t addr,
@@ -68,5 +70,8 @@ extern void fsi_driver_unregister(struct fsi_driver *);
 				fsi_driver_unregister)
 
 extern struct bus_type fsi_bus_type;
+
+extern int fsi_enable_irq(struct fsi_device *dev);
+extern void fsi_disable_irq(struct fsi_device *dev);
 
 #endif /* LINUX_FSI_H */

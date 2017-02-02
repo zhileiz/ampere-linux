@@ -25,6 +25,7 @@ struct fsi_master {
 	struct device	*dev;
 	int		idx;
 	int		n_links;
+	uint32_t	ipoll;
 	int		(*read)(struct fsi_master *, int link,
 				uint8_t slave, uint32_t addr,
 				void *val, size_t size);
@@ -37,6 +38,7 @@ struct fsi_master {
 
 extern int fsi_master_register(struct fsi_master *master);
 extern void fsi_master_unregister(struct fsi_master *master);
+extern int fsi_master_start_ipoll(struct fsi_master *master);
 
 /**
  * crc4 helper: Given a starting crc4 state @c, calculate the crc4 vaue of @x,
