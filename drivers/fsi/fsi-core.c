@@ -569,6 +569,30 @@ done:
 	return 0;
 }
 
+static ssize_t fsi_ipoll_period_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE - 1, "%u\n", fsi_ipoll_period_ms);
+}
+
+static ssize_t fsi_ipoll_period_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int rc;
+	unsigned long val = 0;
+
+	rc = kstrtoul(buf, 0, &val);
+
+	if (val > 1 && val < 10000)
+	fsi_ipoll_period_ms = val;
+
+	return count;
+}
+
+DEVICE_ATTR(fsi_ipoll_period, S_IRUGO | S_IWUSR, fsi_ipoll_period_show,
+		fsi_ipoll_period_store);
+
 int fsi_master_register(struct fsi_master *master)
 {
 	if (!master || !master->dev)
@@ -578,12 +602,14 @@ int fsi_master_register(struct fsi_master *master)
 	master->slave_list = false;
 	get_device(master->dev);
 	fsi_master_scan(master);
+	device_create_file(master->dev, &dev_attr_fsi_ipoll_period);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fsi_master_register);
 
 void fsi_master_unregister(struct fsi_master *master)
 {
+	device_remove_file(master->dev, &dev_attr_fsi_ipoll_period);
 	fsi_master_unscan(master);
 	put_device(master->dev);
 	if (master_ipoll) {
