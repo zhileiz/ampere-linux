@@ -24,6 +24,12 @@ config FSI_SCOM
 	---help---
 	This option enables an FSI based SCOM device driver.
 
+config FSI_I2C
+	tristate "I2C FSI client device driver"
+	depends on FSI
+	---help---
+	This option enables an FSI based I2C device driver.
+
 endif
 
 endmenu
