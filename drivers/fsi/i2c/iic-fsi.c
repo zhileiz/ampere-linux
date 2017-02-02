@@ -41,6 +41,90 @@ static const char iic_fsi_version[] = "3.0";
 int iic_fsi_probe(struct device *dev);
 int iic_fsi_remove(struct device *dev);
 
+int readb_wrap(iic_eng_t* eng, unsigned int addr, unsigned char *val, 
+	       iic_ffdc_t** ffdc)
+{
+	int rc;
+	struct fsi_device *fsi_dev = to_fsi_dev(eng->dev);
+	rc = fsi_device_read(fsi_dev, addr, val, 1);
+	if(rc)
+	{
+		IFLDe(3, "eng[%08x]: fsi_readb_ffdc(%p)=%d\n", eng->id,
+				addr, rc);
+	}
+	return rc;
+};
+
+int readh_wrap(iic_eng_t* eng, unsigned int addr, unsigned short *val, 
+	       iic_ffdc_t** ffdc)
+{
+	int rc;
+	struct fsi_device *fsi_dev = to_fsi_dev(eng->dev);
+	rc = fsi_device_read(fsi_dev, addr, val, 2);
+	if(rc)
+	{
+		IFLDe(3, "eng[%08x]: fsi_readh_ffdc(%p)=%d\n", eng->id,
+				addr, rc);
+	}
+	return rc;
+};
+
+int readw_wrap(iic_eng_t* eng, unsigned int addr, unsigned long *val, 
+	       iic_ffdc_t** ffdc)
+{
+	int rc;
+	struct fsi_device *fsi_dev = to_fsi_dev(eng->dev);
+	rc = fsi_device_read(fsi_dev, addr, val, 4);
+	if(rc)
+	{
+		IFLDe(3, "eng[%08x]: fsi_readw_ffdc(%p)=%d\n", eng->id,
+				addr, rc);
+	}
+	return rc;
+};
+
+int writeb_wrap(iic_eng_t* eng, unsigned int addr, unsigned char val, 
+		iic_ffdc_t** ffdc)
+{
+	int rc;
+	struct fsi_device *fsi_dev = to_fsi_dev(eng->dev);
+	rc = fsi_device_write(fsi_dev, addr, &val, 1);
+	if(rc)
+	{
+		IFLDe(3, "eng[%08x]: fsi_writeb_ffdc(%p)=%d\n", eng->id,
+				addr, rc);
+	}
+	return rc;
+};
+
+int writeh_wrap(iic_eng_t* eng, unsigned int addr, unsigned short val,
+	       	iic_ffdc_t** ffdc)
+{
+	int rc;
+	struct fsi_device *fsi_dev = to_fsi_dev(eng->dev);
+	rc = fsi_device_write(fsi_dev, addr, &val, 2);
+	if(rc)
+	{
+		IFLDe(3, "eng[%08x]: fsi_writeh_ffdc(%p)=%d\n", eng->id,
+				addr, rc);
+	}
+	return rc;
+};
+
+int writew_wrap(iic_eng_t* eng, unsigned int addr, unsigned long val, 
+		iic_ffdc_t** ffdc)
+{
+	int rc;
+	struct fsi_device *fsi_dev = to_fsi_dev(eng->dev);
+	rc = fsi_device_write(fsi_dev, addr, &val, 4);
+	if(rc)
+	{
+		IFLDe(3, "eng[%08x]: fsi_writew_ffdc(%p)=%d\n", eng->id,
+				addr, rc);
+	}
+	return rc;
+};
+
 struct iic_reg_access fsi_reg_access =
 {
 	.bus_readb = readb_wrap,
