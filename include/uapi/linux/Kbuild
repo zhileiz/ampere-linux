@@ -155,6 +155,7 @@ header-y += hyperv.h
 header-y += hysdn_if.h
 header-y += i2c-dev.h
 header-y += i2c.h
+header-y += i2cfsi.h
 header-y += i2o-dev.h
 header-y += i8k.h
 header-y += icmp.h
