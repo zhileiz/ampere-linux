@@ -657,12 +657,57 @@ EXPORT_SYMBOL_GPL(fsi_driver_unregister);
 
 int fsi_enable_irq(struct fsi_device *dev)
 {
+	int rc;
+	u32 si1m;
+	u32 bit = 0x80000000 >> dev->si1s_bit;
+	struct fsi_master *master = dev->slave->master;
+
+	if (!dev->irq_handler)
+		return -EINVAL;
+
+	rc = master->read(master, 0, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+			sizeof(u32));
+	if (rc) {
+		dev_err(master->dev, "couldn't read si1m:%d\n", rc);
+		return rc;
+	}
+
+	si1m |= bit;
+	rc = master->write(master, 0, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+			sizeof(u32));
+	if (rc) {
+		dev_err(master->dev, "couldn't write si1m:%d\n", rc);
+		return rc;
+	}
+
+	master->ipoll |= bit;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fsi_enable_irq);
 
 void fsi_disable_irq(struct fsi_device *dev)
 {
+	int rc;
+	u32 si1m;
+	u32 bits = ~(0x80000000 >> dev->si1s_bit);
+	struct fsi_master *master = dev->slave->master;
+
+	master->ipoll &= bits;
+
+	rc = master->read(master, 0, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+			sizeof(u32));
+	if (rc) {
+		dev_err(master->dev, "couldn't read si1m:%d\n", rc);
+		return;
+	}
+
+	si1m &= bits;
+	rc = master->write(master, 0, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+			sizeof(u32));
+	if (rc) {
+		dev_err(master->dev, "couldn't write si1m:%d\n", rc);
+		return;
+	}
 }
 
 struct bus_type fsi_bus_type = {
