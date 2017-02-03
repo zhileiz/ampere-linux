@@ -14,10 +14,6 @@
 #include "../core.h"
 #include "pinctrl-aspeed.h"
 
-const char *const aspeed_pinmux_ips[] = { "SCU", "SIO", "GFX", "LPC" };
-
-#define SPI1_REG_MASK   0x3000
-
 int aspeed_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
@@ -82,9 +78,7 @@ int aspeed_pinmux_get_fn_groups(struct pinctrl_dev *pctldev,
 static inline void aspeed_sig_desc_print_val(
 		const struct aspeed_sig_desc *desc, bool enable, u32 rv)
 {
-	pr_debug("Want %s%lX[0x%08X]=0x%X, got 0x%X from 0x%08X\n",
-			aspeed_pinmux_ips[SIG_DESC_IP_FROM_REG(desc->reg)],
-			SIG_DESC_OFFSET_FROM_REG(desc->reg),
+	pr_debug("SCU%x[0x%08x]=0x%x, got 0x%x from 0x%08x\n", desc->reg,
 			desc->mask, enable ? desc->enable : desc->disable,
 			(rv & desc->mask) >> __ffs(desc->mask), rv);
 }
@@ -110,8 +104,6 @@ static bool aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
 {
 	unsigned int raw;
 	u32 want;
-
-	WARN_ON(SIG_DESC_IP_FROM_REG(desc->reg) != ASPEED_IP_SCU);
 
 	if (regmap_read(map, desc->reg, &raw) < 0)
 		return false;
@@ -150,19 +142,9 @@ static bool aspeed_sig_expr_eval(const struct aspeed_sig_expr *expr,
 
 	for (i = 0; i < expr->ndescs; i++) {
 		const struct aspeed_sig_desc *desc = &expr->descs[i];
-		size_t ip = SIG_DESC_IP_FROM_REG(desc->reg);
 
-		if (ip == ASPEED_IP_SCU) {
-			if (!aspeed_sig_desc_eval(desc, enabled, map))
-				return false;
-		} else {
-			size_t offset = SIG_DESC_OFFSET_FROM_REG(desc->reg);
-			const char *ip_name = aspeed_pinmux_ips[ip];
-
-			pr_debug("Ignoring configuration of field %s%X[0x%08X]\n",
-				 ip_name, offset, desc->mask);
-		}
-
+		if (!aspeed_sig_desc_eval(desc, enabled, map))
+			return false;
 	}
 
 	return true;
@@ -180,7 +162,6 @@ static bool aspeed_sig_expr_eval(const struct aspeed_sig_expr *expr,
  *
  * @return true if the expression is configured as requested, false otherwise
  */
-
 static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 				bool enable, struct regmap *map)
 {
@@ -189,58 +170,20 @@ static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 	for (i = 0; i < expr->ndescs; i++) {
 		bool ret;
 		const struct aspeed_sig_desc *desc = &expr->descs[i];
-
-		size_t offset = SIG_DESC_OFFSET_FROM_REG(desc->reg);
-		size_t ip = SIG_DESC_IP_FROM_REG(desc->reg);
-		bool is_scu = (ip == ASPEED_IP_SCU);
-		const char *ip_name = aspeed_pinmux_ips[ip];
-
 		u32 pattern = enable ? desc->enable : desc->disable;
-		u32 val = (pattern << __ffs(desc->mask));
 
 		/*
 		 * Strap registers are configured in hardware or by early-boot
-		 * firmware. With the exception of SPI1 interface bits, treat
-		 * them as read-only despite that we can write
+		 * firmware. Treat them as read-only despite that we can write
 		 * them. This may mean that certain functions cannot be
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 */
-		if (is_scu && (offset == HW_STRAP2 ||
-			(offset == HW_STRAP1 && !(desc->mask & SPI1_REG_MASK))))
+		if (desc->reg == HW_STRAP1 || desc->reg == HW_STRAP2)
 			continue;
 
-		/*
-		 * HW_STRAP1 bits can only be set to 0 by writing 1 into
-		 * bits of same offset in SCU7C. To configure different SPI1
-		 * modes, we write 1 to SCU7C[13:12] to clear SPI1 mask to make
-		 * sure later write to strap register can take effect.
-		 */
-		if (is_scu && offset == HW_STRAP1 &&
-		    (desc->mask & SPI1_REG_MASK)) {
-			ret = regmap_write(map, HW_STRAP1_CLEAR, desc->mask);
-			if (ret)
-				return false;
-		};
-
-		/*
-		 * Sometimes we need help from IP outside the SCU to activate a
-		 * mux request. Report that we need its cooperation.
-		 */
-		if (enable && !is_scu) {
-			pr_debug("Pinmux request for %s requires cooperation of %s IP: Need (%s%X[0x%08X] = 0x%08X\n",
-				expr->function, ip_name, ip_name, offset,
-				desc->mask, val);
-		}
-
-		/* And only read/write SCU registers */
-		if (!is_scu) {
-			pr_debug("Skipping configuration of field %s%X[0x%08X]\n",
-					ip_name, offset, desc->mask);
-			continue;
-		}
-
-		ret = regmap_update_bits(map, desc->reg, desc->mask, val) == 0;
+		ret = regmap_update_bits(map, desc->reg, desc->mask,
+				pattern << __ffs(desc->mask)) == 0;
 
 		if (!ret)
 			return ret;
@@ -399,8 +342,6 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 		const struct aspeed_sig_expr *expr = NULL;
 		const struct aspeed_sig_expr **funcs;
 		const struct aspeed_sig_expr ***prios;
-
-		pr_debug("Muxing pin %d for %s\n", pin, pfunc->name);
 
 		if (!pdesc)
 			return -EINVAL;
