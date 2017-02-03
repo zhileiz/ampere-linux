@@ -100,7 +100,7 @@ int readb_wrap(iic_eng_t* eng, unsigned int addr, unsigned char *val,
 	if(rc)
 	{
 		IFLDe(3, "eng[%08x]: fsi_readb_ffdc(%p)=%d\n", eng->id,
-				addr, rc);
+				(void *)addr, rc);
 	}
 	return rc;
 };
@@ -114,7 +114,7 @@ int readh_wrap(iic_eng_t* eng, unsigned int addr, unsigned short *val,
 	if(rc)
 	{
 		IFLDe(3, "eng[%08x]: fsi_readh_ffdc(%p)=%d\n", eng->id,
-				addr, rc);
+				(void *)addr, rc);
 	}
 	return rc;
 };
@@ -128,7 +128,7 @@ int readw_wrap(iic_eng_t* eng, unsigned int addr, unsigned long *val,
 	if(rc)
 	{
 		IFLDe(3, "eng[%08x]: fsi_readw_ffdc(%p)=%d\n", eng->id,
-				addr, rc);
+				(void *)addr, rc);
 	}
 	return rc;
 };
@@ -142,7 +142,7 @@ int writeb_wrap(iic_eng_t* eng, unsigned int addr, unsigned char val,
 	if(rc)
 	{
 		IFLDe(3, "eng[%08x]: fsi_writeb_ffdc(%p)=%d\n", eng->id,
-				addr, rc);
+				(void *)addr, rc);
 	}
 	return rc;
 };
@@ -156,7 +156,7 @@ int writeh_wrap(iic_eng_t* eng, unsigned int addr, unsigned short val,
 	if(rc)
 	{
 		IFLDe(3, "eng[%08x]: fsi_writeh_ffdc(%p)=%d\n", eng->id,
-				addr, rc);
+				(void *)addr, rc);
 	}
 	return rc;
 };
@@ -170,7 +170,7 @@ int writew_wrap(iic_eng_t* eng, unsigned int addr, unsigned long val,
 	if(rc)
 	{
 		IFLDe(3, "eng[%08x]: fsi_writew_ffdc(%p)=%d\n", eng->id,
-				addr, rc);
+				(void *)addr, rc);
 	}
 	return rc;
 };
@@ -197,7 +197,7 @@ static const struct fsi_device_id i2c_ids[] = {
 	{ 0 }
 };
 
-static const struct fsi_driver i2c_drv = {
+static struct fsi_driver i2c_drv = {
 	.id_table = i2c_ids,
 	.drv = {
 		.name = "iic_fsi_dd",
@@ -220,7 +220,6 @@ int iic_add_ports(iic_eng_t* eng, uint64_t ports)
 	int minor = 0;
 	char name[64];
 	int rc = 0;
-	struct fsi_device *fdev = to_fsi_dev(eng->dev);
 
 	IENTER();
 
@@ -485,7 +484,6 @@ void iic_fsi_shutdown(struct device *dev)
 {
 	int rc = 0;
 	iic_eng_t* eng = (iic_eng_t*)dev_get_drvdata(dev);
-	struct fsi_device* fsidev = to_fsi_dev(dev);
 
 	IENTER();
 	if(!eng || !eng->ops)
