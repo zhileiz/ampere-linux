@@ -1017,7 +1017,7 @@
 				reg = <0x1e780000 0x1000>;
 				interrupts = <20>;
 				interrupt-controller;
-				gpio-ranges = <&pinctrl 0 0 220>;
+				gpio-ranges = <&pinctrl 0 0 232>;
 			};
 
 			timer: timer@1e782000 {
