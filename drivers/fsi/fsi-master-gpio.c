@@ -40,6 +40,9 @@
 #define	FSI_GPIO_CMD_DFLT_LEN	28
 #define	FSI_GPIO_CMD_CRC_SHIFT	60
 
+#define	FSI_SLAVE_SHIFT		21
+#define	FSI_SLAVE_MASK		0x3
+
 /* Bus errors */
 #define	FSI_GPIO_ERR_BUSY	1	/* Slave stuck in busy state */
 #define	FSI_GPIO_RESP_ERRA	2	/* Any (misc) Error */
@@ -305,7 +308,8 @@ static void build_abs_ar_command(struct fsi_gpio_msg *cmd, uint64_t mode,
 	cmd->bits = FSI_GPIO_CMD_DFLT_LEN;
 	cmd->msg = FSI_GPIO_CMD_DEFAULT;
 	cmd->msg |= mode;
-	cmd->msg &= ~FSI_GPIO_CMD_SLAVE_MASK;
+	if (!slave)
+		slave = (addr >> FSI_SLAVE_SHIFT) & FSI_SLAVE_MASK;
 	cmd->msg |= (((uint64_t)slave) << FSI_GPIO_CMD_SLV_SHIFT);
 	addr &= FSI_GPIO_CMD_ADDR_MASK;
 	cmd->msg |= (((uint64_t)addr) << FSI_GPIO_CMD_ADDR_SHIFT);
