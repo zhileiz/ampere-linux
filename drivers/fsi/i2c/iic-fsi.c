@@ -281,7 +281,7 @@ int iic_del_ports(iic_eng_t* eng, uint64_t ports)
 	return 0;
 }
 
-#define IIC_FSI_PORTS	0xFFFULL
+#define IIC_FSI_PORTS	0x7FFFULL
 /*
  * Called when an FSI IIC engine is plugged in.  
  * Causes creation of the /dev entry.
