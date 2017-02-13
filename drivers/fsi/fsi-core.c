@@ -512,6 +512,7 @@ static void fsi_master_unscan(struct fsi_master *master)
 		list_for_each_entry_safe(fsi_dev, fsi_dev_tmp,
 					&slave->my_engines, link) {
 			list_del(&fsi_dev->link);
+			device_del(&fsi_dev->dev);
 			put_device(&fsi_dev->dev);
 		}
 		device_unregister(&slave->dev);
