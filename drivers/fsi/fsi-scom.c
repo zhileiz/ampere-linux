@@ -199,6 +199,21 @@ static int scom_probe(struct device *dev)
 	return misc_register(&scom->mdev);
 }
 
+static int scom_remove(struct device *dev)
+{
+	struct scom_device *scom, *scom_tmp;
+	struct fsi_device *fsi_dev = to_fsi_dev(dev);
+	
+	list_for_each_entry_safe(scom, scom_tmp, &scom_devices, link) {
+		if (scom->fsi_dev == fsi_dev) {
+			list_del(&scom->link);
+			misc_deregister(&scom->mdev);
+		}
+	}
+
+	return 0;
+}
+
 static struct fsi_device_id scom_ids[] = {
 	{
 		.engine_type = FSI_ENGID_SCOM,
@@ -213,6 +228,7 @@ static struct fsi_driver scom_drv = {
 		.name = "scom",
 		.bus = &fsi_bus_type,
 		.probe = scom_probe,
+		.remove = scom_remove,
 	}
 };
 
