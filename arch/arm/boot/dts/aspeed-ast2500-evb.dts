@@ -83,3 +83,7 @@
 &gfx {
 	status = "okay";
 };
+
+&pinctrl {
+	aspeed,external-nodes = <&gfx &lhc>;
+};
