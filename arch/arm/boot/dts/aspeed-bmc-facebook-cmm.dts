@@ -198,3 +198,7 @@
 	status = "okay";
 	/* CPLD at reg = <3E> */
 };
+
+&gfx {
+	status = "okay";
+};

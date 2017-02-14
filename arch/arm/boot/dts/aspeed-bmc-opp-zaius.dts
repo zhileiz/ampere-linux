@@ -343,3 +343,7 @@
 &vuart {
 	status = "okay";
 };
+
+&gfx {
+	status = "okay";
+};

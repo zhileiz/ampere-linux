@@ -79,3 +79,7 @@
 		reg = <0x4d>;
 	};
 };
+
+&gfx {
+	status = "okay";
+};
