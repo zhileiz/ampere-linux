@@ -1079,6 +1079,7 @@ ssize_t iic_common_read(iic_client_t * client, void * buf, size_t count,
 {
 	ssize_t rc = count;
 	iic_xfr_t *xfr;
+	iic_eng_t *eng = client->bus->eng;
 
 	IENTER();
 
@@ -1103,6 +1104,8 @@ ssize_t iic_common_read(iic_client_t * client, void * buf, size_t count,
 		goto exit;
 	}
 
+	rc = eng->ra->bus_enable_irq(eng);
+
 	/* enqueue or start the xfr */
 	rc = iic_enq_xfr(xfr);
 	if(rc != -EIOCBQUEUED)
@@ -1112,6 +1115,8 @@ ssize_t iic_common_read(iic_client_t * client, void * buf, size_t count,
 
 	/* wait for xfr to complete */
 	iic_wait_xfr(xfr);
+
+	eng->ra->bus_disable_irq(eng);
 
 	/* set rc appropriately */
 	if(xfr->status)
@@ -1200,6 +1205,7 @@ ssize_t iic_common_write(iic_client_t * client, void * buf, size_t count,
 {
 	ssize_t rc = count;
 	iic_xfr_t *xfr;
+	iic_eng_t *eng = client->bus->eng;
 
 	IENTER();
 
@@ -1223,6 +1229,8 @@ ssize_t iic_common_write(iic_client_t * client, void * buf, size_t count,
 		goto exit;
 	}
 
+	rc = eng->ra->bus_enable_irq(eng);
+
 	/* enqueue or start the xfr */
 	rc = iic_enq_xfr(xfr);
 	if(rc != -EIOCBQUEUED)
@@ -1232,6 +1240,8 @@ ssize_t iic_common_write(iic_client_t * client, void * buf, size_t count,
 
 	/* wait for xfr to complete */
 	iic_wait_xfr(xfr);
+
+	eng->ra->bus_disable_irq(eng);
 
 	/* set rc appropriately */
 	if(xfr->status)

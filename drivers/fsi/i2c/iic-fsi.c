@@ -127,6 +127,20 @@ int writew_wrap(iic_eng_t* eng, unsigned int addr, unsigned long val,
 	return rc;
 };
 
+int iic_enable_irq(iic_eng_t *eng)
+{
+	struct fsi_device *dev = to_fsi_dev(eng->dev);
+
+	return fsi_enable_irq(dev);
+}
+
+void iic_disable_irq(iic_eng_t *eng)
+{
+	struct fsi_device *dev = to_fsi_dev(eng->dev);
+
+	fsi_disable_irq(dev);
+}
+
 struct iic_reg_access fsi_reg_access =
 {
 	.bus_readb = readb_wrap,
@@ -135,6 +149,8 @@ struct iic_reg_access fsi_reg_access =
 	.bus_writeb = writeb_wrap,
 	.bus_writeh = writeh_wrap,
 	.bus_writew = writew_wrap,
+	.bus_enable_irq = iic_enable_irq,
+	.bus_disable_irq = iic_disable_irq,
 };
 
 static const struct fsi_device_id i2c_ids[] = {
@@ -450,10 +466,7 @@ int iic_fsi_suspend(struct device *dev)
 	set_bit(IIC_NO_ACCESS, &eng->flags);
 	
 	/* disable interrupt handler if not already done */
-	if(test_and_clear_bit(IIC_ENG_RESUMED, &eng->flags))
-	{
-		fsi_disable_irq(to_fsi_dev(dev)); 
-	}
+	fsi_disable_irq(to_fsi_dev(dev));
 
 error:	
 	IEXIT(rc);
@@ -502,15 +515,6 @@ int iic_fsi_resume(struct device *dev)
 	rc = eng->ops->init(eng, &ffdc);
 	if(rc)
 	{
-		goto error;
-	}
-
-	/* Enable interrupt handler in the kernel */	
-	IDBGd(0, "enabling irq\n");
-	rc = fsi_enable_irq(dp);
-	if(rc)
-	{
-		IFLDe(1, "fsi_enable_irq failed rc=%d\n", rc);
 		goto error;
 	}
 

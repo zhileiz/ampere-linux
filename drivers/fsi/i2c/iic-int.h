@@ -171,6 +171,8 @@ struct iic_reg_access
     int (*bus_writeb)(iic_eng_t*, unsigned int, unsigned char, iic_ffdc_t**);
     int (*bus_writeh)(iic_eng_t*, unsigned int, unsigned short, iic_ffdc_t**);
     int (*bus_writew)(iic_eng_t*, unsigned int, unsigned long, iic_ffdc_t**);
+    int (*bus_enable_irq)(iic_eng_t *);
+    void (*bus_disable_irq)(iic_eng_t *);
 };
 
 struct iic_eng_ops
