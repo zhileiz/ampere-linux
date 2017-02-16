@@ -46,7 +46,7 @@ static const int engine_page_size = 0x400;
 static struct task_struct *master_ipoll;
 static unsigned int fsi_ipoll_period_ms = 100;
 
-static atomic_t master_idx = ATOMIC_INIT(-1);
+static atomic_t master_idx = ATOMIC_INIT(0);
 
 struct fsi_slave {
 	struct list_head	list_link;	/* Master's list of slaves */
@@ -617,6 +617,8 @@ void fsi_master_unregister(struct fsi_master *master)
 		kthread_stop(master_ipoll);
 		master_ipoll = NULL;
 	}
+
+	atomic_dec(&master_idx);
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
 

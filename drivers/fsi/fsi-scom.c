@@ -211,6 +211,8 @@ static int scom_remove(struct device *dev)
 		}
 	}
 
+	atomic_dec(&scom_idx);
+
 	return 0;
 }
 
