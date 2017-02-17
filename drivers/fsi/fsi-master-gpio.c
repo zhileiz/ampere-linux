@@ -512,6 +512,7 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	else
 		master->gpio_mux = gpio;
 
+	master->master.idx = -1;
 	master->master.n_links = 1;
 	master->master.read = fsi_master_gpio_read;
 	master->master.write = fsi_master_gpio_write;

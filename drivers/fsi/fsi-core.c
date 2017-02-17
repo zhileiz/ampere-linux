@@ -15,6 +15,7 @@
 
 #include <linux/device.h>
 #include <linux/fsi.h>
+#include <linux/idr.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -46,7 +47,7 @@ static const int engine_page_size = 0x400;
 static struct task_struct *master_ipoll;
 static unsigned int fsi_ipoll_period_ms = 100;
 
-static atomic_t master_idx = ATOMIC_INIT(-1);
+static DEFINE_IDA(master_ida);
 
 struct fsi_slave {
 	struct list_head	list_link;	/* Master's list of slaves */
@@ -599,7 +600,7 @@ int fsi_master_register(struct fsi_master *master)
 	if (!master || !master->dev)
 		return -EINVAL;
 
-	master->idx = atomic_inc_return(&master_idx);
+	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
 	master->slave_list = false;
 	get_device(master->dev);
 	fsi_master_scan(master);
@@ -610,6 +611,11 @@ EXPORT_SYMBOL_GPL(fsi_master_register);
 
 void fsi_master_unregister(struct fsi_master *master)
 {
+	if (master->idx >= 0) {
+		ida_simple_remove(&master_ida, master->idx);
+		master->idx = -1;
+	}
+
 	device_remove_file(master->dev, &dev_attr_fsi_ipoll_period);
 	fsi_master_unscan(master);
 	put_device(master->dev);
