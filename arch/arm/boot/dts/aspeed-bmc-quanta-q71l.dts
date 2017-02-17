@@ -75,6 +75,13 @@
 	no-hw-checksum;
 };
 
+&mac1 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+};
+
 &uart5 {
 	status = "okay";
 };
