@@ -218,6 +218,11 @@ static void __init do_witherspoon_setup(void)
 	writel(0x68600000, AST_IO(AST_BASE_SPI | 0x30));
 }
 
+static void __init do_romulus_setup(void)
+{
+	do_common_setup();
+}
+
 #define SCU_PASSWORD	0x1688A8A8
 
 static void __init aspeed_init_early(void)
@@ -253,6 +258,8 @@ static void __init aspeed_init_early(void)
 		do_zaius_setup();
 	if (of_machine_is_compatible("ibm,witherspoon-bmc"))
 		do_witherspoon_setup();
+	if (of_machine_is_compatible("ibm,romulus-bmc"))
+		do_romulus_setup();
 }
 
 static void __init aspeed_map_io(void)
