@@ -481,7 +481,6 @@ int iic_fsi_resume(struct device *dev)
 	iic_ffdc_t* ffdc = 0;
 	int rc = 0;
 	iic_eng_t* eng = 0;
-	struct fsi_device *dp = to_fsi_dev(dev);
 
 	IENTER();	
 	// The device structure has changed for the new kernel.
