@@ -137,8 +137,7 @@ static ssize_t scom_write(struct file *filep, const char __user *buf,
 			size_t len, loff_t *offset)
 {
 	int rc;
-	struct miscdevice *mdev =
-				(struct miscdevice *)filep->private_data;
+	struct miscdevice *mdev = filep->private_data;
 	struct scom_device *scom = to_scom_dev(mdev);
 	struct device *dev = &scom->fsi_dev->dev;
 	uint64_t val;
@@ -153,10 +152,12 @@ static ssize_t scom_write(struct file *filep, const char __user *buf,
 	}
 
 	rc = put_scom(scom, val, *offset);
-	if (rc)
+	if (rc) {
 		dev_dbg(dev, "put_scom failed with:%d\n", rc);
+		return rc;
+	}
 
-	return rc;
+	return len;
 }
 
 static loff_t scom_llseek(struct file *file, loff_t offset, int whence)
