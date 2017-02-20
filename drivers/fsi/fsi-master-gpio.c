@@ -274,7 +274,7 @@ static int poll_for_response(struct fsi_master_gpio *master, uint8_t expected,
 			resp <<= bits_remaining;
 			resp |= response.msg;
 			bits_received += bits_remaining;
-			*((uint32_t *)data) = response.msg;
+			memcpy(data, &response.msg, size);
 		}
 
 		crc_in = fsi_crc4(0, resp | (0x1ULL << bits_received),
