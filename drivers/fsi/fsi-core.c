@@ -90,10 +90,7 @@ static int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
 int fsi_device_read(struct fsi_device *dev, uint32_t addr, void *val,
 		size_t size)
 {
-	if (addr > dev->size)
-		return -EINVAL;
-
-	if (addr + size > dev->size)
+	if (addr > dev->size || size > dev->size || addr > dev->size - size)
 		return -EINVAL;
 
 	return fsi_slave_read(dev->slave, dev->addr + addr, val, size);
@@ -103,10 +100,7 @@ EXPORT_SYMBOL_GPL(fsi_device_read);
 int fsi_device_write(struct fsi_device *dev, uint32_t addr, const void *val,
 		size_t size)
 {
-	if (addr > dev->size)
-		return -EINVAL;
-
-	if (addr + size > dev->size)
+	if (addr > dev->size || size > dev->size || addr > dev->size - size)
 		return -EINVAL;
 
 	return fsi_slave_write(dev->slave, dev->addr + addr, val, size);
@@ -328,7 +322,7 @@ static ssize_t fsi_slave_sysfs_raw_read(struct file *file,
 	if (count != 4 || off & 0x3)
 		return -EINVAL;
 
-	if (off > 0xffffffff)
+	if (off > 0xfffffffc || off < 0)
 		return -EINVAL;
 
 	rc = fsi_slave_read(slave, off, buf, 4);
@@ -346,7 +340,7 @@ static ssize_t fsi_slave_sysfs_raw_write(struct file *file,
 	if (count != 4 || off & 0x3)
 		return -EINVAL;
 
-	if (off > 0xffffffff)
+	if (off > 0xfffffffc || off < 0)
 		return -EINVAL;
 
 	rc = fsi_slave_write(slave, off, buf, 4);
