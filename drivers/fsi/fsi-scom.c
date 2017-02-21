@@ -85,6 +85,7 @@ static int get_scom(struct scom_device *scom_dev, uint64_t *value,
 	uint32_t result, data;
 	int rc;
 
+	*value = 0ULL;
 	data = addr;
 	rc = fsi_device_write(scom_dev->fsi_dev, SCOM_CMD_REG, &data,
 				sizeof(uint32_t));
