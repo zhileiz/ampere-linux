@@ -626,6 +626,7 @@ static int fsi_slave_init(struct fsi_master *master,
 	slave->id = slave_id;
 	slave->dev.parent = master->dev;
 	slave->dev.release = fsi_slave_release;
+	slave->link = link;
 
 	dev_set_name(&slave->dev, "slave@%02x:%02x", link, slave_id);
 	rc = device_register(&slave->dev);
