@@ -253,12 +253,14 @@ struct iic_eng
     unsigned long trace_sz;		//number of trace entries
     atomic_t xfr_num;			//index to current trace entry
     uint64_t enabled;
+    int idx;				// ida number
 };
 
 struct iic_bus
 {
     unsigned char port;			//the port number of this bus
     unsigned long bus_id;		//Unique ID for this bus
+    int idx;				// ida number
     struct cdev cdev;
     struct device* class_dev;
     dev_t devnum;
@@ -312,7 +314,7 @@ int iic_eng_ops_is_vaild(struct iic_eng_ops *ops);
 iic_bus_t*  iic_create_bus(struct class* classp, iic_eng_t* eng,
 		                           dev_t devnum, char* name, 
 					   unsigned char port,
-					   unsigned long bus_id);
+					   int bus_id);
 void iic_delete_bus(struct class* classp, iic_bus_t* bus);
 void iic_register_bus(iic_bus_t * bus, unsigned long type);
 void iic_unregister_bus(iic_bus_t * bus, unsigned long type);

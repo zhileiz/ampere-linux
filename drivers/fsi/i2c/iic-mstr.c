@@ -2114,7 +2114,7 @@ void iic_ffdc_q_unlocked(int scope, void* data)
 #define IIC_BUS_MAX_FFDC 4
 iic_bus_t*  iic_create_bus(struct class* classp, iic_eng_t* eng,
 			   dev_t devnum, char* name, unsigned char port,
-			   unsigned long bus_id)
+			   int bus_id)
 {
 	int rc = 0;
 	iic_bus_t* bus = 0;
@@ -2133,6 +2133,7 @@ iic_bus_t*  iic_create_bus(struct class* classp, iic_eng_t* eng,
 	memset(bus, 0, sizeof(iic_bus_t));
 	bus->port = port;
 	bus->bus_id = bus_id;
+	bus->idx = bus_id;
 	bus->eng = eng;
 	bus->devnum = devnum;
 	bus->i2c_hz = 400000;

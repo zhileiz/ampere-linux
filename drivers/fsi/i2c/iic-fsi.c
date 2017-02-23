@@ -19,6 +19,7 @@
 /*
  * This file contains the architecture independent IIC FSI code.
  */
+#include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -36,7 +37,10 @@
 struct class* iic_fsi_class = 0;
 dev_t iic_devnum_start = 0;
 
-static const char iic_fsi_version[] = "3.1";
+static const char iic_fsi_version[] = "3.2";
+
+static DEFINE_IDA(iic_ida);
+static DEFINE_IDA(iic_port_ida);
 
 int iic_fsi_probe(struct device *dev);
 int iic_fsi_remove(struct device *dev);
@@ -185,7 +189,7 @@ int iic_add_ports(iic_eng_t* eng, uint64_t ports)
 	int bus_num = 0;
 	unsigned long flags;
 	iic_bus_t* new_bus = 0;
-	int minor = 0;
+	int minor;
 	char name[64];
 	int rc = 0;
 
@@ -202,6 +206,7 @@ int iic_add_ports(iic_eng_t* eng, uint64_t ports)
 		if(!(ports_left & 0x1))
 			continue;
 
+		minor = ida_simple_get(&iic_port_ida, 0, INT_MAX, GFP_KERNEL);
 
 		if( minor < 0 ) {
 			IFLDe(1, "bb_get_minor %d", minor);
@@ -209,7 +214,7 @@ int iic_add_ports(iic_eng_t* eng, uint64_t ports)
 			goto exit;
 		}
 
-		sprintf(name, "i2cfsi%02d", bus_num);
+		sprintf(name, "i2cfsi%d.%02d", eng->idx, bus_num);
 
 		/* results in hotplug event for each master bus */
 		new_bus = iic_create_bus(iic_fsi_class, eng,
@@ -219,6 +224,7 @@ int iic_add_ports(iic_eng_t* eng, uint64_t ports)
 		{
 			IFLDe(1, "iic_create_bus failed on eng %d", eng->id);
 			rc = -ENODEV;
+			ida_simple_remove(&iic_port_ida, minor);
 			goto exit;
 		}
 
@@ -235,6 +241,7 @@ int iic_add_ports(iic_eng_t* eng, uint64_t ports)
 			 */
 			rc = -ENODEV;
 			iic_delete_bus(iic_fsi_class, new_bus);
+			ida_simple_remove(&iic_port_ida, minor);
 			spin_unlock_irqrestore(&eng->lock, flags);
 			goto exit;
 		}
@@ -245,8 +252,6 @@ int iic_add_ports(iic_eng_t* eng, uint64_t ports)
 			eng->enabled |= 0x1ULL << bus_num;
 		}
 		spin_unlock_irqrestore(&eng->lock, flags);
-
-		minor++;
 	}
 
 exit:
@@ -282,6 +287,7 @@ int iic_del_ports(iic_eng_t* eng, uint64_t ports)
 			/* found a match, remove it */
 			*p_abusp = abusp->next;
 			eng->enabled &= ~(0x1ULL << abusp->port);
+			ida_simple_remove(&iic_port_ida, abusp->idx);
 			iic_delete_bus(iic_fsi_class, abusp);
 		}
 		else
@@ -326,6 +332,7 @@ int iic_fsi_probe(struct device *dev)
 	iic_init_eng(eng);
 	set_bit(IIC_ENG_BLOCK, &eng->flags); //block until resumed
 	eng->id = 0x00F5112C;
+	eng->idx = ida_simple_get(&iic_ida, 1, INT_MAX, GFP_KERNEL);
 	IFLDi(1, "PROBE    eng[%08x]\n", eng->id);
 	eng->ra = &fsi_reg_access;
 	IFLDd(1, "vaddr=%#08lx\n", eng->base);
@@ -367,6 +374,9 @@ error:
 		iic_del_ports(eng, new_ports);
 		if(eng)
 		{
+			if (eng->idx > 0)
+				ida_simple_remove(&iic_ida, eng->idx);
+
 			kfree(eng);
 		}
 	}
@@ -409,6 +419,7 @@ int iic_fsi_remove(struct device* dev)
 	/* Clean up device files immediately, don't wait for ref count */
 	iic_del_ports(eng, IIC_FSI_PORTS);
 	/* cleans up engine and bus structures if ref count is zero */
+	ida_simple_remove(&iic_ida, eng->idx);
 	kfree(eng);
 	
 error:
