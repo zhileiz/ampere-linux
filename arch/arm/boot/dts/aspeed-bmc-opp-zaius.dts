@@ -25,9 +25,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		flash_memory: region@bc000000 {
+		flash_memory: region@98000000 {
 			no-map;
-			reg = <0xbc000000 0x04000000>; /* 64M */
+			reg = <0x98000000 0x04000000>; /* 64M */
 		};
 	};
 
