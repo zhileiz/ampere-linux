@@ -20,12 +20,14 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
+#include <linux/delay.h>
 
 #include "fsi-master.h"
 
 #define DEBUG
 
 #define FSI_N_SLAVES	4
+#define FSI_BREAK	0xc0de0000
 
 #define FSI_SLAVE_CONF_NEXT_MASK	0x80000000
 #define FSI_SLAVE_CONF_SLOTS_MASK	0x00ff0000
@@ -43,6 +45,14 @@
 
 #define FSI_IPOLL_PERIOD		msecs_to_jiffies(fsi_ipoll_period_ms)
 
+#define	FSI_ENGID_HUB_MASTER		0x1c
+#define	FSI_ENGID_HUB_LINK		0x1d
+#define	FSI_HUB_LINK_OFFSET		0x80000
+#define	FSI_MASTER_HUB_LINK_SIZE	0x80000
+#define	FSI_HUB_MASTER_MAX_LINKS	8
+
+#define	FSI_LINK_ENABLE_SETUP_TIME	10	/* in mS */
+
 static const int engine_page_size = 0x400;
 static struct task_struct *master_ipoll;
 static unsigned int fsi_ipoll_period_ms = 100;
@@ -58,6 +68,17 @@ struct fsi_slave {
 	uint8_t			id;
 };
 
+struct fsi_master_hub {
+	struct fsi_master	master;
+	struct fsi_slave	*slave;
+	struct device		dev;
+	uint32_t		control_regs;	/* slave-relative addr regs */
+	uint32_t		base;		/* slave-relative addr of */
+						/* master address space */
+};
+
+#define to_fsi_hub(d) container_of(d, struct fsi_master_hub, dev)
+#define to_fsi_master_hub(d) container_of(d, struct fsi_master_hub, master)
 #define to_fsi_slave(d) container_of(d, struct fsi_slave, dev)
 
 static int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
@@ -197,12 +218,169 @@ static int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
 			slave->id, addr, val, size);
 }
 
+/*
+ * FSI hub master support
+ *
+ * A hub master increases the number of potential target devices that the
+ * primary FSI master can access.  For each link a primary master supports
+ * each of those links can in turn be chained to a hub master with multiple
+ * hub links of its own.  Hubs differ from cascaded masters (cMFSI) in the
+ * total addressable range per link -hubs having address ranges that are much
+ * larger.  Hub masters also contain the registers that describe them
+ * whereas cascaded masters are described by their parent.
+ */
+int hub_master_read(struct fsi_master *master, int linkno, uint8_t slave,
+			uint32_t addr, void *val, size_t size)
+{
+	struct fsi_master_hub *hub = to_fsi_master_hub(master);
+
+	addr += (linkno * FSI_MASTER_HUB_LINK_SIZE) + hub->base;
+	return fsi_slave_read(hub->slave, addr, val, size);
+}
+
+int hub_master_write(struct fsi_master *master, int linkno, uint8_t slave,
+			uint32_t addr, const void *val, size_t size)
+{
+	struct fsi_master_hub *hub = to_fsi_master_hub(master);
+
+	addr += (linkno * FSI_MASTER_HUB_LINK_SIZE) + hub->base;
+	return fsi_slave_write(hub->slave, addr, val, size);
+}
+
+int hub_master_break(struct fsi_master *master, int linkno)
+{
+	struct fsi_master_hub *hub = to_fsi_master_hub(master);
+	uint32_t command;
+	uint32_t break_offset = 0x4; /* hw workaround: hub links require a */
+				     /* break to offset 4 instead of the */
+				     /* non hub 0 offset. */
+	uint32_t addr;
+
+	command = FSI_BREAK;
+	addr = (linkno * FSI_MASTER_HUB_LINK_SIZE) + hub->base;
+	return fsi_slave_write(hub->slave, addr + break_offset, &command,
+			sizeof(command));
+}
+
+int hub_master_link_enable(struct fsi_master *master, int linkno)
+{
+	struct fsi_master_hub *hub = to_fsi_master_hub(master);
+	uint32_t menp = L_MSB_MASK(linkno);
+	int rc;
+
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MSENP0, &menp,
+				sizeof(menp));
+
+	/*
+	 * Wait for hw to finish enable - there is latency in logic setup
+	 * before link operations like break, etc can be done
+	 */
+	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
+
+	return rc;
+}
+
+static int hub_master_init(struct fsi_master_hub *hub)
+{
+	int rc;
+	uint32_t mver;
+	struct fsi_master *master = &hub->master;
+
+	master->read = hub_master_read;
+	master->write = hub_master_write;
+	master->send_break = hub_master_break;
+	master->link_enable = hub_master_link_enable;
+
+	/* Initialize the MFSI (hub master) engine */
+	rc = fsi_slave_read(hub->slave, hub->control_regs + FSI_MVER, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	mver = FSI_MRESP_RST_ALL_MASTER | FSI_MRESP_RST_ALL_LINK
+			| FSI_MRESP_RST_MCR | FSI_MRESP_RST_PYE;
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MRESP0, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	mver = FSI_MECTRL_EOAE | FSI_MECTRL_P8_AUTO_TERM;
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MECTRL, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	mver = FSI_MMODE_EIP | FSI_MMODE_ECRC | FSI_MMODE_EPC
+			| fsi_mmode_crs0(1) | fsi_mmode_crs1(1)
+			| FSI_MMODE_P8_TO_LSB;
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MMODE, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	mver = 0xffff0000;
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MDLYR, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	mver = ~0;
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MSENP0, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	/* Leave enabled long enough for master logic to set up */
+	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
+
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MCENP0, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	rc = fsi_slave_read(hub->slave, hub->control_regs + FSI_MAEB, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	mver = FSI_MRESP_RST_ALL_MASTER | FSI_MRESP_RST_ALL_LINK;
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MRESP0, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	rc = fsi_slave_read(hub->slave, hub->control_regs + FSI_MLEVP0, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	/* Reset the master bridge */
+	mver = FSI_MRESB_RST_GEN;
+	rc = fsi_slave_write(hub->slave, hub->control_regs + FSI_MRESB0, &mver,
+				sizeof(mver));
+	if (rc)
+		return rc;
+
+	mver = FSI_MRESB_RST_ERR;
+	return fsi_slave_write(hub->slave, hub->control_regs + FSI_MRESB0,
+				&mver, sizeof(mver));
+}
+
+static void hub_master_release(struct device *dev)
+{
+	struct fsi_master_hub *hub = to_fsi_hub(dev);
+
+	kfree(hub);
+}
+
 static int fsi_slave_scan(struct fsi_slave *slave)
 {
 	uint32_t engine_addr;
 	uint32_t conf;
 	int rc, i;
 	uint8_t si1s_bit = 1;
+	uint8_t conf_link_count = 0;
+	struct fsi_master_hub *hub;
 
 	INIT_LIST_HEAD(&slave->my_engines);
 
@@ -242,11 +420,43 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 		type = (conf & FSI_SLAVE_CONF_TYPE_MASK)
 			>> FSI_SLAVE_CONF_TYPE_SHIFT;
 
-		/*
-		 * Unused address areas are marked by a zero type value; this
-		 * skips the defined address areas
-		 */
-		if (type != 0 && slots != 0) {
+		switch (type) {
+		case 0:
+			/*
+			 * Unused address areas are marked by a zero type
+			 * value; this skips the defined address areas
+			 */
+			break;
+
+		case FSI_ENGID_HUB_MASTER:
+			hub = kzalloc(sizeof(*hub), GFP_KERNEL);
+			if (!hub)
+				return -ENOMEM;
+
+			device_initialize(&hub->dev);
+			dev_set_name(&hub->dev, "hub@%02x", hub->master.idx);
+			hub->dev.release = hub_master_release;
+			rc = device_add(&hub->dev);
+			if (rc)
+				return rc;
+
+			hub->master.dev = &hub->dev;
+			hub->master.dev->parent = &slave->dev;
+			hub->base = FSI_HUB_LINK_OFFSET;
+			hub->control_regs = engine_addr;
+			hub->slave = slave;
+			rc = hub_master_init(hub);
+
+			break;
+
+		case FSI_ENGID_HUB_LINK:
+			conf_link_count++;
+
+			break;
+
+		default:
+			if (slots == 0)
+				break;
 
 			/* create device */
 			dev = fsi_create_device(slave);
@@ -284,6 +494,11 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 
 		if (!(conf & FSI_SLAVE_CONF_NEXT_MASK))
 			break;
+	}
+
+	if (hub) {
+		hub->master.n_links = conf_link_count / 2;
+		fsi_master_register(&hub->master);
 	}
 
 	return 0;
