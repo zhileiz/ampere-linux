@@ -42,6 +42,9 @@
 
 #define FSI_PEEK_BASE			0x410
 #define	FSI_SLAVE_BASE			0x800
+#define	FSI_HUB_CONTROL			0x3400
+
+#define	FSI_SLAVE_SMODE_DFLT		0xa0ff0100
 
 #define FSI_IPOLL_PERIOD		msecs_to_jiffies(fsi_ipoll_period_ms)
 
@@ -662,6 +665,33 @@ static int fsi_master_break(struct fsi_master *master, int link)
 
 	return 0;
 }
+
+void fsi_master_handle_error(struct fsi_master *master, uint32_t addr)
+{
+	uint32_t smode = FSI_SLAVE_SMODE_DFLT;
+	static atomic_t in_err_cleanup = ATOMIC_INIT(-1);
+
+	if (!atomic_inc_and_test(&in_err_cleanup))
+		return;
+
+	fsi_master_break(master, 0);
+	udelay(200);
+	master->write(master, 0, 0, FSI_SLAVE_BASE + FSI_SMODE, &smode,
+			sizeof(smode));
+	smode = FSI_MRESB_RST_GEN | FSI_MRESB_RST_ERR;
+	master->write(master, 0, 0, FSI_HUB_CONTROL + FSI_MRESB0, &smode,
+			sizeof(smode));
+
+	if (addr > FSI_HUB_LINK_OFFSET) {
+		smode = FSI_BREAK;
+		master->write(master, 0, 0, 0x100004, &smode, sizeof(smode));
+		smode = FSI_SLAVE_SMODE_DFLT;
+		master->write(master, 0, 0, 0x100800, &smode, sizeof(smode));
+	}
+
+	atomic_set(&in_err_cleanup, -1);
+}
+EXPORT_SYMBOL(fsi_master_handle_error);
 
 static int fsi_master_scan(struct fsi_master *master)
 {

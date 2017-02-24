@@ -85,6 +85,7 @@ struct fsi_master {
 extern int fsi_master_register(struct fsi_master *master);
 extern void fsi_master_unregister(struct fsi_master *master);
 extern int fsi_master_start_ipoll(struct fsi_master *master);
+extern void fsi_master_handle_error(struct fsi_master *master, uint32_t addr);
 
 /**
  * crc4 helper: Given a starting crc4 state @c, calculate the crc4 vaue of @x,

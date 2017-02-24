@@ -370,6 +370,28 @@ static int send_command(struct fsi_master_gpio *master,
 	return rc;
 }
 
+static int fsi_master_gpio_send(struct fsi_master_gpio *master,
+				struct fsi_gpio_msg *cmd, uint8_t expected,
+				uint32_t addr, size_t size, void *val)
+{
+	static const int master_retries = 2;
+	uint8_t retries;
+	int rc;
+
+	/*
+	 * In case the FSI bus is in a bad state a retry may help
+	 * the operation to complete successfully
+	 */
+	for (retries = 0; retries < master_retries; retries++) {
+		rc = send_command(master, cmd, expected, size, val);
+		if (!rc)
+			break;
+		fsi_master_handle_error(&master->master, addr);
+	}
+
+	return rc;
+}
+
 static int fsi_master_gpio_read(struct fsi_master *_master, int link,
 		uint8_t slave, uint32_t addr, void *val, size_t size)
 {
@@ -380,7 +402,8 @@ static int fsi_master_gpio_read(struct fsi_master *_master, int link,
 		return -ENODEV;
 
 	build_abs_ar_command(&cmd, FSI_GPIO_CMD_READ, slave, addr, size, NULL);
-	return send_command(master, &cmd, FSI_GPIO_RESP_ACKD, size, val);
+	return fsi_master_gpio_send(master, &cmd, FSI_GPIO_RESP_ACKD, addr,
+				size, val);
 }
 
 static int fsi_master_gpio_write(struct fsi_master *_master, int link,
@@ -393,7 +416,8 @@ static int fsi_master_gpio_write(struct fsi_master *_master, int link,
 		return -ENODEV;
 
 	build_abs_ar_command(&cmd, FSI_GPIO_CMD_WRITE, slave, addr, size, val);
-	return send_command(master, &cmd, FSI_GPIO_RESP_ACK, size, NULL);
+	return fsi_master_gpio_send(master, &cmd, FSI_GPIO_RESP_ACK, addr,
+				size, NULL);
 }
 
 /*
