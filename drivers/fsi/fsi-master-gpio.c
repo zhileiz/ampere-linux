@@ -354,26 +354,33 @@ static void build_abs_ar_command(struct fsi_gpio_msg *cmd, uint64_t mode,
 	cmd->msg >>= (64 - cmd->bits);
 }
 
+static int send_command(struct fsi_master_gpio *master,
+			struct fsi_gpio_msg *cmd, uint8_t expected,
+			size_t size, void *val)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(&fsi_gpio_cmd_lock, flags);
+	serial_out(master, cmd);
+	echo_delay(master);
+	rc = poll_for_response(master, expected, size, val);
+	spin_unlock_irqrestore(&fsi_gpio_cmd_lock, flags);
+
+	return rc;
+}
+
 static int fsi_master_gpio_read(struct fsi_master *_master, int link,
 		uint8_t slave, uint32_t addr, void *val, size_t size)
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	struct fsi_gpio_msg cmd;
-	int rc;
-	unsigned long flags;
 
 	if (link != 0)
 		return -ENODEV;
 
 	build_abs_ar_command(&cmd, FSI_GPIO_CMD_READ, slave, addr, size, NULL);
-
-	spin_lock_irqsave(&fsi_gpio_cmd_lock, flags);
-	serial_out(master, &cmd);
-	echo_delay(master);
-	rc = poll_for_response(master, FSI_GPIO_RESP_ACKD, size, val);
-	spin_unlock_irqrestore(&fsi_gpio_cmd_lock, flags);
-
-	return rc;
+	return send_command(master, &cmd, FSI_GPIO_RESP_ACKD, size, val);
 }
 
 static int fsi_master_gpio_write(struct fsi_master *_master, int link,
@@ -381,21 +388,12 @@ static int fsi_master_gpio_write(struct fsi_master *_master, int link,
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	struct fsi_gpio_msg cmd;
-	int rc;
-	unsigned long flags;
 
 	if (link != 0)
 		return -ENODEV;
 
 	build_abs_ar_command(&cmd, FSI_GPIO_CMD_WRITE, slave, addr, size, val);
-
-	spin_lock_irqsave(&fsi_gpio_cmd_lock, flags);
-	serial_out(master, &cmd);
-	echo_delay(master);
-	rc = poll_for_response(master, FSI_GPIO_RESP_ACK, size, NULL);
-	spin_unlock_irqrestore(&fsi_gpio_cmd_lock, flags);
-
-	return rc;
+	return send_command(master, &cmd, FSI_GPIO_RESP_ACK, size, NULL);
 }
 
 /*
