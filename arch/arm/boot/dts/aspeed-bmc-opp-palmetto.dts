@@ -83,10 +83,8 @@
 		};
 	};
 
-	fsi-master {
-		compatible = "ibm,fsi-master", "ibm,fsi-master-gpio";
-
-		status = "disabled";
+	gpio-fsi {
+		compatible = "fsi-master-gpio", "fsi-master";
 
 		clock-gpios = <&gpio ASPEED_GPIO(A, 4) GPIO_ACTIVE_HIGH>;
 		data-gpios = <&gpio ASPEED_GPIO(A, 5) GPIO_ACTIVE_HIGH>;

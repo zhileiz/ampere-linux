@@ -31,8 +31,8 @@
 		};
 	};
 
-	fsi-master {
-		compatible = "ibm,fsi-master", "ibm,fsi-master-gpio";
+	gpio-fsi {
+		compatible = "fsi-master-gpio", "fsi-master";
 
 		status = "okay";
 
