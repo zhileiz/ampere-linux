@@ -221,6 +221,12 @@ static void __init do_witherspoon_setup(void)
 static void __init do_romulus_setup(void)
 {
 	do_common_setup();
+
+	/* Set SPI1 CE1 decoding window to 0x34000000 */
+	writel(0x70680000, AST_IO(AST_BASE_SPI | 0x34));
+
+	/* Set SPI1 CE0 decoding window to 0x30000000 */
+	writel(0x68600000, AST_IO(AST_BASE_SPI | 0x30));
 }
 
 #define SCU_PASSWORD	0x1688A8A8
