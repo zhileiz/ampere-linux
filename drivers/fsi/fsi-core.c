@@ -437,7 +437,7 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 				return -ENOMEM;
 
 			device_initialize(&hub->dev);
-			dev_set_name(&hub->dev, "hub@%02x", hub->master.idx);
+			dev_set_name(&hub->dev, "hub@%02x", slave->master->idx);
 			hub->dev.release = hub_master_release;
 			rc = device_add(&hub->dev);
 			if (rc)
