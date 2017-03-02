@@ -476,7 +476,14 @@ static ssize_t store_scan(struct device *dev,
 				const char *buf,
 				size_t count)
 {
-	struct fsi_master_gpio *master = dev_get_drvdata(dev);
+	struct fsi_master_gpio *master;
+
+	if (!dev)
+		return -EINVAL;
+
+	master = dev_get_drvdata(dev);
+	if (!master)
+		return -EINVAL;
 
 	fsi_master_gpio_init(master);
 
