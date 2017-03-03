@@ -64,11 +64,14 @@
 	status = "okay";
 	flash@0 {
 		status = "okay";
+		m25p,fast-read;
+
 #include "aspeed-bmc-opp-flash-layout.dtsi"
 	};
 	flash@1 {
 		status = "okay";
 		label = "alt";
+		m25p,fast-read;
 	};
 };
 
@@ -80,6 +83,7 @@
 	flash@0 {
 		status = "okay";
 		label = "pnor";
+		m25p,fast-read;
 	};
 };
 

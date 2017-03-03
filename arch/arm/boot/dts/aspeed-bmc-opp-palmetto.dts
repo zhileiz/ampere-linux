@@ -59,6 +59,7 @@
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;
+				m25p,fast-read;
 #include "aspeed-bmc-opp-flash-layout.dtsi"
 			};
 		};
@@ -73,6 +74,7 @@
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;
 				label = "pnor";
+				m25p,fast-read;
 			};
 		};
 	};
