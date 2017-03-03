@@ -56,7 +56,7 @@
 				0x30000000 0x08000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2500-smc";
+			compatible = "aspeed,ast2500-spi";
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
@@ -75,7 +75,7 @@
 				0x38000000 0x08000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2500-smc";
+			compatible = "aspeed,ast2500-spi";
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;

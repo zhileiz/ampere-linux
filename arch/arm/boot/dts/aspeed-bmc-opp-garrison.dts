@@ -51,7 +51,7 @@
 				0x30000000 0x02000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2400-smc";
+			compatible = "aspeed,ast2400-spi";
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;
