@@ -557,14 +557,24 @@ static int fsi_master_gpio_remove(struct platform_device *pdev)
 {
 	struct fsi_master_gpio *master = platform_get_drvdata(pdev);
 
+	fsi_master_gpio_break(&master->master, 0);
+
+	gpiod_set_value(master->gpio_clk, 0);
 	devm_gpiod_put(&pdev->dev, master->gpio_clk);
+	gpiod_set_value(master->gpio_data, 1);
 	devm_gpiod_put(&pdev->dev, master->gpio_data);
-	if (master->gpio_trans)
+	if (master->gpio_trans) {
+		gpiod_set_value(master->gpio_trans, 0);
 		devm_gpiod_put(&pdev->dev, master->gpio_trans);
-	if (master->gpio_enable)
+	}
+	if (master->gpio_enable) {
+		gpiod_set_value(master->gpio_enable, 0);
 		devm_gpiod_put(&pdev->dev, master->gpio_enable);
-	if (master->gpio_mux)
+	}
+	if (master->gpio_mux) {
+		gpiod_set_value(master->gpio_mux, 0);
 		devm_gpiod_put(&pdev->dev, master->gpio_mux);
+	}
 	fsi_master_unregister(&master->master);
 
 	return 0;
