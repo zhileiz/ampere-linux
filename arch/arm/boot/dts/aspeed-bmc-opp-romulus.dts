@@ -50,10 +50,6 @@
 		status = "okay";
 #include "aspeed-bmc-opp-flash-layout.dtsi"
 	};
-	flash@1 {
-		status = "okay";
-		label = "alt";
-	};
 };
 
 &spi1 {
