@@ -439,12 +439,12 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 			device_initialize(&hub->dev);
 			dev_set_name(&hub->dev, "hub@%02x", slave->master->idx);
 			hub->dev.release = hub_master_release;
+			hub->master.dev = &hub->dev;
+			hub->master.dev->parent = &slave->dev;
 			rc = device_add(&hub->dev);
 			if (rc)
 				return rc;
 
-			hub->master.dev = &hub->dev;
-			hub->master.dev->parent = &slave->dev;
 			hub->base = FSI_HUB_LINK_OFFSET;
 			hub->control_regs = engine_addr;
 			hub->slave = slave;
