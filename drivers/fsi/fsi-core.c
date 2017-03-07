@@ -84,6 +84,7 @@ struct fsi_master_hub {
 #define to_fsi_master_hub(d) container_of(d, struct fsi_master_hub, master)
 #define to_fsi_slave(d) container_of(d, struct fsi_slave, dev)
 
+static void fsi_master_unscan(struct fsi_master *master);
 static int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
 		void *val, size_t size);
 static int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
@@ -441,6 +442,7 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 			hub->dev.release = hub_master_release;
 			hub->master.dev = &hub->dev;
 			hub->master.dev->parent = &slave->dev;
+			dev_set_drvdata(&hub->dev, hub);
 			rc = device_add(&hub->dev);
 			if (rc)
 				return rc;
@@ -739,6 +741,19 @@ static int fsi_master_scan(struct fsi_master *master)
 	return 0;
 }
 
+static int fsi_unregister_hubs(struct device *dev, void *data)
+{
+	struct fsi_master_hub *hub = dev_get_drvdata(dev);
+
+	if (!hub)
+		return 0;
+
+	device_del(dev);
+	fsi_master_unscan(&hub->master);
+
+	return 0;
+}
+
 static void fsi_master_unscan(struct fsi_master *master)
 {
 	struct fsi_slave *slave, *slave_tmp;
@@ -756,6 +771,8 @@ static void fsi_master_unscan(struct fsi_master *master)
 			device_del(&fsi_dev->dev);
 			put_device(&fsi_dev->dev);
 		}
+		/* Remove any hub masters */
+		device_for_each_child(&slave->dev, NULL, fsi_unregister_hubs);
 		device_unregister(&slave->dev);
 	}
 	master->slave_list = false;
