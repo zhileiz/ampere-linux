@@ -868,11 +868,11 @@ EXPORT_SYMBOL_GPL(fsi_master_register);
 
 void fsi_master_unregister(struct fsi_master *master)
 {
-	if (master->idx >= 0) {
-		ida_simple_remove(&master_ida, master->idx);
-		master->idx = -1;
-	}
+	if (!master || !master->dev || master->idx < 0)
+		return;
 
+	ida_simple_remove(&master_ida, master->idx);
+	master->idx = -1;
 	device_remove_file(master->dev, &dev_attr_fsi_ipoll_period);
 	fsi_master_unscan(master);
 	put_device(master->dev);

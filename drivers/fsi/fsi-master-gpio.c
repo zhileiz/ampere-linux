@@ -576,6 +576,7 @@ static int fsi_master_gpio_remove(struct platform_device *pdev)
 		devm_gpiod_put(&pdev->dev, master->gpio_mux);
 	}
 	fsi_master_unregister(&master->master);
+	device_remove_file(&pdev->dev, &dev_attr_scan);
 
 	return 0;
 }
