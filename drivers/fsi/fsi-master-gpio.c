@@ -568,7 +568,7 @@ static int fsi_master_gpio_remove(struct platform_device *pdev)
 		devm_gpiod_put(&pdev->dev, master->gpio_trans);
 	}
 	if (master->gpio_enable) {
-		gpiod_set_value(master->gpio_enable, 0);
+		gpiod_set_value(master->gpio_enable, 1);
 		devm_gpiod_put(&pdev->dev, master->gpio_enable);
 	}
 	if (master->gpio_mux) {
