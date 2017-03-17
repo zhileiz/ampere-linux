@@ -697,23 +697,23 @@ int iic_boe_eng_init(iic_eng_t* eng, iic_ffdc_t** ffdc)
 	clk_div = IIC_BOE_HZ2DIV(eng->bus_speed, IIC_BOE_DFLT_SPEED);
 	if(!clk_div)
 	{
-		IFLDi(2, "eng[%08x], max speed = %ld\n", 
+		dev_dbg(eng->dev, "eng[%08x], max speed = %ld\n",
 				eng->id, eng->bus_speed / 5);
 	}
 	if(clk_div & ~IIC_BOE_MAX_CLKDIV)
 		clk_div = IIC_BOE_MAX_CLKDIV;
-	IFLDd(3, "eng[%08x] speed[%ld] divisor[%ld]\n", eng->id,
+	dev_dbg(eng->dev, "eng[%08x] speed[%ld] divisor[%ld]\n", eng->id,
 			IIC_BOE_DIV2HZ(eng->bus_speed, clk_div), clk_div);
 
 	if(test_bit(IIC_ENG_Z7PLUS, &eng->flags) ||
 	   test_bit(IIC_ENG_P8_Z8_CENTAUR, &eng->flags))
 	{
-		IFLDi(0, "iic_boe_eng_init: P8/Z7PLUS mode\n");
+		dev_dbg(eng->dev, "iic_boe_eng_init: P8/Z7PLUS mode\n");
 		mode = IIC_BOE_Z7_MK_CLKDIV(clk_div);
 	}
 	else
 	{
-		IFLDi(0, "iic_boe_eng_init: Normal mode\n");
+		dev_dbg(eng->dev, "iic_boe_eng_init: Normal mode\n");
 		mode = IIC_BOE_MK_CLKDIV(clk_div);
 	}
 
@@ -1362,7 +1362,7 @@ int iic_boe_reset(iic_eng_t* eng, int type, iic_ffdc_t** ffdc)
 
 	IENTER();
 	/* issue an immediate reset i2c command */
-	IFLDi(0, "iic_boe_reset\n");
+	dev_dbg(eng->dev, "iic_boe_reset\n");
 	rc = iic_writew(eng, IIC_BOE_RESET_I2C, 0, ffdc);
 	if(rc)
 		goto exit;
@@ -1413,7 +1413,7 @@ int iic_boe_reset(iic_eng_t* eng, int type, iic_ffdc_t** ffdc)
 				ffdc);
 		if (rc)
 			goto exit;
-		IFLDi(1, "clean port busy port_busy[%08lx]\n", port_busy);
+		dev_dbg(eng->dev, "clean port busy port_busy[%08lx]\n", port_busy);
 	}
 
 	/* Test for stuck lines */

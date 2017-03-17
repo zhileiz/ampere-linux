@@ -195,7 +195,7 @@ int iic_add_ports(iic_eng_t* eng, uint64_t ports)
 
 	IENTER();
 
-	IFLDi(3, "Adding ports[0x%08x%08x] to eng[0x%08x]\n",
+	dev_dbg(eng->dev, "Adding ports[0x%08x%08x] to eng[0x%08x]\n",
 	      (uint32_t)(ports >> 32),
 	      (uint32_t)ports,
 	      eng->id);
@@ -271,7 +271,7 @@ int iic_del_ports(iic_eng_t* eng, uint64_t ports)
 
 	IENTER();
 
-	IFLDi(3, "removing ports[0x%08x%08x] from eng[0x%08x]",
+	dev_dbg(eng->dev, "removing ports[0x%08x%08x] from eng[0x%08x]",
 	      (uint32_t)(ports >> 32),
 	      (uint32_t)ports,
 	      eng->id);
@@ -333,7 +333,7 @@ int iic_fsi_probe(struct device *dev)
 	set_bit(IIC_ENG_BLOCK, &eng->flags); //block until resumed
 	eng->id = 0x00F5112C;
 	eng->idx = ida_simple_get(&iic_ida, 1, INT_MAX, GFP_KERNEL);
-	IFLDi(1, "PROBE    eng[%08x]\n", eng->id);
+	dev_dbg(dev, "PROBE    eng[%08x]\n", eng->id);
 	eng->ra = &fsi_reg_access;
 	IFLDd(1, "vaddr=%#08lx\n", eng->base);
 	eng->dev = dev;
@@ -414,7 +414,7 @@ int iic_fsi_remove(struct device* dev)
 
 	iic_fsi_suspend(dev); //ignore rc
 
-	IFLDi(1, "REMOVE   eng[%08x]\n", eng->id);
+	dev_dbg(dev, "REMOVE   eng[%08x]\n", eng->id);
 
 	/* Clean up device files immediately, don't wait for ref count */
 	iic_del_ports(eng, IIC_FSI_PORTS);
@@ -451,7 +451,7 @@ int iic_fsi_suspend(struct device *dev)
 		goto error;
 	}
 
-	IFLDi(2, "SUSPEND  eng[%08x]\n", eng->id);
+	dev_dbg(dev,"SUSPEND  eng[%08x]\n", eng->id);
 
 	/* Prohibit new engine operations until resumed*/
 	set_bit(IIC_ENG_BLOCK, &eng->flags);
@@ -504,7 +504,7 @@ int iic_fsi_resume(struct device *dev)
 		goto error;
 	}
 
-	IFLDi(1, "RESUME   eng[%08x]\n", eng->id);
+	dev_dbg(eng->dev, "RESUME   eng[%08x]\n", eng->id);
 
 	eng->bus_speed = 20833333;
 	IFLDd(1, "eng->bus_speed=%ld\n", eng->bus_speed);
