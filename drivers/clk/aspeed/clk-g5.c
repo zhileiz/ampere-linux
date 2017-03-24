@@ -84,7 +84,7 @@ static unsigned long aspeed_clk_ahb_recalc_rate(struct clk_hw *hw,
 	}
 
 	/* Bits 11:9 define the AXI/AHB clock frequency ratio */
-	reg = (reg >> 9) & GENMASK(3, 0);
+	reg = (reg >> 9) & 0x7;
 
 	/* A value of zero is undefined */
 	WARN_ON(reg == 0);
@@ -108,7 +108,7 @@ static unsigned long aspeed_clk_apb_recalc_rate(struct clk_hw *hw,
 		return ret;
 	}
 
-	reg = (reg >> 23) & GENMASK(3, 0);
+	reg = (reg >> 23) & 0x7;
 
 	rate = hpll_rate / (4 * (reg + 1));
 

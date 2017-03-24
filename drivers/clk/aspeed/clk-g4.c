@@ -94,7 +94,7 @@ static unsigned long aspeed_clk_apb_recalc_rate(struct clk_hw *hw,
 		return ret;
 	}
 
-	reg = (reg >> 23) & GENMASK(2, 0);
+	reg = (reg >> 23) & 0x3;
 
 	return hpll_rate / (2 + 2 * reg);
 }
