@@ -55,12 +55,7 @@ static int put_scom(struct scom_device *scom_dev, uint64_t value,
 			uint32_t addr)
 {
 	int rc;
-	uint32_t data = SCOM_RESET_CMD;
-
-	rc = fsi_device_write(scom_dev->fsi_dev, SCOM_RESET_REG, &data,
-				sizeof(uint32_t));
-	if (rc)
-		return rc;
+	uint32_t data;
 
 	data = (value >> 32) & 0xffffffff;
 	rc = fsi_device_write(scom_dev->fsi_dev, SCOM_DATA0_REG, &data,
@@ -185,6 +180,7 @@ static const struct file_operations scom_fops = {
 
 static int scom_probe(struct device *dev)
 {
+	u32 data = SCOM_RESET_CMD;
 	struct fsi_device *fsi_dev = to_fsi_dev(dev);
 	struct scom_device *scom;
 
@@ -201,6 +197,8 @@ static int scom_probe(struct device *dev)
 	scom->mdev.name = scom->name;
 	scom->mdev.parent = dev;
 	list_add(&scom->link, &scom_devices);
+
+	fsi_device_write(fsi_dev, SCOM_RESET_REG, &data, sizeof(u32));
 
 	return misc_register(&scom->mdev);
 }
