@@ -58,6 +58,11 @@
 		enable-gpios = <&gpio ASPEED_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
 		trans-gpios = <&gpio ASPEED_GPIO(R, 2) GPIO_ACTIVE_HIGH>;
 	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&bmp 1>;
+	};
 };
 
 &fmc {
@@ -164,9 +169,10 @@
 	 *    Regs 3.3VS, 1.1VCS, 5VCS, 1.8V
 	 */
 
-	bmp180@77 {
-		compatible = "bosch,bmp180";
+	bmp: bmp280@77 {
+		compatible = "bosch,bmp280";
 		reg = <0x77>;
+		#io-channel-cells = <1>;
 	};
 
 	max31785@52 {
