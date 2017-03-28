@@ -51,7 +51,7 @@ static void aspeed_smc_chip_set_4b_spi_2400(struct aspeed_smc_chip *chip);
 static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip);
 
 static const struct aspeed_smc_info fmc_2400_info = {
-	.maxsize = 64 * 1024 * 1024,
+	.maxsize = 256 * 1024 * 1024,
 	.nce = 5,
 	.hastype = true,
 	.we0 = 16,
