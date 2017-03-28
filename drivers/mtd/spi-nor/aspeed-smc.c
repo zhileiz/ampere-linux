@@ -516,15 +516,7 @@ static ssize_t aspeed_smc_read_user(struct spi_nor *nor, loff_t from,
 	struct aspeed_smc_chip *chip = nor->priv;
 	int i;
 	u8 dummy = 0xFF;
-	int ret;
 	u32 ctl;
-
-	if (aspeed_smc_dma_check(chip, from, len)) {
-		ret = aspeed_smc_dma_start(chip, from, read_buf, len, 0);
-		if (!ret)
-			goto out;
-		dev_err(chip->nor.dev, "DMA read failed: %d", ret);
-	}
 
 	aspeed_smc_start_user(nor);
 	aspeed_smc_send_cmd_addr(nor, nor->read_opcode, from);
@@ -540,6 +532,38 @@ static ssize_t aspeed_smc_read_user(struct spi_nor *nor, loff_t from,
 
 	aspeed_smc_read_from_ahb(read_buf, chip->ahb_base, len);
 	aspeed_smc_stop_user(nor);
+	return 0;
+}
+
+static ssize_t aspeed_smc_read(struct spi_nor *nor, loff_t from, size_t len,
+			       u_char *read_buf)
+{
+	struct aspeed_smc_chip *chip = nor->priv;
+	int ret;
+
+	/* The segment window configured for the chip is too small for
+	 * the read offset. Use the "User mode" of the controller to
+	 * perform the read.
+	 */
+	if (from >= chip->ahb_window_size) {
+		aspeed_smc_read_user(nor, from, len, read_buf);
+		goto out;
+	}
+
+	/* Then, try DMA if the driver allows them. */
+	if (aspeed_smc_dma_check(chip, from, len)) {
+		ret = aspeed_smc_dma_start(chip, from, read_buf, len, 0);
+		if (!ret)
+			goto out;
+		dev_err(chip->nor.dev, "DMA read failed: %d", ret);
+	}
+
+	/* Last, and this should be the default, use the "Command
+	 * mode" of the controller which does the read from the
+	 * segment window configured for the chip on the AHB bus.
+	 */
+	memcpy_fromio(read_buf, chip->ahb_base + from, len);
+
 out:
 	return len;
 }
@@ -948,7 +972,7 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 		nor->dev = dev;
 		nor->priv = chip;
 		spi_nor_set_flash_node(nor, child);
-		nor->read = aspeed_smc_read_user;
+		nor->read = aspeed_smc_read;
 		nor->write = aspeed_smc_write_user;
 		nor->read_reg = aspeed_smc_read_reg;
 		nor->write_reg = aspeed_smc_write_reg;
