@@ -33,6 +33,8 @@
 			status = "disabled";
 			aspeed,fmc-has-dma;
 			interrupts = <19>;
+			clocks = <&clk_ahb>;
+			clock-names = "ahb";
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
@@ -58,6 +60,8 @@
 			#size-cells = <0>;
 			compatible = "aspeed,ast2500-spi";
 			status = "disabled";
+			clocks = <&clk_ahb>;
+			clock-names = "ahb";
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
@@ -77,6 +81,8 @@
 			#size-cells = <0>;
 			compatible = "aspeed,ast2500-spi";
 			status = "disabled";
+			clocks = <&clk_ahb>;
+			clock-names = "ahb";
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";

@@ -10,6 +10,7 @@
  */
 
 #include <linux/bug.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
@@ -118,6 +119,8 @@ struct aspeed_smc_controller {
 	const struct aspeed_smc_info *info;	/* type info of controller */
 	void __iomem *regs;			/* controller registers */
 	void __iomem *ahb_base;			/* per-chip windows resource */
+
+	struct clk *ahb_clk;
 
 	/* interrupt handling */
 	int irq;
@@ -1106,6 +1109,10 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 	controller->ahb_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(controller->ahb_base))
 		return PTR_ERR(controller->ahb_base);
+
+	controller->ahb_clk = devm_clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(controller->ahb_clk))
+		return PTR_ERR(controller->ahb_clk);
 
 	aspeed_smc_dma_setup(controller, pdev);
 

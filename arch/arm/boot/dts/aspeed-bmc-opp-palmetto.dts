@@ -56,6 +56,8 @@
 			compatible = "aspeed,ast2400-fmc";
 			aspeed,fmc-has-dma;
 			interrupts = <19>;
+			clocks = <&clk_ahb>;
+			clock-names = "ahb";
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;
@@ -70,6 +72,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2400-spi";
+			clocks = <&clk_ahb>;
+			clock-names = "ahb";
 			flash {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;
