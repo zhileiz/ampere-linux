@@ -693,7 +693,7 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 		return -EINVAL;
 	}
 
-	chip->phys_base = res->start;
+	chip->phys_base = res->start + (chip->ahb_base - controller->ahb_base);
 
 	/*
 	 * Get value of the inherited control register. U-Boot usually
