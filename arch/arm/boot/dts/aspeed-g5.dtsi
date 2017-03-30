@@ -1026,6 +1026,13 @@
 				status = "disabled";
 			};
 
+			adc: adc@1e6e9000 {
+				compatible = "aspeed,ast2500-adc";
+				reg = <0x1e6e9000 0xB0>;
+				clocks = <&clk_apb>;
+				#io-channel-cells = <1>;
+			};
+
 			sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x9000>;	// 36K
