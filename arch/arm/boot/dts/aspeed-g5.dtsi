@@ -394,7 +394,6 @@
 						function = "LAD0";
 						groups = "LAD0";
 					};
-
 					pinctrl_lad1_default: lad1_default {
 						function = "LAD1";
 						groups = "LAD1";
@@ -1017,6 +1016,13 @@
 
 				/* AST2520 doesn't have GFX, so disable */
 				status = "disabled";
+			};
+
+			adc: adc@1e6e9000 {
+				compatible = "aspeed,ast2500-adc";
+				reg = <0x1e6e9000 0xB0>;
+				clocks = <&clk_apb>;
+				#io-channel-cells = <1>;
 			};
 
 			sram@1e720000 {
