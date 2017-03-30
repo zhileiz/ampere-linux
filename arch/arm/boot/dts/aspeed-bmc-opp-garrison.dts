@@ -64,6 +64,10 @@
 	};
 };
 
+&uart5 {
+	status = "okay";
+};
+
 &mac0 {
 	status = "okay";
 
