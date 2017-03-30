@@ -13,7 +13,7 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200";
+		bootargs = "console=ttyS4,115200 earlyprintk";
 	};
 
 	memory {
@@ -33,31 +33,31 @@
 
 	ahb {
 
-		fmc@1e620000 {
+		bmc_pnor: fmc@1e620000 {
 			reg = < 0x1e620000 0x94
 				0x20000000 0x02000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2400-fmc";
-
+			aspeed,fmc-has-dma;
+			interrupts = <19>;
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;
 #include "aspeed-bmc-opp-flash-layout.dtsi"
 			};
 		};
-		spi@1e630000 {
+
+		host_pnor: spi@1e630000 {
 			reg = < 0x1e630000 0x18
 				0x30000000 0x02000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2400-smc";
-			flash@0 {
+			flash {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor" ;
 				label = "pnor";
-				/* spi-max-frequency = <>; */
-				/* m25p,fast-read; */
 			};
 		};
 
@@ -110,5 +110,9 @@
 };
 
 &i2c13 {
+	status = "okay";
+};
+
+&vuart {
 	status = "okay";
 };
