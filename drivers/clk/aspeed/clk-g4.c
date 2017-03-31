@@ -30,18 +30,12 @@ static unsigned long aspeed_clk_clkin_recalc_rate(struct clk_hw *hw,
 		return ret;
 	}
 
-	switch (reg & (BIT(23) | BIT(18))) {
-	case 0x00:
-		rate = 24;
-		break;
-	case 0x01:
-		rate = 48;
-		break;
-	case 0x02:
-	case 0x03:
+	if (reg & BIT(23))
 		rate = 25;
-		break;
-	};
+	else if (reg & BIT(18))
+		rate = 48;
+	else
+		rate = 24;
 
 	return rate * 1000000;
 }
