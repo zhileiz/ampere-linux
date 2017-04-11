@@ -1279,14 +1279,12 @@ static void ftgmac100_tx_timeout(struct net_device *ndev)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static void ftgmac100_netpoll(struct net_device *ndev)
+static void ftgmac100_poll_controller(struct net_device *ndev)
 {
 	unsigned long flags;
-	disable_irq(dev->irq);
 	local_irq_save(flags);
-	ftgmac100_interrupt(dev->irq, ndev);
+	ftgmac100_interrupt(ndev->irq, ndev);
 	local_irq_restore(flags);
-	enable_irq(dev->irq);
 }
 #endif
 
