@@ -13,8 +13,8 @@
 
 #include "fsi-master.h"
 
-#define	FSI_GPIO_STD_DLY	1	/* Standard pin delay in nS */
-#define	FSI_GPIO_SDA_IN_DLY	200	/* Wait to sample SDA line, in nS */
+#define	FSI_GPIO_STD_DLY	2200	/* Standard pin delay in nS */
+#define	FSI_GPIO_SDA_IN_DLY	2200	/* Wait to sample SDA line, in nS */
 #define	FSI_ECHO_DELAY_CLOCKS	16	/* Number clocks for echo delay */
 #define	FSI_PRE_BREAK_CLOCKS	50	/* Number clocks to prep for break */
 #define	FSI_BREAK_CLOCKS	256	/* Number of clocks to issue break */
