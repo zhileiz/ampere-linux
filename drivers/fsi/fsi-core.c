@@ -775,6 +775,30 @@ static int fsi_master_scan(struct fsi_master *master)
 	return 0;
 }
 
+static ssize_t fsi_ipoll_period_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE - 1, "%u\n", fsi_ipoll_period_ms);
+}
+
+static ssize_t fsi_ipoll_period_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int rc;
+	unsigned long val = 0;
+
+	rc = kstrtoul(buf, 0, &val);
+
+	if (val > 1 && val < 10000)
+	fsi_ipoll_period_ms = val;
+
+	return count;
+}
+
+DEVICE_ATTR(fsi_ipoll_period, S_IRUGO | S_IWUSR, fsi_ipoll_period_show,
+		fsi_ipoll_period_store);
+
 static int fsi_unregister_hubs(struct device *dev, void *data)
 {
 	struct fsi_master_hub *hub = dev_get_drvdata(dev);
@@ -782,8 +806,11 @@ static int fsi_unregister_hubs(struct device *dev, void *data)
 	if (!hub)
 		return 0;
 
-	device_del(dev);
+	ida_simple_remove(&master_ida, hub->master.idx);
+	hub->master.idx = -1;
+	device_remove_file(dev, &dev_attr_fsi_ipoll_period);
 	fsi_master_unscan(&hub->master);
+	device_del(dev);
 
 	return 0;
 }
@@ -969,30 +996,6 @@ done:
 	return 0;
 }
 
-static ssize_t fsi_ipoll_period_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE - 1, "%u\n", fsi_ipoll_period_ms);
-}
-
-static ssize_t fsi_ipoll_period_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	int rc;
-	unsigned long val = 0;
-
-	rc = kstrtoul(buf, 0, &val);
-
-	if (val > 1 && val < 10000)
-	fsi_ipoll_period_ms = val;
-
-	return count;
-}
-
-DEVICE_ATTR(fsi_ipoll_period, S_IRUGO | S_IWUSR, fsi_ipoll_period_show,
-		fsi_ipoll_period_store);
-
 int fsi_master_register(struct fsi_master *master)
 {
 	if (!master || !master->dev)
@@ -1125,7 +1128,7 @@ static int set_upstream_irq_masks(struct fsi_master *master,
 	uint32_t mask, si1m;
 	int rc;
 
-	if (!master->idx)
+	if (master->idx <= 0)
 		return 0;
 
 	upstream_slave = to_fsi_slave(slave->master->dev->parent);
