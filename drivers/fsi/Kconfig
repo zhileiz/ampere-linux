@@ -24,6 +24,16 @@ config FSI_SBEFIFO
 	---help---
 	This option enables an FSI based SBEFIFO device driver.
 
+if FSI_SBEFIFO
+
+config OCCFIFO
+	tristate "OCC SBEFIFO client device driver"
+	depends on FSI_SBEFIFO
+	---help---
+	This option enables an FSI based OCC driver using the SBEFIFO.
+
+endif
+
 config FSI_SCOM
 	tristate "SCOM FSI client device driver"
 	depends on FSI
