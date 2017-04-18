@@ -172,6 +172,11 @@
 		compatible = "maxim,max31785";
 		reg = <0x52>;
 	};
+
+	dps310@76 {
+		compatible = "infineon,dps310";
+		reg = <0x76>;
+	};
 };
 
 &i2c4 {
