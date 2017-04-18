@@ -124,8 +124,10 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
+	if (!res) {
+		dev_err(&pdev->dev, "timeriomem_rng: resource is missing\n");
 		return -ENXIO;
+	}
 
 	if (res->start % 4 != 0 || resource_size(res) != 4) {
 		dev_err(&pdev->dev,
