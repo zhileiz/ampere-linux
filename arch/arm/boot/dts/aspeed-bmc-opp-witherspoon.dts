@@ -73,6 +73,22 @@
 		mux-gpios = <&gpio ASPEED_GPIO(A, 6) GPIO_ACTIVE_HIGH>;
 		enable-gpios = <&gpio ASPEED_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
 		trans-gpios = <&gpio ASPEED_GPIO(R, 2) GPIO_ACTIVE_HIGH>;
+
+		sbefifo1: sbefifo@2400 {
+			compatible = "ibm,power9-sbefifo";
+
+			status = "okay";
+
+			reg = <0x2400>;
+		};
+	};
+
+	occfifo@1 {
+		compatible = "ibm,occfifo";
+
+		status = "okay";
+
+		bus = <&sbefifo1>;
 	};
 
 	iio-hwmon {
