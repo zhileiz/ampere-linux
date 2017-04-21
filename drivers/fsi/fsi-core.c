@@ -1086,17 +1086,140 @@ void fsi_driver_unregister(struct fsi_driver *fsi_drv)
 }
 EXPORT_SYMBOL_GPL(fsi_driver_unregister);
 
+static uint32_t link_to_srsim_mask(int link)
+{
+	return ((0x80000000 >> 6) >> FSI_SRSIX_BITS_PER_LINK*link);
+}
+
+static uint32_t link_to_msiep_mask(int link)
+{
+	return (0xf0000000 >> (FSI_MSIEP_BITS_PER_LINK*link));
+}
+
+static int set_si1m(struct fsi_slave *slave, uint32_t mask, int on)
+{
+	int rc;
+	uint32_t si1m;
+
+	rc = fsi_slave_read(slave, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+			sizeof(si1m));
+	if (rc) {
+		dev_dbg(&slave->dev, "Failed to read SI1M\n");
+		return rc;
+	}
+
+	if (on)
+		si1m |= mask;
+	else
+		si1m &= ~mask;
+
+	return fsi_slave_write(slave, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+			sizeof(si1m));
+}
+
+static int set_upstream_irq_masks(struct fsi_master *master,
+				struct fsi_slave *slave, int on)
+{
+	struct fsi_slave *upstream_slave;
+	struct fsi_master *upstream_master;
+	uint32_t mask, si1m;
+	int rc;
+
+	if (!master->idx)
+		return 0;
+
+	upstream_slave = to_fsi_slave(slave->master->dev->parent);
+	if (!upstream_slave) {
+		dev_dbg(&slave->dev, "No upstream slave found\n");
+		return -ENODEV;
+	}
+
+	rc = fsi_slave_read(upstream_slave, FSI_SLAVE_BASE + FSI_SRSIM0, &si1m,
+			sizeof(si1m));
+	if (rc) {
+		dev_dbg(&slave->dev, "Failed to read SRSIM0\n");
+		return rc;
+	}
+
+	mask = link_to_srsim_mask(slave->link);
+	if (on)
+		si1m |= mask;
+	else
+		si1m &= ~mask;
+	rc = fsi_slave_write(upstream_slave, FSI_SLAVE_BASE + FSI_SRSIM0, &si1m,
+			sizeof(si1m));
+	if (rc) {
+		dev_dbg(&slave->dev, "Failed to write SRSIM0\n");
+		return rc;
+	}
+
+	upstream_master = upstream_slave->master;
+	if (!upstream_master) {
+		dev_dbg(&upstream_slave->dev, "Cannot find master\n");
+		return -ENODEV;
+	}
+
+	rc = upstream_master->read(upstream_master, 0, 0,
+				FSI_HUB_CONTROL + FSI_MSIEP0, &si1m,
+				sizeof(si1m));
+	if (rc) {
+		dev_dbg(&upstream_slave->dev,
+			"Could not read master's MSIEP\n");
+		return rc;
+	}
+
+	/* TODO: merge this into above on/off check */
+	mask = link_to_msiep_mask(slave->link);
+	if (on) {
+		upstream_master->ipoll |= FSI_SI1_HUB_SRC;
+		si1m |= mask;
+	} else {
+		upstream_master->ipoll &= ~FSI_SI1_HUB_SRC;
+		si1m &= ~mask;
+	}
+
+	rc = upstream_master->write(upstream_master, 0, 0,
+				FSI_HUB_CONTROL + FSI_MSIEP0, &si1m,
+				sizeof(si1m));
+	if (rc) {
+		dev_dbg(&upstream_slave->dev,
+			"Failed to write to master's MSIEP\n");
+		return rc;
+	}
+	si1m = 0xd0040410;
+	rc = upstream_master->write(upstream_master, 0, 0,
+				FSI_HUB_CONTROL + FSI_MMODE, &si1m,
+				sizeof(si1m));
+	if (rc) {
+		dev_dbg(&upstream_slave->dev,
+			"Failed to set hub I POLL\n");
+	}
+
+	si1m = FSI_SI1_HUB_SRC;
+	rc = upstream_master->write(upstream_master, 0, 0,
+				FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+				sizeof(si1m));
+	if (rc) {
+		dev_dbg(&upstream_slave->dev,
+			"Failed to set hub mask in SI1M\n");
+	}
+
+	return set_si1m(upstream_slave, FSI_SI1_HUB_SRC, on);
+}
+
 int fsi_enable_irq(struct fsi_device *dev)
 {
 	int rc;
 	u32 si1m;
 	u32 bit = 0x80000000 >> dev->si1s_bit;
 	struct fsi_master *master = dev->slave->master;
+	struct fsi_slave *slave = dev->slave;
+	int link = slave->link;
 
 	if (!dev->irq_handler)
 		return -EINVAL;
 
-	rc = master->read(master, 0, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+	rc = master->read(master, link, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
 			sizeof(u32));
 	if (rc) {
 		dev_err(master->dev, "couldn't read si1m:%d\n", rc);
@@ -1104,7 +1227,7 @@ int fsi_enable_irq(struct fsi_device *dev)
 	}
 
 	si1m |= bit;
-	rc = master->write(master, 0, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+	rc = master->write(master, link, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
 			sizeof(u32));
 	if (rc) {
 		dev_err(master->dev, "couldn't write si1m:%d\n", rc);
@@ -1112,7 +1235,7 @@ int fsi_enable_irq(struct fsi_device *dev)
 	}
 
 	master->ipoll |= bit;
-	return 0;
+	return set_upstream_irq_masks(master, slave, 1);
 }
 EXPORT_SYMBOL_GPL(fsi_enable_irq);
 
@@ -1122,10 +1245,12 @@ void fsi_disable_irq(struct fsi_device *dev)
 	u32 si1m;
 	u32 bits = ~(0x80000000 >> dev->si1s_bit);
 	struct fsi_master *master = dev->slave->master;
+	struct fsi_slave *slave = dev->slave;
+	int link = dev->slave->link;
 
 	master->ipoll &= bits;
 
-	rc = master->read(master, 0, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+	rc = master->read(master, link, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
 			sizeof(u32));
 	if (rc) {
 		dev_err(master->dev, "couldn't read si1m:%d\n", rc);
@@ -1133,12 +1258,15 @@ void fsi_disable_irq(struct fsi_device *dev)
 	}
 
 	si1m &= bits;
-	rc = master->write(master, 0, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
+	rc = master->write(master, link, 0, FSI_SLAVE_BASE + FSI_SI1M, &si1m,
 			sizeof(u32));
 	if (rc) {
 		dev_err(master->dev, "couldn't write si1m:%d\n", rc);
 		return;
 	}
+
+	if (!master->ipoll)
+		set_upstream_irq_masks(master, slave, 0);
 }
 
 struct bus_type fsi_bus_type = {

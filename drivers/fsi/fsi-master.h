@@ -27,6 +27,7 @@
 #define FSI_MLEVP0		0x18		/* R: plug detect */
 #define FSI_MSENP0		0x18		/* S: Set enable */
 #define FSI_MCENP0		0x20		/* C: Clear enable */
+#define FSI_MSIEP0		0x30		/* R/W: Slave IRQ enable */
 #define FSI_MAEB		0x70		/* R: Error address */
 #define FSI_MVER		0x74		/* R: master version/type */
 #define FSI_MRESP0		0xd0		/* W: Port reset */
@@ -46,6 +47,9 @@
 #define FSI_MMODE_CRS0MASK	0x3ff		/* Clk rate selection 0 mask */
 #define FSI_MMODE_CRS1SHFT	8		/* Clk rate selection 1 shift */
 #define FSI_MMODE_CRS1MASK	0x3ff		/* Clk rate selection 1 mask */
+
+/* MSIEP: Slave interrupt enable */
+#define FSI_MSIEP_BITS_PER_LINK	4
 
 /* MRESB: Reset brindge */
 #define FSI_MRESB_RST_GEN	0x80000000	/* General reset */
