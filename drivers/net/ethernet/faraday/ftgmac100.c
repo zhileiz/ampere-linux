@@ -111,8 +111,8 @@ struct ftgmac100 {
 	bool rx_pause;
 	bool aneg_pause;
 
-	u32 rxdes0_edorr_mask;
-	u32 txdes0_edotr_mask;
+	uint32_t rxdes0_edorr_mask;
+	uint32_t txdes0_edotr_mask;
 };
 
 static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv,
@@ -1390,12 +1390,6 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 		return PTR_ERR(phydev);
 	}
 
-	/*
-	 * Indicate that we support PAUSE frames (see comment in
-	 * Documentation/networking/phy.txt as of v4.10)
-	 */
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-
 	phydev->advertising = phydev->supported;
 	phy_attached_info(phydev);
 
@@ -1496,21 +1490,6 @@ static int ftgmac100_setup_mdio(struct net_device *ndev)
 		iowrite32(reg, priv->base + FTGMAC100_OFFSET_REVR);
 	}
 
-	/*
-	 * Note: When using RGMII mode, we simply pass "RGMII" to the
-	 *       PHY and assume that u-boot will have configured the
-	 *       clock delays appropriately for the system.
-	 *
-	 *       The implementation of the MAC in the Aspeed chips
-	 *       supports sub-ns programable delays that need to be
-	 *       configured in the SCU while the MAC IP block is in
-	 *       reset.
-	 *
-	 *       If needed in the future, we can support configuring this
-	 *       here based on device-tree properties but unless absolutely
-	 *       needed I'd rather avoid poking at the SCU registers from
-	 *       this driver.
-	 */
 	if (np)
 		intf_prop = of_get_property(np, "phy-interface", NULL);
 	if (intf_prop) {
