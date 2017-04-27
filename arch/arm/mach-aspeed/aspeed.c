@@ -180,12 +180,6 @@ static void __init do_zaius_setup(void)
 	writel(0x30000C00, AST_IO(AST_BASE_LPC | 0x88));
 	writel(0xFC0003FF, AST_IO(AST_BASE_LPC | 0x8C));
 
-	/* Set SPI1 CE1 decoding window to 0x34000000 */
-	writel(0x70680000, AST_IO(AST_BASE_SPI | 0x34));
-
-	/* Set SPI1 CE0 decoding window to 0x30000000 */
-	writel(0x68600000, AST_IO(AST_BASE_SPI | 0x30));
-
 	/* Disable default behavior of UART1 being held in reset by LPCRST#.
 	 * By releasing UART1 from being controlled by LPC reset, it becomes
 	 * immediately available regardless of the host being up.
@@ -210,23 +204,11 @@ static void __init do_witherspoon_setup(void)
 	 */
 	writel(0x30000C00, AST_IO(AST_BASE_LPC | 0x88));
 	writel(0xFC0003FF, AST_IO(AST_BASE_LPC | 0x8C));
-
-	/* Set SPI1 CE1 decoding window to 0x34000000 */
-	writel(0x70680000, AST_IO(AST_BASE_SPI | 0x34));
-
-	/* Set SPI1 CE0 decoding window to 0x30000000 */
-	writel(0x68600000, AST_IO(AST_BASE_SPI | 0x30));
 }
 
 static void __init do_romulus_setup(void)
 {
 	do_common_setup();
-
-	/* Set SPI1 CE1 decoding window to 0x34000000 */
-	writel(0x70680000, AST_IO(AST_BASE_SPI | 0x34));
-
-	/* Set SPI1 CE0 decoding window to 0x30000000 */
-	writel(0x68600000, AST_IO(AST_BASE_SPI | 0x30));
 }
 
 static void __init do_lanyang_setup(void)
