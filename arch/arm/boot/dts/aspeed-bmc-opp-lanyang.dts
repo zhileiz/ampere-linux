@@ -301,17 +301,12 @@
 	status = "disabled";
 };
 
-&gpio {
-	line_apss_reset {
-		gpio-hog;
-		gpios = <ASPEED_GPIO(E, 4) GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "BMC_APSS_RESET_N";
-	};
-};
-
 &vuart {
 	status = "okay";
+};
+
+&gfx {
+        status = "okay";
 };
 
 &pinctrl {
