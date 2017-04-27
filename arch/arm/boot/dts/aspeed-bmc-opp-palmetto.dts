@@ -106,6 +106,7 @@
 	status = "okay";
 
 	use-ncsi;
+	no-hw-checksum;
 };
 
 
