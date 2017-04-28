@@ -884,6 +884,7 @@
 				interrupts = <20>;
 				interrupt-controller;
 				gpio-ranges = <&pinctrl 0 0 220>;
+				clocks = <&clk_hpll>;
 			};
 
 			timer: timer@1e782000 {
