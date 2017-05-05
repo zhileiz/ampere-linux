@@ -66,13 +66,6 @@ static void __init do_barreleye_setup(void)
 	writel(0x9E82FCE7, AST_IO(AST_BASE_GPIO | 0x00));
 	writel(0x0370E677, AST_IO(AST_BASE_GPIO | 0x04));
 
-	/* SCU setup
-	 *  - GPION must be set to GPIO mode (SCU88[0:7] = 0) on
-	 *    Barreleye so they can be used to read the PCIe inventory
-	 *    status
-	 */
-	writel(0x01C00000, AST_IO(AST_BASE_SCU | 0x88));
-
 	/* To enable GPIOE0 pass through function debounce mode */
 	writel(0x010FFFFF, AST_IO(AST_BASE_SCU | 0xA8));
 
