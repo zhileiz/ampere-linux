@@ -370,6 +370,7 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 
 	spin_lock(&bus->lock);
 	irq_status = readl(bus->base + ASPEED_I2C_INTR_STS_REG);
+	writel(irq_status, bus->base + ASPEED_I2C_INTR_STS_REG);
 
 	if (irq_status & ASPEED_I2CD_INTR_BUS_RECOVER_DONE) {
 		bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
@@ -504,7 +505,6 @@ out_no_complete:
 		dev_err(bus->dev,
 			"irq handled != irq. expected 0x%08x, but was 0x%08x\n",
 			irq_status, status_ack);
-	writel(irq_status, bus->base + ASPEED_I2C_INTR_STS_REG);
 	spin_unlock(&bus->lock);
 	return !!irq_status;
 }
