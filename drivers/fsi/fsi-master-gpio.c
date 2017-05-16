@@ -5,6 +5,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/fsi.h>
 #include <linux/device.h>
@@ -529,6 +530,7 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 
 	master->dev = &pdev->dev;
 	master->master.dev.parent = master->dev;
+	master->master.dev.of_node = of_node_get(dev_of_node(master->dev));
 	master->master.dev.release = fsi_master_gpio_release;
 
 	gpio = devm_gpiod_get(&pdev->dev, "clock", 0);
@@ -597,6 +599,8 @@ static int fsi_master_gpio_remove(struct platform_device *pdev)
 	if (master->gpio_mux)
 		devm_gpiod_put(&pdev->dev, master->gpio_mux);
 	fsi_master_unregister(&master->master);
+
+	of_node_put(master->master.dev.of_node);
 
 	return 0;
 }
