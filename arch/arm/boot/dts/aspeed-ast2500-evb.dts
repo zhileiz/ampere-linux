@@ -89,3 +89,7 @@
 &pinctrl {
 	aspeed,external-nodes = <&gfx &lhc>;
 };
+
+&wdt2 {
+	status = "okay";
+};
