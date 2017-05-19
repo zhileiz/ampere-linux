@@ -80,15 +80,25 @@
 			status = "okay";
 
 			reg = <0x2400>;
+
+			occ@1 {
+				compatible = "ibm,p9-occ";
+				reg = <1>;
+			};
 		};
-	};
 
-	occfifo@1 {
-		compatible = "ibm,occfifo";
+		sbefifo2: sbefifo@82400 {
+			compatible = "ibm,power9-sbefifo";
 
-		status = "okay";
+			status = "okay";
 
-		bus = <&sbefifo1>;
+			reg = <0x2400>;
+
+			occ@2 {
+				compatible = "ibm,p9-occ";
+				reg = <2>;
+			};
+		};
 	};
 
 	iio-hwmon {

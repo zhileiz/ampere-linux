@@ -20,6 +20,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -51,7 +52,6 @@ struct sbefifo {
 	wait_queue_head_t wait;
 	struct list_head link;
 	struct list_head xfrs;
-	struct list_head drv_refs;
 	struct kref kref;
 	struct device_node *node;
 	spinlock_t lock;
@@ -723,34 +723,21 @@ static const struct file_operations sbefifo_fops = {
 	.release	= sbefifo_release,
 };
 
-struct sbefifo *sbefifo_drv_reference(struct device_node *node,
-				      struct sbefifo_drv_ref *ref)
-{
-	struct sbefifo *sbefifo;
-
-	list_for_each_entry(sbefifo, &sbefifo_fifos, link) {
-		if (node == sbefifo->node) {
-			if (ref)
-				list_add(&ref->link, &sbefifo->drv_refs);
-			return sbefifo;
-		}
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(sbefifo_drv_reference);
-
-struct sbefifo_client *sbefifo_drv_open(struct sbefifo *sbefifo,
+struct sbefifo_client *sbefifo_drv_open(struct device *dev,
 					unsigned long flags)
 {
-	struct sbefifo_client *client;
+	struct sbefifo_client *client = NULL;
+	struct sbefifo *sbefifo;
+	struct fsi_device *fsi_dev = to_fsi_dev(dev);
 
-	if (!sbefifo)
-		return NULL;
+	list_for_each_entry(sbefifo, &sbefifo_fifos, link) {
+		if (sbefifo->fsi_dev != fsi_dev)
+			continue;
 
-	client = sbefifo_new_client(sbefifo);
-	if (client)
-		client->f_flags = flags;
+		client = sbefifo_new_client(sbefifo);
+		if (client)
+			client->f_flags = flags;
+	}
 
 	return client;
 }
@@ -778,18 +765,26 @@ void sbefifo_drv_release(struct sbefifo_client *client)
 }
 EXPORT_SYMBOL_GPL(sbefifo_drv_release);
 
-int sbefifo_drv_get_idx(struct sbefifo *sbefifo)
+static int sbefifo_unregister_child(struct device *dev, void *data)
 {
-	return sbefifo->idx;
+	struct platform_device *child = to_platform_device(dev);
+
+	of_device_unregister(child);
+	if (dev->of_node)
+		of_node_clear_flag(dev->of_node, OF_POPULATED);
+
+	return 0;
 }
 
 static int sbefifo_probe(struct device *dev)
 {
 	struct fsi_device *fsi_dev = to_fsi_dev(dev);
-	struct sbefifo *sbefifo;
+	struct sbefifo *sbefifo, *check;
 	struct device_node *np;
+	struct platform_device *child;
+	char child_name[32];
 	u32 sts, addr;
-	int ret;
+	int ret, child_idx = 0;
 
 	dev_info(dev, "Found sbefifo device\n");
 	sbefifo = kzalloc(sizeof(*sbefifo), GFP_KERNEL);
@@ -829,7 +824,6 @@ static int sbefifo_probe(struct device *dev)
 			sbefifo->idx);
 	init_waitqueue_head(&sbefifo->wait);
 	INIT_LIST_HEAD(&sbefifo->xfrs);
-	INIT_LIST_HEAD(&sbefifo->drv_refs);
 
 	for_each_compatible_node(np, NULL, "ibm,power9-sbefifo") {
 		ret = of_property_read_u32(np, "reg", &addr);
@@ -839,7 +833,29 @@ static int sbefifo_probe(struct device *dev)
 		/* TODO: get real address, not cfam offset */
 		if (addr == fsi_dev->addr) {
 			sbefifo->node = np;
-			break;
+
+			/* make sure we haven't found this one already */
+			list_for_each_entry(check, &sbefifo_fifos, link) {
+				if (check->node == np) {
+					sbefifo->node = NULL;
+					break;
+				}
+			}
+
+			if (sbefifo->node)
+				break;
+		}
+	}
+
+	if (sbefifo->node) {
+		/* create platform devs for dts child nodes (occ, etc) */
+		for_each_child_of_node(sbefifo->node, np) {
+			snprintf(child_name, sizeof(child_name), "%s-dev%d",
+				 sbefifo->name, child_idx++);
+			child = of_platform_device_create(np, child_name, dev);
+			if (!child)
+				dev_warn(&sbefifo->fsi_dev->dev,
+					 "failed to create child node dev\n");
 		}
 	}
 
@@ -855,18 +871,13 @@ static int sbefifo_remove(struct device *dev)
 {
 	struct fsi_device *fsi_dev = to_fsi_dev(dev);
 	struct sbefifo *sbefifo, *sbefifo_tmp;
-	struct sbefifo_drv_ref *ref, *ref_tmp;
 	struct sbefifo_xfr *xfr;
 
 	list_for_each_entry_safe(sbefifo, sbefifo_tmp, &sbefifo_fifos, link) {
 		if (sbefifo->fsi_dev != fsi_dev)
 			continue;
 
-		list_for_each_entry_safe(ref, ref_tmp, &sbefifo->drv_refs,
-					 link) {
-			ref->notify(ref);
-			list_del(&ref->link);
-		}
+		device_for_each_child(dev, NULL, sbefifo_unregister_child);
 
 		misc_deregister(&sbefifo->mdev);
 		list_del(&sbefifo->link);
