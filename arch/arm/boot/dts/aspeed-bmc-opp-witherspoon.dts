@@ -213,6 +213,16 @@
 		compatible = "ti,tmp423";
 		reg = <0x4c>;
 	};
+
+	ir35221@70 {
+		compatible = "infineon,ir35221";
+		reg = <0x70>;
+	};
+
+	ir35221@71 {
+		compatible = "infineon,ir35221";
+		reg = <0x71>;
+	};
 };
 
 
@@ -226,6 +236,16 @@
 	tmp423a@4c {
 		compatible = "ti,tmp423";
 		reg = <0x4c>;
+	};
+
+	ir35221@70 {
+		compatible = "infineon,ir35221";
+		reg = <0x70>;
+	};
+
+	ir35221@71 {
+		compatible = "infineon,ir35221";
+		reg = <0x71>;
 	};
 };
 
