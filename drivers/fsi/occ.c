@@ -190,6 +190,7 @@ static ssize_t occ_read(struct file *file, char __user *buf, size_t len,
 		goto done;
 	}
 
+	bytes = min(len, xfr->resp_data_length - client->read_offset);
 	if (copy_to_user(buf, &xfr->buf[client->read_offset], bytes)) {
 		rc = -EFAULT;
 		goto done;
