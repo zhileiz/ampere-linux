@@ -196,8 +196,13 @@
 &i2c12 {
 	status = "okay";
 
+	/* Fan Controller */
+	max31785@52 {
+		compatible = "maxim,max31785";
+		reg = <0x52>;
+	};
+
 	/* CPLD */
-	/* Fan Controller 0xa4/a5 */
 	/* Power Supply */
 	/* Temp Sensor */
 	/* Temp Sensor */
