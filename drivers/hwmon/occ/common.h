@@ -13,6 +13,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/sysfs.h>
 
+#define OCC_UPDATE_FREQUENCY		msecs_to_jiffies(1000)
 #define OCC_RESP_DATA_BYTES		4089
 
 struct occ_response {
@@ -75,10 +76,19 @@ struct occ_sensors {
 struct occ {
 	struct device *bus_dev;
 
+	unsigned long last_update;
+	struct mutex lock;
+
 	struct occ_response resp;
 	struct occ_sensors sensors;
+
+	u8 poll_cmd_data;
+	int (*send_cmd)(struct occ *occ, u8 *cmd);
 };
 
+void occ_parse_poll_response(struct occ *occ);
 int occ_poll(struct occ *occ);
+int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap);
+int occ_update_response(struct occ *occ);
 
 #endif /* __OCC_COMMON_H__ */
