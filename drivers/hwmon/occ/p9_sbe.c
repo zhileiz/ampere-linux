@@ -15,6 +15,9 @@
 #include <linux/occ.h>
 #include <linux/sched.h>
 #include <linux/workqueue.h>
+#include "p9.h"
+
+#define P9_SBE_OCC_SETUP_DELAY		2500
 
 #define OCC_TIMEOUT_MS			5000
 #define OCC_CMD_IN_PRG_MS		100
@@ -30,6 +33,7 @@
 
 struct p9_sbe_occ {
 	struct occ occ;
+	struct delayed_work setup;
 	struct device *sbe;
 };
 
@@ -101,6 +105,40 @@ err:
 	return rc;
 }
 
+static void p9_sbe_occ_setup(struct work_struct *work)
+{
+	int rc;
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct p9_sbe_occ *p9_sbe_occ = container_of(dwork, struct p9_sbe_occ,
+						     setup);
+	struct occ *occ = &p9_sbe_occ->occ;
+
+	/* no need to lock */
+	rc = occ_poll(occ);
+	if (rc < 0) {
+		dev_err(occ->bus_dev, "failed to get OCC poll response: %d\n",
+			rc);
+		return;
+	}
+
+	occ_parse_poll_response(occ);
+
+	rc = p9_occ_setup_sensor_attrs(occ);
+	if (rc) {
+		dev_err(occ->bus_dev, "failed to setup p9 attrs: %d\n", rc);
+		return;
+	}
+
+	occ->hwmon = devm_hwmon_device_register_with_groups(occ->bus_dev,
+							    "p9_occ", occ,
+							    occ->groups);
+	if (IS_ERR(occ->hwmon)) {
+		dev_err(occ->bus_dev, "failed to register hwmon device: %ld\n",
+			PTR_ERR(occ->hwmon));
+		return;
+	}
+}
+
 static int p9_sbe_occ_probe(struct platform_device *pdev)
 {
 	struct occ *occ;
@@ -114,10 +152,24 @@ static int p9_sbe_occ_probe(struct platform_device *pdev)
 
 	occ = &p9_sbe_occ->occ;
 	occ->bus_dev = &pdev->dev;
+	occ->groups[0] = &occ->group;
 	occ->poll_cmd_data = 0x20;
 	occ->send_cmd = p9_sbe_occ_send_cmd;
 	mutex_init(&occ->lock);
+	INIT_DELAYED_WORK(&p9_sbe_occ->setup, p9_sbe_occ_setup);
 	platform_set_drvdata(pdev, p9_sbe_occ);
+
+	schedule_delayed_work(&p9_sbe_occ->setup,
+			      msecs_to_jiffies(P9_SBE_OCC_SETUP_DELAY));
+
+	return 0;
+}
+
+static int p9_sbe_occ_remove(struct platform_device *pdev)
+{
+	struct p9_sbe_occ *p9_sbe_occ = platform_get_drvdata(pdev);
+
+	cancel_delayed_work_sync(&p9_sbe_occ->setup);
 
 	return 0;
 }
@@ -133,6 +185,7 @@ static struct platform_driver p9_sbe_occ_driver = {
 		.of_match_table	= p9_sbe_occ_of_match,
 	},
 	.probe	= p9_sbe_occ_probe,
+	.remove = p9_sbe_occ_remove,
 };
 
 module_platform_driver(p9_sbe_occ_driver);
