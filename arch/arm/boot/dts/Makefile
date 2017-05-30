@@ -990,6 +990,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += aspeed-bmc-opp-palmetto.dtb \
 	aspeed-bmc-opp-witherspoon.dtb \
 	aspeed-bmc-opp-zaius.dtb \
 	aspeed-bmc-opp-lanyang.dtb \
+	aspeed-bmc-mellanox-msn.dtb \
 	aspeed-ast2500-evb.dtb
 endif
 
