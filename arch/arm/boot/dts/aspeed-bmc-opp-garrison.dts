@@ -30,42 +30,27 @@
 			reg = <0x5f000000 0x01000000>; /* 16MB */
 		};
 	};
+};
 
-	ahb {
+&fmc {
+	status = "okay";
 
-		bmc_pnor: fmc@1e620000 {
-			reg = < 0x1e620000 0x94
-				0x20000000 0x02000000 >;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "aspeed,ast2400-fmc";
-			aspeed,fmc-has-dma;
-			interrupts = <19>;
-			clocks = <&clk_ahb>;
-			clock-names = "ahb";
-			flash@0 {
-				reg = < 0 >;
-				compatible = "jedec,spi-nor" ;
-				m25p,fast-read;
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
 #include "aspeed-bmc-opp-flash-layout.dtsi"
-			};
-		};
+	};
+};
 
-		host_pnor: spi@1e630000 {
-			reg = < 0x1e630000 0x18
-				0x30000000 0x02000000 >;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "aspeed,ast2400-spi";
-			clocks = <&clk_ahb>;
-			clock-names = "ahb";
-			flash {
-				reg = < 0 >;
-				compatible = "jedec,spi-nor" ;
-				label = "pnor";
-				m25p,fast-read;
-			};
-		};
+&spi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default>;
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "pnor";
 	};
 };
 
