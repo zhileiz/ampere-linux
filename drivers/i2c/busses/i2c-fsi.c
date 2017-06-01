@@ -355,12 +355,12 @@ static int fsi_i2c_read_fifo(struct fsi_i2c_port *port, struct i2c_msg *msg,
 static int fsi_i2c_handle_status(struct fsi_i2c_port *port,
 				 struct i2c_msg *msg, u32 status)
 {
-	int rc;
-	u8 fifo_count;
 	struct fsi_i2c_master *i2c = port->master;
-	u32 dummy = 0;
+	u8 fifo_count;
+	int rc;
 
 	if (status & I2C_STAT_ERR) {
+		u32 dummy = 0;
 		rc = fsi_i2c_write_reg(i2c->fsi, I2C_FSI_RESET_ERR, &dummy);
 		if (rc)
 			return rc;
@@ -387,9 +387,12 @@ static int fsi_i2c_handle_status(struct fsi_i2c_port *port,
 			rc = -ENODATA;
 		else
 			rc = msg->len;
+		return rc;
 	}
 
-	return rc;
+	dev_warn(&port->adapter.dev, "no status to handle\n");
+
+	return 0;
 }
 
 static int fsi_i2c_wait(struct fsi_i2c_port *port, struct i2c_msg *msg,
