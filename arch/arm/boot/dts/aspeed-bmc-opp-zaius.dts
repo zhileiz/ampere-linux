@@ -80,8 +80,12 @@
 
 		status = "okay";
 
-		clock-gpios = <&gpio ASPEED_GPIO(C, 3) GPIO_ACTIVE_HIGH>;
-		data-gpios = <&gpio ASPEED_GPIO(C, 2) GPIO_ACTIVE_HIGH>;
+		/*
+		 * These 2 GPIOs are set per board revision in aspeed.c.
+		 * These are the DVT and beyond values:
+		 * clock-gpios = <&gpio ASPEED_GPIO(G, 0) GPIO_ACTIVE_HIGH>;
+		 * data-gpios = <&gpio ASPEED_GPIO(G, 1) GPIO_ACTIVE_HIGH>;
+		 */
 		trans-gpios = <&gpio ASPEED_GPIO(O, 6) GPIO_ACTIVE_HIGH>;
 		enable-gpios = <&gpio ASPEED_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
 		mux-gpios = <&gpio ASPEED_GPIO(P, 6) GPIO_ACTIVE_HIGH>;

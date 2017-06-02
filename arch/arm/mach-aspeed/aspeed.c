@@ -8,6 +8,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/gpio/machine.h>
+#include <dt-bindings/gpio/aspeed-gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
@@ -141,6 +143,34 @@ static void __init do_zaius_setup(void)
 	/* Read BOARD_REV[4:0] fuses from GPIOM[7:3] */
 	reg = readl(AST_IO(AST_BASE_GPIO | 0x78));
 	board_rev = (reg >> 3) & 0x1F;
+	printk(KERN_INFO "Zaius platform board revision: 0x%02lx\n", board_rev);
+
+	/* EVT boards have different FSI pin mappings */
+	if (board_rev < 0x08) {
+		static struct gpiod_lookup_table fsi_evt_gpio_lookup = {
+			.dev_id = "fsi-master",
+			.table = {
+				GPIO_LOOKUP("1e780000.gpio", ASPEED_GPIO(C, 3),
+					    "clock", GPIO_ACTIVE_HIGH),
+				GPIO_LOOKUP("1e780000.gpio", ASPEED_GPIO(C, 2),
+					    "data", GPIO_ACTIVE_HIGH),
+				{ },
+			},
+		};
+		gpiod_add_lookup_table(&fsi_evt_gpio_lookup);
+	} else {
+		static struct gpiod_lookup_table fsi_gpio_lookup = {
+			.dev_id = "fsi-master",
+			.table = {
+				GPIO_LOOKUP("1e780000.gpio", ASPEED_GPIO(G, 0),
+					    "clock", GPIO_ACTIVE_HIGH),
+				GPIO_LOOKUP("1e780000.gpio", ASPEED_GPIO(G, 1),
+					    "data", GPIO_ACTIVE_HIGH),
+				{ },
+			},
+		};
+		gpiod_add_lookup_table(&fsi_gpio_lookup);
+	}
 
 	/* Assert MAC2 PHY hardware reset */
 	/* Set pin low */
