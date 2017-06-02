@@ -18,6 +18,8 @@
 #include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -82,6 +84,7 @@ struct sbefifo_client {
 	struct list_head xfrs;
 	struct sbefifo *dev;
 	struct kref kref;
+	unsigned long f_flags;
 };
 
 static struct list_head sbefifo_fifos;
@@ -506,6 +509,7 @@ static int sbefifo_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	file->private_data = client;
+	client->f_flags = file->f_flags;
 
 	return 0;
 }
@@ -530,24 +534,18 @@ static unsigned int sbefifo_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static ssize_t sbefifo_read(struct file *file, char __user *buf,
-		size_t len, loff_t *offset)
+static ssize_t sbefifo_read_common(struct sbefifo_client *client,
+				   char __user *ubuf, char *kbuf, size_t len)
 {
-	struct sbefifo_client *client = file->private_data;
 	struct sbefifo *sbefifo = client->dev;
 	struct sbefifo_xfr *xfr;
-	ssize_t ret = 0;
 	size_t n;
-
-	WARN_ON(*offset);
-
-	if (!access_ok(VERIFY_WRITE, buf, len))
-		return -EFAULT;
+	ssize_t ret = 0;
 
 	if ((len >> 2) << 2 != len)
 		return -EINVAL;
 
-	if ((file->f_flags & O_NONBLOCK) && !sbefifo_xfr_rsp_pending(client))
+	if ((client->f_flags & O_NONBLOCK) && !sbefifo_xfr_rsp_pending(client))
 		return -EAGAIN;
 
 	sbefifo_get_client(client);
@@ -566,10 +564,13 @@ static ssize_t sbefifo_read(struct file *file, char __user *buf,
 
 	n = min_t(size_t, n, len);
 
-	if (copy_to_user(buf, READ_ONCE(client->rbuf.rpos), n)) {
-		sbefifo_put_client(client);
-		return -EFAULT;
-	}
+	if (ubuf) {
+		if (copy_to_user(ubuf, READ_ONCE(client->rbuf.rpos), n)) {
+			sbefifo_put_client(client);
+			return -EFAULT;
+		}
+	} else
+		memcpy(kbuf, READ_ONCE(client->rbuf.rpos), n);
 
 	if (sbefifo_buf_readnb(&client->rbuf, n)) {
 		xfr = sbefifo_client_next_xfr(client);
@@ -592,19 +593,27 @@ static ssize_t sbefifo_read(struct file *file, char __user *buf,
 	return n;
 }
 
-static ssize_t sbefifo_write(struct file *file, const char __user *buf,
+static ssize_t sbefifo_read(struct file *file, char __user *buf,
 		size_t len, loff_t *offset)
 {
 	struct sbefifo_client *client = file->private_data;
+
+	WARN_ON(*offset);
+
+	if (!access_ok(VERIFY_WRITE, buf, len))
+		return -EFAULT;
+
+	return sbefifo_read_common(client, buf, NULL, len);
+}
+
+static ssize_t sbefifo_write_common(struct sbefifo_client *client,
+				    const char __user *ubuf, const char *kbuf,
+				    size_t len)
+{
 	struct sbefifo *sbefifo = client->dev;
 	struct sbefifo_xfr *xfr;
 	ssize_t ret = 0;
 	size_t n;
-
-	WARN_ON(*offset);
-
-	if (!access_ok(VERIFY_READ, buf, len))
-		return -EFAULT;
 
 	if ((len >> 2) << 2 != len)
 		return -EINVAL;
@@ -617,7 +626,7 @@ static ssize_t sbefifo_write(struct file *file, const char __user *buf,
 	spin_lock_irq(&sbefifo->lock);
 	xfr = sbefifo_next_xfr(sbefifo);
 
-	if ((file->f_flags & O_NONBLOCK) && xfr && n < len) {
+	if ((client->f_flags & O_NONBLOCK) && xfr && n < len) {
 		spin_unlock_irq(&sbefifo->lock);
 		return -EAGAIN;
 	}
@@ -657,18 +666,25 @@ static ssize_t sbefifo_write(struct file *file, const char __user *buf,
 
 		n = min_t(size_t, n, len);
 
-		if (copy_from_user(READ_ONCE(client->wbuf.wpos), buf, n)) {
-			set_bit(SBEFIFO_XFR_CANCEL, &xfr->flags);
-			sbefifo_get(sbefifo);
-			if (mod_timer(&sbefifo->poll_timer, jiffies))
-				sbefifo_put(sbefifo);
-			sbefifo_put_client(client);
-			return -EFAULT;
+		if (ubuf) {
+			if (copy_from_user(READ_ONCE(client->wbuf.wpos), ubuf,
+			    n)) {
+				set_bit(SBEFIFO_XFR_CANCEL, &xfr->flags);
+				sbefifo_get(sbefifo);
+				if (mod_timer(&sbefifo->poll_timer, jiffies))
+					sbefifo_put(sbefifo);
+				sbefifo_put_client(client);
+				return -EFAULT;
+			}
+
+			ubuf += n;
+		} else {
+			memcpy(READ_ONCE(client->wbuf.wpos), kbuf, n);
+			kbuf += n;
 		}
 
 		sbefifo_buf_wrotenb(&client->wbuf, n);
 		len -= n;
-		buf += n;
 		ret += n;
 
 		/*
@@ -683,6 +699,19 @@ static ssize_t sbefifo_write(struct file *file, const char __user *buf,
 	sbefifo_put_client(client);
 
 	return ret;
+}
+
+static ssize_t sbefifo_write(struct file *file, const char __user *buf,
+		size_t len, loff_t *offset)
+{
+	struct sbefifo_client *client = file->private_data;
+
+	WARN_ON(*offset);
+
+	if (!access_ok(VERIFY_READ, buf, len))
+		return -EFAULT;
+
+	return sbefifo_write_common(client, buf, NULL, len);
 }
 
 static int sbefifo_release(struct inode *inode, struct file *file)
@@ -704,12 +733,68 @@ static const struct file_operations sbefifo_fops = {
 	.release	= sbefifo_release,
 };
 
+struct sbefifo_client *sbefifo_drv_open(struct device *dev,
+					unsigned long flags)
+{
+	struct sbefifo_client *client = NULL;
+	struct sbefifo *sbefifo;
+	struct fsi_device *fsi_dev = to_fsi_dev(dev);
+
+	list_for_each_entry(sbefifo, &sbefifo_fifos, link) {
+		if (sbefifo->fsi_dev != fsi_dev)
+			continue;
+
+		client = sbefifo_new_client(sbefifo);
+		if (client)
+			client->f_flags = flags;
+	}
+
+	return client;
+}
+EXPORT_SYMBOL_GPL(sbefifo_drv_open);
+
+int sbefifo_drv_read(struct sbefifo_client *client, char *buf, size_t len)
+{
+	return sbefifo_read_common(client, NULL, buf, len);
+}
+EXPORT_SYMBOL_GPL(sbefifo_drv_read);
+
+int sbefifo_drv_write(struct sbefifo_client *client, const char *buf,
+		      size_t len)
+{
+	return sbefifo_write_common(client, NULL, buf, len);
+}
+EXPORT_SYMBOL_GPL(sbefifo_drv_write);
+
+void sbefifo_drv_release(struct sbefifo_client *client)
+{
+	if (!client)
+		return;
+
+	sbefifo_put_client(client);
+}
+EXPORT_SYMBOL_GPL(sbefifo_drv_release);
+
+static int sbefifo_unregister_child(struct device *dev, void *data)
+{
+	struct platform_device *child = to_platform_device(dev);
+
+	of_device_unregister(child);
+	if (dev->of_node)
+		of_node_clear_flag(dev->of_node, OF_POPULATED);
+
+	return 0;
+}
+
 static int sbefifo_probe(struct device *dev)
 {
 	struct fsi_device *fsi_dev = to_fsi_dev(dev);
 	struct sbefifo *sbefifo;
+	struct device_node *np;
+	struct platform_device *child;
+	char child_name[32];
 	u32 sts;
-	int ret;
+	int ret, child_idx = 0;
 
 	dev_info(dev, "Found sbefifo device\n");
 	sbefifo = kzalloc(sizeof(*sbefifo), GFP_KERNEL);
@@ -755,6 +840,19 @@ static int sbefifo_probe(struct device *dev)
 			(unsigned long)sbefifo);
 
 	list_add(&sbefifo->link, &sbefifo_fifos);
+
+	if (dev->of_node) {
+		/* create platform devs for dts child nodes (occ, etc) */
+		for_each_child_of_node(dev->of_node, np) {
+			snprintf(child_name, sizeof(child_name), "%s-dev%d",
+				 sbefifo->name, child_idx++);
+			child = of_platform_device_create(np, child_name, dev);
+			if (!child)
+				dev_warn(&sbefifo->fsi_dev->dev,
+					 "failed to create child node dev\n");
+		}
+	}
+	
 	return misc_register(&sbefifo->mdev);
 }
 
@@ -767,6 +865,9 @@ static int sbefifo_remove(struct device *dev)
 	list_for_each_entry_safe(sbefifo, sbefifo_tmp, &sbefifo_fifos, link) {
 		if (sbefifo->fsi_dev != fsi_dev)
 			continue;
+
+		device_for_each_child(dev, NULL, sbefifo_unregister_child);
+
 		misc_deregister(&sbefifo->mdev);
 		list_del(&sbefifo->link);
 		ida_simple_remove(&sbefifo_ida, sbefifo->idx);
