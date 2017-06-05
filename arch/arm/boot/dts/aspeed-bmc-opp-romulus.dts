@@ -47,10 +47,10 @@
 		};
 	};
 
-	gpio-fsi {
+	fsi: gpio-fsi {
 		compatible = "fsi-master-gpio", "fsi-master";
-
-		status = "okay";
+		#address-cells = <2>;
+		#size-cells = <0>;
 
 		clock-gpios = <&gpio ASPEED_GPIO(AA, 0) GPIO_ACTIVE_HIGH>;
 		data-gpios = <&gpio ASPEED_GPIO(AA, 2) GPIO_ACTIVE_HIGH>;
@@ -69,6 +69,8 @@
 		};
 	};
 };
+
+#include "ibm-power9-cfam.dtsi"
 
 &fmc {
 	status = "okay";
