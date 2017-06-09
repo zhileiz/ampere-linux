@@ -839,8 +839,6 @@ static int sbefifo_probe(struct device *dev)
 	setup_timer(&sbefifo->poll_timer, sbefifo_poll_timer,
 			(unsigned long)sbefifo);
 
-	list_add(&sbefifo->link, &sbefifo_fifos);
-
 	if (dev->of_node) {
 		/* create platform devs for dts child nodes (occ, etc) */
 		for_each_child_of_node(dev->of_node, np) {
@@ -852,6 +850,8 @@ static int sbefifo_probe(struct device *dev)
 					 "failed to create child node dev\n");
 		}
 	}
+
+	list_add(&sbefifo->link, &sbefifo_fifos);
 	
 	return misc_register(&sbefifo->mdev);
 }

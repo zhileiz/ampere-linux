@@ -635,6 +635,9 @@ struct occ_client *occ_drv_open(struct device *dev, unsigned long flags)
 {
 	struct occ *occ = dev_get_drvdata(dev);
 
+	if (!occ)
+		return NULL;
+
 	return occ_open_common(occ, flags);
 }
 EXPORT_SYMBOL_GPL(occ_drv_open);
@@ -688,7 +691,8 @@ static int occ_probe(struct platform_device *pdev)
 	mutex_init(&occ->occ_lock);
 	INIT_WORK(&occ->work, occ_worker);
 
-	platform_set_drvdata(pdev, occ);
+	/* ensure NULL before we probe children, so they don't hang FSI */
+	platform_set_drvdata(pdev, NULL);
 
 	if (dev->of_node) {
 		rc = of_property_read_u32(dev->of_node, "reg", &reg);
@@ -714,6 +718,8 @@ static int occ_probe(struct platform_device *pdev)
 		}
 	} else
 		occ->idx = ida_simple_get(&occ_ida, 1, INT_MAX, GFP_KERNEL);
+
+	platform_set_drvdata(pdev, occ);
 
 	snprintf(occ->name, sizeof(occ->name), "occ%d", occ->idx);
 	occ->mdev.fops = &occ_fops;
