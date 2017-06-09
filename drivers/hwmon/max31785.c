@@ -84,9 +84,13 @@ struct max31785 {
 	u8	mfr_fan_config[NR_CHANNEL];
 	u8	fault_status[NR_CHANNEL];
 	u16	pwm[NR_CHANNEL];
-	u16	tach_rpm[NR_CHANNEL];
-	u16	tach_rpm_fast[NR_CHANNEL];
+	u16	tach_rpm[NR_CHANNEL * 2];
 };
+
+static inline bool max31785_has_fast_rotor(struct max31785 *data)
+{
+	return !!(data->capabilities & MAX31785_CAP_FAST_ROTOR);
+}
 
 static int max31785_set_page(struct i2c_client *client,
 				u8 page)
@@ -184,14 +188,14 @@ static int max31785_update_fan_speed(struct max31785 *data, u8 fan)
 	if (rc)
 		return rc;
 
-	if (data->capabilities & MAX31785_CAP_FAST_ROTOR) {
+	if (max31785_has_fast_rotor(data)) {
 		rc = max31785_smbus_read_long_data(data->client,
 				MAX31785_REG_FAN_SPEED_1);
 		if (rc < 0)
 			return rc;
 
 		data->tach_rpm[fan] = rc & 0xffff;
-		data->tach_rpm_fast[fan] = (rc >> 16) & 0xffff;
+		data->tach_rpm[NR_CHANNEL + fan] = (rc >> 16) & 0xffff;
 
 		return rc;
 	}
@@ -470,7 +474,7 @@ static int max31785_detect(struct i2c_client *client,
 	return 0;
 }
 
-static const u32 max31785_fan_config[] = {
+static const u32 max31785_fan_config_0x3030[] = {
 	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
 	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
 	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
@@ -480,9 +484,30 @@ static const u32 max31785_fan_config[] = {
 	0
 };
 
-static const struct hwmon_channel_info max31785_fan = {
+static const struct hwmon_channel_info max31785_fan_0x3030 = {
 	.type = hwmon_fan,
-	.config = max31785_fan_config,
+	.config = max31785_fan_config_0x3030,
+};
+
+static const u32 max31785_fan_config_0x3040[] = {
+	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
+	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
+	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
+	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
+	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
+	HWMON_F_INPUT | HWMON_F_PULSES | HWMON_F_TARGET | HWMON_F_FAULT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	0
+};
+
+static const struct hwmon_channel_info max31785_fan_0x3040 = {
+	.type = hwmon_fan,
+	.config = max31785_fan_config_0x3040,
 };
 
 static const u32 max31785_pwm_config[] = {
@@ -500,8 +525,14 @@ static const struct hwmon_channel_info max31785_pwm = {
 	.config = max31785_pwm_config
 };
 
-static const struct hwmon_channel_info *max31785_info[] = {
-	&max31785_fan,
+static const struct hwmon_channel_info *max31785_info_0x3030[] = {
+	&max31785_fan_0x3030,
+	&max31785_pwm,
+	NULL,
+};
+
+static const struct hwmon_channel_info *max31785_info_0x3040[] = {
+	&max31785_fan_0x3040,
 	&max31785_pwm,
 	NULL,
 };
@@ -555,15 +586,6 @@ static int max31785_read_fan(struct max31785 *data, u32 attr, int channel,
 	};
 
 	return rc;
-}
-
-static int max31785_fan_get_fast(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct sensor_device_attribute_2 *attr2 = to_sensor_dev_attr_2(attr);
-	struct max31785 *data = max31785_update_device(dev);
-
-	return sprintf(buf, "%d\n", data->tach_rpm_fast[attr2->index]);
 }
 
 static int max31785_read_pwm(struct max31785 *data, u32 attr, int channel,
@@ -723,34 +745,16 @@ static const struct hwmon_ops max31785_hwmon_ops = {
 	.write = max31785_write,
 };
 
-static const struct hwmon_chip_info max31785_chip_info = {
+static const struct hwmon_chip_info max31785_chip_info_0x3030 = {
 	.ops = &max31785_hwmon_ops,
-	.info = max31785_info,
+	.info = max31785_info_0x3030,
 };
 
-static SENSOR_DEVICE_ATTR(fan1_input_fast, 0444, max31785_fan_get_fast,
-		NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input_fast, 0444, max31785_fan_get_fast,
-		NULL, 1);
-static SENSOR_DEVICE_ATTR(fan3_input_fast, 0444, max31785_fan_get_fast,
-		NULL, 2);
-static SENSOR_DEVICE_ATTR(fan4_input_fast, 0444, max31785_fan_get_fast,
-		NULL, 3);
-static SENSOR_DEVICE_ATTR(fan5_input_fast, 0444, max31785_fan_get_fast,
-		NULL, 4);
-static SENSOR_DEVICE_ATTR(fan6_input_fast, 0444, max31785_fan_get_fast,
-		NULL, 5);
-
-static struct attribute *max31785_attrs[] = {
-	&sensor_dev_attr_fan1_input_fast.dev_attr.attr,
-	&sensor_dev_attr_fan2_input_fast.dev_attr.attr,
-	&sensor_dev_attr_fan3_input_fast.dev_attr.attr,
-	&sensor_dev_attr_fan4_input_fast.dev_attr.attr,
-	&sensor_dev_attr_fan5_input_fast.dev_attr.attr,
-	&sensor_dev_attr_fan6_input_fast.dev_attr.attr,
-	NULL,
+static const struct hwmon_chip_info max31785_chip_info_0x3040 = {
+	.ops = &max31785_hwmon_ops,
+	.info = max31785_info_0x3040,
 };
-ATTRIBUTE_GROUPS(max31785);
+
 
 static int max31785_get_capabilities(struct max31785 *data)
 {
@@ -770,7 +774,7 @@ static int max31785_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	const struct attribute_group **extra_groups;
+	const struct hwmon_chip_info *chip;
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct max31785 *data;
@@ -795,11 +799,13 @@ static int max31785_probe(struct i2c_client *client,
 	if (rc < 0)
 		return rc;
 
-	if (data->capabilities & MAX31785_CAP_FAST_ROTOR)
-		extra_groups = max31785_groups;
+	if (max31785_has_fast_rotor(data))
+		chip = &max31785_chip_info_0x3040;
+	else
+		chip = &max31785_chip_info_0x3030;
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev,
-			client->name, data, &max31785_chip_info, extra_groups);
+			client->name, data, chip, NULL);
 
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
