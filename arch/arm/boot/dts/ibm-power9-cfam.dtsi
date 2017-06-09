@@ -13,6 +13,10 @@
 			occ@1 {
 				compatible = "ibm,p9-occ";
 				reg = <1>;
+
+				occ-hwmon@1 {
+					compatible = "ibm,p9-occ-hwmon";
+				};
 			};
 		};
 
@@ -37,6 +41,11 @@
 						compatible =
 							"ibm,p9-occ";
 						reg = <2>;
+
+						occ-hwmon@2 {
+							compatible =
+							    "ibm,p9-occ-hwmon";
+						};
 					};
 				};
 			};
