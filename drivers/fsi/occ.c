@@ -188,7 +188,7 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 
 	if (!test_bit(XFR_COMPLETE, &xfr->flags)) {
 		if (test_bit(CLIENT_NONBLOCKING, &client->flags)) {
-			rc = -ERESTARTSYS;
+			rc = -EAGAIN;
 			goto done;
 		}
 
@@ -593,11 +593,13 @@ again:
 		goto done;
 	}
 
-	/* already got 3 bytes resp, also need 2 bytes checksum */
-	rc = occ_getsram(sbefifo, 0xFFFBF008, &xfr->buf[8],
-			 resp_data_length - 1);
-	if (rc)
-		goto done;
+	if (resp_data_length > 1) {
+		/* already got 3 bytes resp, also need 2 bytes checksum */
+		rc = occ_getsram(sbefifo, 0xFFFBF008, &xfr->buf[8],
+				 resp_data_length - 1);
+		if (rc)
+			goto done;
+	}
 
 	xfr->resp_data_length = resp_data_length + 7;
 
