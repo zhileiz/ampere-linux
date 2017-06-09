@@ -238,8 +238,7 @@ static struct max31785 *max31785_update_device(struct device *dev)
 		if (rv < 0)
 			goto abort;
 
-		if ((data->fan_config[i]
-					& MAX31785_FAN_CFG_CONTROL_MODE_RPM)
+		if ((data->fan_config[i] & MAX31785_FAN_CFG_CONTROL_MODE_RPM)
 				|| is_automatic_control_mode(data, i)) {
 			rv = max31785_read_fan_word(client, i,
 					MAX31785_REG_READ_FAN_PWM);
@@ -572,7 +571,7 @@ static int max31785_read_pwm(struct max31785 *data, u32 attr, int channel,
 {
 	bool is_auto;
 	bool is_rpm;
-	int rc;
+	int rc = 0;
 
 	mutex_lock(&data->lock);
 
@@ -618,7 +617,7 @@ static int max31785_read(struct device *dev, enum hwmon_sensor_types type,
 		u32 attr, int channel, long *val)
 {
 	struct max31785 *data;
-	int rc;
+	int rc = -EOPNOTSUPP;
 
 	data = max31785_update_device(dev);
 
@@ -631,7 +630,7 @@ static int max31785_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		return max31785_read_pwm(data, attr, channel, val);
 	default:
-		rc = -EOPNOTSUPP;
+		break;
 	}
 
 	return rc;
@@ -640,7 +639,7 @@ static int max31785_read(struct device *dev, enum hwmon_sensor_types type,
 static int max31785_write_fan(struct max31785 *data, u32 attr, int channel,
 		long val)
 {
-	int rc;
+	int rc = -EOPNOTSUPP;
 
 	switch (attr) {
 		break;
@@ -649,7 +648,7 @@ static int max31785_write_fan(struct max31785 *data, u32 attr, int channel,
 	case hwmon_fan_target:
 		return max31785_fan_set_target(data, channel, val);
 	default:
-		rc = -EOPNOTSUPP;
+		break;
 	};
 
 	return rc;
@@ -658,7 +657,7 @@ static int max31785_write_fan(struct max31785 *data, u32 attr, int channel,
 static int max31785_write_pwm(struct max31785 *data, u32 attr, int channel,
 		long val)
 {
-	int rc;
+	int rc = -EOPNOTSUPP;
 
 	switch (attr) {
 	case hwmon_pwm_enable:
@@ -666,7 +665,7 @@ static int max31785_write_pwm(struct max31785 *data, u32 attr, int channel,
 	case hwmon_pwm_input:
 		return max31785_pwm_set(data, channel, val);
 	default:
-		rc = -EOPNOTSUPP;
+		break;
 	};
 
 	return rc;
@@ -676,7 +675,7 @@ static int max31785_write(struct device *dev, enum hwmon_sensor_types type,
 		u32 attr, int channel, long val)
 {
 	struct max31785 *data;
-	int rc;
+	int rc = -EOPNOTSUPP;
 
 	data = dev_get_drvdata(dev);
 
@@ -686,7 +685,7 @@ static int max31785_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		return max31785_write_pwm(data, attr, channel, val);
 	default:
-		rc = -EOPNOTSUPP;
+		break;
 	}
 
 	return rc;
@@ -705,12 +704,17 @@ static umode_t max31785_is_visible(const void *_data,
 		case hwmon_fan_pulses:
 		case hwmon_fan_target:
 			return 0644;
+		default:
+			break;
 		};
+		break;
 	case hwmon_pwm:
 		return 0644;
 	default:
-		return 0;
+		break;
 	};
+
+	return 0;
 }
 
 static const struct hwmon_ops max31785_hwmon_ops = {
