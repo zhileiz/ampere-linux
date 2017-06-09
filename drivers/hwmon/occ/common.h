@@ -16,6 +16,18 @@
 #define OCC_UPDATE_FREQUENCY		msecs_to_jiffies(1000)
 #define OCC_RESP_DATA_BYTES		4089
 
+#define OCC_TIMEOUT_MS			5000
+#define OCC_CMD_IN_PRG_MS		100
+
+#define RESP_RETURN_CMD_IN_PRG		0xFF
+#define RESP_RETURN_SUCCESS		0
+#define RESP_RETURN_CMD_INVAL		0x11
+#define RESP_RETURN_CMD_LEN		0x12
+#define RESP_RETURN_DATA_INVAL		0x13
+#define RESP_RETURN_CHKSUM		0x14
+#define RESP_RETURN_OCC_ERR		0x15
+#define RESP_RETURN_STATE		0x16
+
 struct occ_response {
 	u8 seq_no;
 	u8 cmd_type;
@@ -63,6 +75,7 @@ struct occ_poll_response {
 
 struct occ_sensor {
 	u8 num_sensors;
+	u8 version;
 	void *data;
 };
 
@@ -71,6 +84,7 @@ struct occ_sensors {
 	struct occ_sensor freq;
 	struct occ_sensor power;
 	struct occ_sensor caps;
+	struct occ_sensor extended;
 };
 
 struct occ_attribute {
@@ -92,6 +106,7 @@ struct occ {
 	struct occ_attribute *attrs;
 	struct attribute_group group;
 	const struct attribute_group *groups[2];
+	struct sensor_device_attribute *status_attrs;
 
 	u8 poll_cmd_data;
 	int (*send_cmd)(struct occ *occ, u8 *cmd);
@@ -120,5 +135,7 @@ void occ_parse_poll_response(struct occ *occ);
 int occ_poll(struct occ *occ);
 int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap);
 int occ_update_response(struct occ *occ);
+int occ_setup_sensor_attrs(struct occ *occ);
+int occ_create_status_attrs(struct occ *occ);
 
 #endif /* __OCC_COMMON_H__ */

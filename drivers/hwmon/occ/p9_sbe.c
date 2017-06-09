@@ -15,21 +15,8 @@
 #include <linux/occ.h>
 #include <linux/sched.h>
 #include <linux/workqueue.h>
-#include "p9.h"
 
-#define P9_SBE_OCC_SETUP_DELAY		2500
-
-#define OCC_TIMEOUT_MS			5000
-#define OCC_CMD_IN_PRG_MS		100
-
-#define RESP_RETURN_CMD_IN_PRG		0xFF
-#define RESP_RETURN_SUCCESS		0
-#define RESP_RETURN_CMD_INVAL		0x11
-#define RESP_RETURN_CMD_LEN		0x12
-#define RESP_RETURN_DATA_INVAL		0x13
-#define RESP_RETURN_CHKSUM		0x14
-#define RESP_RETURN_OCC_ERR		0x15
-#define RESP_RETURN_STATE		0x16
+#define P9_SBE_OCC_SETUP_DELAY		5000
 
 struct p9_sbe_occ {
 	struct occ occ;
@@ -66,7 +53,8 @@ retry:
 
 	switch (resp->return_status) {
 	case RESP_RETURN_CMD_IN_PRG:
-		if (time_after(jiffies, start + msecs_to_jiffies(OCC_TIMEOUT_MS)))
+		if (time_after(jiffies,
+			       start + msecs_to_jiffies(OCC_TIMEOUT_MS)))
 			rc = -EALREADY;
 		else {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -123,7 +111,7 @@ static void p9_sbe_occ_setup(struct work_struct *work)
 
 	occ_parse_poll_response(occ);
 
-	rc = p9_occ_setup_sensor_attrs(occ);
+	rc = occ_setup_sensor_attrs(occ);
 	if (rc) {
 		dev_err(occ->bus_dev, "failed to setup p9 attrs: %d\n", rc);
 		return;
@@ -137,6 +125,10 @@ static void p9_sbe_occ_setup(struct work_struct *work)
 			PTR_ERR(occ->hwmon));
 		return;
 	}
+
+	rc = occ_create_status_attrs(occ);
+	if (rc)
+		dev_err(occ->bus_dev, "failed to setup p9 status attrs: %d\n", rc);
 }
 
 static int p9_sbe_occ_probe(struct platform_device *pdev)
@@ -157,7 +149,8 @@ static int p9_sbe_occ_probe(struct platform_device *pdev)
 	occ->send_cmd = p9_sbe_occ_send_cmd;
 	mutex_init(&occ->lock);
 	INIT_DELAYED_WORK(&p9_sbe_occ->setup, p9_sbe_occ_setup);
-	platform_set_drvdata(pdev, p9_sbe_occ);
+
+	platform_set_drvdata(pdev, occ);
 
 	schedule_delayed_work(&p9_sbe_occ->setup,
 			      msecs_to_jiffies(P9_SBE_OCC_SETUP_DELAY));
@@ -167,7 +160,8 @@ static int p9_sbe_occ_probe(struct platform_device *pdev)
 
 static int p9_sbe_occ_remove(struct platform_device *pdev)
 {
-	struct p9_sbe_occ *p9_sbe_occ = platform_get_drvdata(pdev);
+	struct occ *occ = platform_get_drvdata(pdev);
+	struct p9_sbe_occ *p9_sbe_occ = to_p9_sbe_occ(occ);
 
 	cancel_delayed_work_sync(&p9_sbe_occ->setup);
 
