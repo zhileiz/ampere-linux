@@ -156,6 +156,7 @@ static size_t sbefifo_dev_nwwriteable(u32 sts)
 
 static void sbefifo_buf_init(struct sbefifo_buf *buf)
 {
+	WRITE_ONCE(buf->flags, 0);
 	WRITE_ONCE(buf->rpos, buf->buf);
 	WRITE_ONCE(buf->wpos, buf->buf);
 }
