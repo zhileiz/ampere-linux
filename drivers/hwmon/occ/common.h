@@ -137,5 +137,6 @@ int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap);
 int occ_update_response(struct occ *occ);
 int occ_setup_sensor_attrs(struct occ *occ);
 int occ_create_status_attrs(struct occ *occ);
+void occ_remove_status_attrs(struct occ *occ);
 
 #endif /* __OCC_COMMON_H__ */

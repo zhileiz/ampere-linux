@@ -10,8 +10,9 @@
 #include <asm/unaligned.h>
 #include "common.h"
 
-#define OCC_NUM_STATUS_ATTRS		6
+#define OCC_NUM_STATUS_ATTRS		7
 
+#define OCC_STAT_MASTER			0x80
 #define OCC_STAT_ACTIVE			0x01
 #define OCC_EXT_STAT_DVFS_OT		0x80
 #define OCC_EXT_STAT_DVFS_POWER		0x40
@@ -236,21 +237,24 @@ static ssize_t occ_show_status(struct device *dev,
 
 	switch (sattr->index) {
 	case 0:
-		val = header->status & OCC_STAT_ACTIVE;
+		val = header->status & OCC_STAT_MASTER;
 		break;
 	case 1:
-		val = header->ext_status & OCC_EXT_STAT_DVFS_OT;
+		val = header->status & OCC_STAT_ACTIVE;
 		break;
 	case 2:
-		val = header->ext_status & OCC_EXT_STAT_DVFS_POWER;
+		val = header->ext_status & OCC_EXT_STAT_DVFS_OT;
 		break;
 	case 3:
-		val = header->ext_status & OCC_EXT_STAT_MEM_THROTTLE;
+		val = header->ext_status & OCC_EXT_STAT_DVFS_POWER;
 		break;
 	case 4:
-		val = header->ext_status & OCC_EXT_STAT_QUICK_DROP;
+		val = header->ext_status & OCC_EXT_STAT_MEM_THROTTLE;
 		break;
 	case 5:
+		val = header->ext_status & OCC_EXT_STAT_QUICK_DROP;
+		break;
+	case 6:
 		val = header->occ_state;
 		break;
 	}
@@ -1061,29 +1065,33 @@ int occ_create_status_attrs(struct occ *occ)
 		return -ENOMEM;
 
 	occ->status_attrs[0] =
-		(struct sensor_device_attribute)SENSOR_ATTR(occ_active, 0444,
+		(struct sensor_device_attribute)SENSOR_ATTR(occ_master, 0444,
 							    occ_show_status,
 							    NULL, 0);
 	occ->status_attrs[1] =
+		(struct sensor_device_attribute)SENSOR_ATTR(occ_active, 0444,
+							    occ_show_status,
+							    NULL, 0);
+	occ->status_attrs[2] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_dvfs_ot, 0444,
 							    occ_show_status,
 							    NULL, 1);
-	occ->status_attrs[2] =
+	occ->status_attrs[3] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_dvfs_power,
 							    0444,
 							    occ_show_status,
 							    NULL, 2);
-	occ->status_attrs[3] =
+	occ->status_attrs[4] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_mem_throttle,
 							    0444,
 							    occ_show_status,
 							    NULL, 3);
-	occ->status_attrs[4] =
+	occ->status_attrs[5] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_quick_drop,
 							    0444,
 							    occ_show_status,
 							    NULL, 4);
-	occ->status_attrs[5] =
+	occ->status_attrs[6] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_status, 0444,
 							    occ_show_status,
 							    NULL, 5);
@@ -1096,4 +1104,13 @@ int occ_create_status_attrs(struct occ *occ)
 	}
 
 	return 0;
+}
+
+void occ_remove_status_attrs(struct occ *occ)
+{
+	int i;
+
+	for (i = 0; i < OCC_NUM_STATUS_ATTRS; ++i)
+		device_remove_file(occ->bus_dev,
+				   &occ->status_attrs[i].dev_attr);
 }
