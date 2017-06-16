@@ -257,6 +257,8 @@ static ssize_t occ_show_status(struct device *dev,
 	case 6:
 		val = header->occ_state;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	return snprintf(buf, PAGE_SIZE - 1, "%d\n", val);
