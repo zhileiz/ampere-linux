@@ -164,7 +164,7 @@
 	 *    Slot 7
 	 */
 	i2c-switch@74 {
-		compatible = "pca9546";
+		compatible = "nxp,pca9546";
 		reg = <0x74>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -180,7 +180,7 @@
 	 *    SSD 2
 	 */
 	i2c-switch@77 {
-		compatible = "pca9548";
+		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x77>;
@@ -218,7 +218,7 @@
 	 *    PSU2
 	 */
 	i2c-switch@70 {
-		compatible = "pca9546";
+		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
