@@ -241,7 +241,8 @@ static void __init aspeed_init_early(void)
 	writel(SCU_PASSWORD, AST_IO(AST_BASE_SCU));
 
 	/* Reset AHB bridges */
-	writel(0x02, AST_IO(AST_BASE_SCU | 0x04));
+	writel(readl(AST_IO(AST_BASE_SCU | 0x04)) | 0x02,
+	       AST_IO(AST_BASE_SCU | 0x04));
 
 	/* Enables all the clocks except D2CLK, USB1.1 Host, USB1.1, LHCLK */
 	writel(0x10CC5E80, AST_IO(AST_BASE_SCU | 0x0c));
