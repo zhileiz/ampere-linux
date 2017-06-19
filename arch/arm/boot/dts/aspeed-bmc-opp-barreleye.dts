@@ -184,3 +184,7 @@
 &vuart {
 	status = "okay";
 };
+
+&wdt2 {
+	status = "okay";
+};
