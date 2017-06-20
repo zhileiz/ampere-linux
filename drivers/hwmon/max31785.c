@@ -39,6 +39,7 @@
 #define MAX31785_REG_MFR_MODEL			0x9a
 #define MAX31785_REG_MFR_REVISION		0x9b
 #define MAX31785_REG_MFR_FAN_CONFIG		0xf1
+#define	 MAX31785_REG_MFR_FAN_CONFIG_DUAL_TACH	BIT(12)
 #define MAX31785_REG_READ_FAN_PWM		0xf3
 
 /* Fan Config register bits */
@@ -81,13 +82,13 @@ struct max31785 {
 	/* Registers */
 	u8	fan_config[NR_CHANNEL];
 	u16	fan_command[NR_CHANNEL];
-	u8	mfr_fan_config[NR_CHANNEL];
+	u16	mfr_fan_config[NR_CHANNEL];
 	u8	fault_status[NR_CHANNEL];
 	u16	pwm[NR_CHANNEL];
 	u16	tach_rpm[NR_CHANNEL * 2];
 };
 
-static inline bool max31785_has_fast_rotor(struct max31785 *data)
+static inline bool max31785_has_dual_rotor(struct max31785 *data)
 {
 	return !!(data->capabilities & MAX31785_CAP_FAST_ROTOR);
 }
@@ -188,7 +189,7 @@ static int max31785_update_fan_speed(struct max31785 *data, u8 fan)
 	if (rc)
 		return rc;
 
-	if (max31785_has_fast_rotor(data)) {
+	if (max31785_has_dual_rotor(data)) {
 		rc = max31785_smbus_read_long_data(data->client,
 				MAX31785_REG_FAN_SPEED_1);
 		if (rc < 0)
@@ -429,11 +430,22 @@ static int max31785_init_fans(struct max31785 *data)
 			return rv;
 		data->fan_command[i] = rv;
 
-		rv = max31785_read_fan_byte(client, i,
+		rv = max31785_read_fan_word(client, i,
 				MAX31785_REG_MFR_FAN_CONFIG);
 		if (rv < 0)
 			return rv;
 		data->mfr_fan_config[i] = rv;
+
+		if (max31785_has_dual_rotor(data)) {
+			rv |= MAX31785_REG_MFR_FAN_CONFIG_DUAL_TACH;
+			data->mfr_fan_config[i] = rv;
+
+			rv = max31785_write_fan_word(client, i,
+					MAX31785_REG_MFR_FAN_CONFIG,
+					data->mfr_fan_config[i]);
+			if (rv < 0)
+				return rv;
+		}
 
 		if (!((data->fan_config[i]
 			& MAX31785_FAN_CFG_CONTROL_MODE_RPM)
@@ -799,7 +811,7 @@ static int max31785_probe(struct i2c_client *client,
 	if (rc < 0)
 		return rc;
 
-	if (max31785_has_fast_rotor(data))
+	if (max31785_has_dual_rotor(data))
 		chip = &max31785_chip_info_0x3040;
 	else
 		chip = &max31785_chip_info_0x3030;
