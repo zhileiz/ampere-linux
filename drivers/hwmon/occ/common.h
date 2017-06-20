@@ -13,6 +13,8 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/sysfs.h>
 
+#define OCC_ERROR_COUNT_THRESHOLD	2
+
 #define OCC_UPDATE_FREQUENCY		msecs_to_jiffies(1000)
 #define OCC_RESP_DATA_BYTES		4089
 
@@ -27,6 +29,9 @@
 #define RESP_RETURN_CHKSUM		0x14
 #define RESP_RETURN_OCC_ERR		0x15
 #define RESP_RETURN_STATE		0x16
+
+#define OCC_STATE_SAFE			0x4
+#define OCC_SAFE_TIMEOUT		msecs_to_jiffies(60000)
 
 struct occ_response {
 	u8 seq_no;
@@ -96,6 +101,10 @@ struct occ {
 	struct device *bus_dev;
 	struct device *hwmon;
 
+	int error;
+	unsigned int error_count;
+	unsigned int bad_present_count;
+	unsigned long last_safe;
 	unsigned long last_update;
 	struct mutex lock;
 
@@ -130,6 +139,8 @@ struct occ {
 #define OCC_INIT_ATTR(_name, _mode, _show, _store, _nr, _index)		\
 	((struct sensor_device_attribute_2)				\
 		SENSOR_ATTR_OCC(_name, _mode, _show, _store, _nr, _index))
+
+extern atomic_t occ_num_occs;
 
 void occ_parse_poll_response(struct occ *occ);
 int occ_poll(struct occ *occ);

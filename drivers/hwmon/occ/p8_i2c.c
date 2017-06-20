@@ -122,12 +122,12 @@ static int p8_i2c_occ_send_cmd(struct occ *occ, u8 *cmd)
 	if (rc)
 		goto err;
 
+retry:
 	/* set sram address for response */
 	rc = p8_i2c_occ_putscom_u32(client, 0x6B070, 0xFFFF7000, 0);
 	if (rc)
 		goto err;
 
-retry:
 	rc = p8_i2c_occ_getscom(client, 0x6B075, (u8 *)resp);
 	if (rc)
 		goto err;
@@ -161,7 +161,10 @@ retry:
 		rc = -EFAULT;
 	}
 
+	occ->error = resp->return_status;
+
 	if (rc < 0) {
+		occ->error_count++;
 		dev_warn(&client->dev, "occ bad response:%d\n",
 			 resp->return_status);
 		return rc;
@@ -169,9 +172,11 @@ retry:
 
 	data_length = get_unaligned_be16(&resp->data_length_be);
 	if (data_length > OCC_RESP_DATA_BYTES) {
+		occ->error_count++;
+		occ->error = -EDOM;
 		dev_warn(&client->dev, "occ bad data length:%d\n",
 			 data_length);
-		return -EDOM;
+		return occ->error;
 	}
 
 	for (i = 8; i < data_length + 7; i += 8) {
@@ -180,9 +185,12 @@ retry:
 			goto err;
 	}
 
+	occ->error_count = 0;
 	return data_length + 7;
 
 err:
+	occ->error_count++;
+	occ->error = rc;
 	dev_err(&client->dev, "i2c scom op failed rc:%d\n", rc);
 	return rc;
 }
@@ -242,6 +250,8 @@ static int p8_i2c_occ_probe(struct i2c_client *client,
 		return rc;
 	}
 
+	atomic_inc(&occ_num_occs);
+
 	return 0;
 }
 
@@ -250,6 +260,8 @@ static int p8_i2c_occ_remove(struct i2c_client *client)
 	struct occ *occ = dev_get_drvdata(&client->dev);
 
 	occ_remove_status_attrs(occ);
+
+	atomic_dec(&occ_num_occs);
 
 	return 0;
 }

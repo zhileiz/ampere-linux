@@ -36,6 +36,7 @@ static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd)
 retry:
 	client = occ_drv_open(p9_sbe_occ->sbe, 0);
 	if (!client)
+		/* don't increment occ error counter */
 		return -ENODEV;
 
 	rc = occ_drv_write(client, (const char *)&cmd[1], 7);
@@ -76,15 +77,21 @@ retry:
 		rc = -EFAULT;
 	}
 
+	occ->error = resp->return_status;
+
 	if (rc < 0) {
+		occ->error_count++;
 		dev_warn(occ->bus_dev, "occ bad response:%d\n",
 			 resp->return_status);
 		return rc;
 	}
 
+	occ->error_count = 0;
 	return 0;
 
 err:
+	occ->error_count++;
+	occ->error = rc;
 	occ_drv_release(client);
 	dev_err(occ->bus_dev, "occ bus op failed rc:%d\n", rc);
 	return rc;
@@ -130,6 +137,7 @@ static int p9_sbe_occ_setup(struct p9_sbe_occ *p9_sbe_occ)
 
 static int p9_sbe_occ_probe(struct platform_device *pdev)
 {
+	int rc;
 	struct occ *occ;
 	struct p9_sbe_occ *p9_sbe_occ = devm_kzalloc(&pdev->dev,
 						     sizeof(*p9_sbe_occ),
@@ -148,7 +156,13 @@ static int p9_sbe_occ_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, occ);
 
-	return p9_sbe_occ_setup(p9_sbe_occ);
+	rc = p9_sbe_occ_setup(p9_sbe_occ);
+	if (rc)
+		return rc;
+
+	atomic_inc(&occ_num_occs);
+
+	return rc;
 }
 
 static int p9_sbe_occ_remove(struct platform_device *pdev)
@@ -156,6 +170,8 @@ static int p9_sbe_occ_remove(struct platform_device *pdev)
 	struct occ *occ = platform_get_drvdata(pdev);
 
 	occ_remove_status_attrs(occ);
+
+	atomic_dec(&occ_num_occs);
 
 	return 0;
 }

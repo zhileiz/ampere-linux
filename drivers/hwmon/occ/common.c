@@ -10,7 +10,7 @@
 #include <asm/unaligned.h>
 #include "common.h"
 
-#define OCC_NUM_STATUS_ATTRS		7
+#define OCC_NUM_STATUS_ATTRS		8
 
 #define OCC_STAT_MASTER			0x80
 #define OCC_STAT_ACTIVE			0x01
@@ -18,6 +18,8 @@
 #define OCC_EXT_STAT_DVFS_POWER		0x40
 #define OCC_EXT_STAT_MEM_THROTTLE	0x20
 #define OCC_EXT_STAT_QUICK_DROP		0x10
+
+atomic_t occ_num_occs = ATOMIC_INIT(0);
 
 struct temp_sensor_1 {
 	u16 sensor_id;
@@ -163,6 +165,8 @@ void occ_parse_poll_response(struct occ *occ)
 
 int occ_poll(struct occ *occ)
 {
+	int rc;
+	struct occ_poll_response_header *header;
 	u16 checksum = occ->poll_cmd_data + 1;
 	u8 cmd[8];
 
@@ -175,7 +179,32 @@ int occ_poll(struct occ *occ)
 	cmd[6] = checksum & 0xFF;
 	cmd[7] = 0;
 
-	return occ->send_cmd(occ, cmd);
+	rc = occ->send_cmd(occ, cmd);
+	if (rc)
+		return rc;
+
+	header = (struct occ_poll_response_header *)occ->resp.data;
+
+	if (header->occ_state == OCC_STATE_SAFE) {
+		if (occ->last_safe) {
+			if (time_after(jiffies,
+				       occ->last_safe + OCC_SAFE_TIMEOUT))
+				occ->error = -EHOSTDOWN;
+		} else
+			occ->last_safe = jiffies;
+	} else
+		occ->last_safe = 0;
+
+	if (header->status & OCC_STAT_MASTER) {
+		if (hweight8(header->occs_present) !=
+		    atomic_read(&occ_num_occs)) {
+			occ->error = -EXDEV;
+			occ->bad_present_count++;
+		} else
+			occ->bad_present_count = 0;
+	}
+
+	return rc;
 }
 
 int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
@@ -184,6 +213,14 @@ int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
 	u8 cmd[8];
 	u16 checksum = 0x24;
 	__be16 user_power_cap_be;
+	struct occ_poll_response_header *header =
+		(struct occ_poll_response_header *)occ->resp.data;
+
+	if (!(header->status & OCC_STAT_MASTER))
+		return -EPERM;
+
+	if (!(header->status & OCC_STAT_ACTIVE))
+		return -EACCES;
 
 	user_power_cap_be = cpu_to_be16(user_power_cap);
 
@@ -192,7 +229,7 @@ int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
 	cmd[2] = 0;
 	cmd[3] = 2;
 
-	memcpy(&cmd[4], &user_power_cap, 2);
+	memcpy(&cmd[4], &user_power_cap_be, 2);
 
 	checksum += cmd[4] + cmd[5];
 	cmd[6] = checksum >> 8;
@@ -220,6 +257,19 @@ int occ_update_response(struct occ *occ)
 	return rc;
 }
 
+static ssize_t occ_show_error(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	int error = 0;
+	struct occ *occ = dev_get_drvdata(dev);
+
+	if (occ->error_count > OCC_ERROR_COUNT_THRESHOLD || occ->last_safe ||
+	    occ->bad_present_count > OCC_ERROR_COUNT_THRESHOLD)
+		error = occ->error;
+
+	return snprintf(buf, PAGE_SIZE - 1, "%d\n", error);
+}
+
 static ssize_t occ_show_status(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -237,22 +287,22 @@ static ssize_t occ_show_status(struct device *dev,
 
 	switch (sattr->index) {
 	case 0:
-		val = header->status & OCC_STAT_MASTER;
+		val = (header->status & OCC_STAT_MASTER) ? 1 : 0;
 		break;
 	case 1:
-		val = header->status & OCC_STAT_ACTIVE;
+		val = (header->status & OCC_STAT_ACTIVE) ? 1 : 0;
 		break;
 	case 2:
-		val = header->ext_status & OCC_EXT_STAT_DVFS_OT;
+		val = (header->ext_status & OCC_EXT_STAT_DVFS_OT) ? 1 : 0;
 		break;
 	case 3:
-		val = header->ext_status & OCC_EXT_STAT_DVFS_POWER;
+		val = (header->ext_status & OCC_EXT_STAT_DVFS_POWER) ? 1 : 0;
 		break;
 	case 4:
-		val = header->ext_status & OCC_EXT_STAT_MEM_THROTTLE;
+		val = (header->ext_status & OCC_EXT_STAT_MEM_THROTTLE) ? 1 : 0;
 		break;
 	case 5:
-		val = header->ext_status & OCC_EXT_STAT_QUICK_DROP;
+		val = (header->ext_status & OCC_EXT_STAT_QUICK_DROP) ? 1 : 0;
 		break;
 	case 6:
 		val = header->occ_state;
@@ -1073,30 +1123,35 @@ int occ_create_status_attrs(struct occ *occ)
 	occ->status_attrs[1] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_active, 0444,
 							    occ_show_status,
-							    NULL, 0);
+							    NULL, 1);
 	occ->status_attrs[2] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_dvfs_ot, 0444,
 							    occ_show_status,
-							    NULL, 1);
+							    NULL, 2);
 	occ->status_attrs[3] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_dvfs_power,
 							    0444,
 							    occ_show_status,
-							    NULL, 2);
+							    NULL, 3);
 	occ->status_attrs[4] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_mem_throttle,
 							    0444,
 							    occ_show_status,
-							    NULL, 3);
+							    NULL, 4);
 	occ->status_attrs[5] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_quick_drop,
 							    0444,
 							    occ_show_status,
-							    NULL, 4);
+							    NULL, 5);
 	occ->status_attrs[6] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_status, 0444,
 							    occ_show_status,
-							    NULL, 5);
+							    NULL, 6);
+
+	occ->status_attrs[7] =
+		(struct sensor_device_attribute)SENSOR_ATTR(occ_error, 0444,
+							    occ_show_error,
+							    NULL, 0);
 
 	for (i = 0; i < OCC_NUM_STATUS_ATTRS; ++i) {
 		rc = device_create_file(dev, &occ->status_attrs[i].dev_attr);
