@@ -237,12 +237,14 @@ static void __init do_mellanox_setup(void)
 
 static void __init aspeed_init_early(void)
 {
+	u32 reg;
+
 	/* Unlock SCU */
 	writel(SCU_PASSWORD, AST_IO(AST_BASE_SCU));
 
-	/* Reset AHB bridges */
-	writel(readl(AST_IO(AST_BASE_SCU | 0x04)) | 0x02,
-	       AST_IO(AST_BASE_SCU | 0x04));
+	/* Reset AHB bridges. Do not modify the JTAG configuration bit */
+	reg = readl(AST_IO(AST_BASE_SCU | 0x04)) & BIT(22);
+	writel(reg | 0x02, AST_IO(AST_BASE_SCU | 0x04));
 
 	/* Enables all the clocks except D2CLK, USB1.1 Host, USB1.1, LHCLK */
 	writel(0x10CC5E80, AST_IO(AST_BASE_SCU | 0x0c));
