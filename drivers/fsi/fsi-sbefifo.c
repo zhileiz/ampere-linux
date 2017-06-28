@@ -688,6 +688,12 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 		len -= n;
 		ret += n;
 
+		/* set flag before starting the worker, as it may run through
+		 * and check the flag before we exit this loop!
+		 */
+		if (!len)
+			set_bit(SBEFIFO_XFR_WRITE_DONE, &xfr->flags);
+
 		/*
 		 * Drain the write buffer.
 		 */
@@ -696,7 +702,6 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 			sbefifo_put(sbefifo);
 	}
 
-	set_bit(SBEFIFO_XFR_WRITE_DONE, &xfr->flags);
 	sbefifo_put_client(client);
 
 	return ret;
