@@ -36,6 +36,11 @@
 	};
 
 	clocks {
+		pwm_tacho_fixed_clk: fixedclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
 	};
 
 	ahb {
