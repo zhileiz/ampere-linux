@@ -193,6 +193,7 @@
 					compatible = "timeriomem_rng";
 					reg = <0x1e6e2078 0x4>;
 					period = <1>;
+					quality = <100>;
 				};
 
 				pinctrl: pinctrl@1e6e2000 {
