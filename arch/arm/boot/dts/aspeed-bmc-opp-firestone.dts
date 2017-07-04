@@ -8,13 +8,6 @@
 	model = "Firestone BMC";
 	compatible = "ibm,firestone-bmc", "aspeed,ast2400";
 
-	aliases {
-		serial0 = &vuart;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial4 = &uart5;
-	};
-
 	chosen {
 		stdout-path = &uart5;
 		bootargs = "console=ttyS4,115200";

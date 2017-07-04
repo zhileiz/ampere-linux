@@ -7,11 +7,6 @@
 	model = "MSN BMC";
 	compatible = "mellanox,msn-bmc", "aspeed,ast2500";
 
-	aliases {
-		serial0 = &uart1;
-		serial4 = &uart5;
-	};
-
 	chosen {
 		stdout-path = &uart5;
 		bootargs = "console=ttyS4,115200n8 earlyprintk";

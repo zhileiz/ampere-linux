@@ -6,10 +6,6 @@
 	model = "AST2500 EVB";
 	compatible = "aspeed,ast2500-evb", "aspeed,ast2500";
 
-	aliases {
-		serial4 = &uart5;
-	};
-
 	chosen {
 		stdout-path = &uart5;
 		bootargs = "console=ttyS4,115200 earlyprintk";

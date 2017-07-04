@@ -7,10 +7,6 @@
 	model = "Garrison BMC";
 	compatible = "ibm,garrison-bmc", "aspeed,ast2400";
 
-	aliases {
-		serial4 = &uart5;
-	};
-
 	chosen {
 		stdout-path = &uart5;
 		bootargs = "console=ttyS4,115200 earlyprintk";

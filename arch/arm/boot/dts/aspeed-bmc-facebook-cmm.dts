@@ -6,10 +6,6 @@
 	model = "FACEBOOK CMM BMC";
 	compatible = "facebook,cmm-bmc", "aspeed,ast2500";
 
-	aliases {
-		serial1 = &uart1;
-	};
-
 	chosen {
 		stdout-path = &uart1;
 		bootargs = "console=ttyS1,115200 earlyprintk";
