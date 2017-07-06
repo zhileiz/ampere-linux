@@ -562,39 +562,34 @@ static int fsi_i2c_probe(struct device *dev)
 	i2c->fsi = to_fsi_dev(dev);
 	INIT_LIST_HEAD(&i2c->ports);
 
-	if (dev->of_node &&
-	    of_device_is_compatible(dev->of_node, "ibm,fsi-i2c-master")) {
-		/* add adapter for each i2c port of the master */
-		for_each_available_child_of_node(dev->of_node, np) {
-			rc = of_property_read_u32(np, "reg", &port_no);
-			if (rc || port_no > 0xFFFF)
-				continue;
+	/* Add adapter for each i2c port of the master */
+	for_each_available_child_of_node(dev->of_node, np) {
+		rc = of_property_read_u32(np, "reg", &port_no);
+		if (rc || port_no > USHRT_MAX)
+			continue;
 
-			port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
-			if (!port)
-				return -ENOMEM;
+		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+		if (!port)
+			return -ENOMEM;
 
-			port->master = i2c;
-			port->port = (u16)port_no;
+		port->master = i2c;
+		port->port = port_no;
 
-			port->adapter.owner = THIS_MODULE;
-			port->adapter.dev.of_node = np;
-			port->adapter.dev.parent = dev;
-			port->adapter.algo = &fsi_i2c_algorithm;
-			port->adapter.bus_recovery_info =
-				&fsi_i2c_bus_recovery_info;
-			port->adapter.algo_data = port;
+		port->adapter.owner = THIS_MODULE;
+		port->adapter.dev.of_node = np;
+		port->adapter.dev.parent = dev;
+		port->adapter.algo = &fsi_i2c_algorithm;
+		port->adapter.bus_recovery_info = &fsi_i2c_bus_recovery_info;
+		port->adapter.algo_data = port;
 
-			snprintf(port->adapter.name,
-				 sizeof(port->adapter.name), "fsi_i2c-%u",
-				 port_no);
+		snprintf(port->adapter.name, sizeof(port->adapter.name),
+				"fsi_i2c-%u", port_no);
 
-			rc = i2c_add_adapter(&port->adapter);
-			if (rc < 0)
-				return rc;
+		rc = i2c_add_adapter(&port->adapter);
+		if (rc < 0)
+			return rc;
 
-			list_add(&port->list, &i2c->ports);
-		}
+		list_add(&port->list, &i2c->ports);
 	}
 
 	rc = fsi_i2c_dev_init(i2c);
