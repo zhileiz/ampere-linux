@@ -199,6 +199,56 @@
 		compatible = "infineon,dps310";
 		reg = <0x76>;
 	};
+
+	pca0: pca9552@60 {
+		compatible = "nxp,pca9552";
+		reg = <0x60>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		fan0: led@0 {
+			label = "fan0";
+			default-state = "keep";
+			reg = <0>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		fan1: led@1 {
+			label = "fan1";
+			default-state = "keep";
+			reg = <1>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		fan2: led@2 {
+			label = "fan2";
+			default-state = "keep";
+			reg = <2>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		fan3: led@3 {
+			label = "fan3";
+			default-state = "keep";
+			reg = <3>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		front_fault: led@13 {
+			label = "front-fault";
+			default-state = "keep";
+			reg = <13>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		front_power: led@14 {
+			label = "front-power";
+			default-state = "keep";
+			reg = <14>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		front_id: led@15 {
+			label = "front-id";
+			default-state = "keep";
+			reg = <15>;
+			type = <PCA955X_TYPE_LED>;
+		};
+	};
 };
 
 &i2c4 {
