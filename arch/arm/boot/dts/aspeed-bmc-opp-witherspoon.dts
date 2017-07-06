@@ -416,6 +416,11 @@
 	aspeed,external-nodes = <&gfx &lhc>;
 };
 
+&wdt1 {
+	aspeed,reset-type = "none";
+	aspeed,external-signal;
+};
+
 &wdt2 {
 	status = "okay";
 };
