@@ -562,10 +562,11 @@ static int fsi_i2c_probe(struct device *dev)
 	i2c->fsi = to_fsi_dev(dev);
 	INIT_LIST_HEAD(&i2c->ports);
 
-	if (dev->of_node) {
+	if (dev->of_node &&
+	    of_device_is_compatible(dev->of_node, "ibm,fsi-i2c-master")) {
 		/* add adapter for each i2c port of the master */
-		for_each_child_of_node(dev->of_node, np) {
-			rc = of_property_read_u32(np, "port", &port_no);
+		for_each_available_child_of_node(dev->of_node, np) {
+			rc = of_property_read_u32(np, "reg", &port_no);
 			if (rc || port_no > 0xFFFF)
 				continue;
 
@@ -577,6 +578,7 @@ static int fsi_i2c_probe(struct device *dev)
 			port->port = (u16)port_no;
 
 			port->adapter.owner = THIS_MODULE;
+			port->adapter.dev.of_node = np;
 			port->adapter.dev.parent = dev;
 			port->adapter.algo = &fsi_i2c_algorithm;
 			port->adapter.bus_recovery_info =
@@ -624,7 +626,7 @@ static const struct fsi_device_id fsi_i2c_ids[] = {
 static struct fsi_driver fsi_i2c_driver = {
 	.id_table = fsi_i2c_ids,
 	.drv = {
-		.name = "i2c_master_fsi",
+		.name = "fsi_i2c_master",
 		.bus = &fsi_bus_type,
 		.probe = fsi_i2c_probe,
 		.remove = fsi_i2c_remove,
