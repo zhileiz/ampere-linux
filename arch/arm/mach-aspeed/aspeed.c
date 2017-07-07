@@ -177,7 +177,17 @@ static void __init do_zaius_setup(void)
 
 static void __init do_witherspoon_setup(void)
 {
+	unsigned long reg;
+
 	do_common_setup();
+
+	/* Reset tolerance for BMC_POWER_UP (GPIOD1) */
+	reg = readl(AST_IO(AST_BASE_GPIO | 0x01c));
+	writel(reg | BIT(25), AST_IO(AST_BASE_GPIO | 0x01c));
+
+	/* Reset tolerance for SOFTWARE_PGOOD (GPIOR1) */
+	reg = readl(AST_IO(AST_BASE_GPIO | 0x12c));
+	writel(reg | BIT(9), AST_IO(AST_BASE_GPIO | 0x12c));
 }
 
 static void __init do_romulus_setup(void)
