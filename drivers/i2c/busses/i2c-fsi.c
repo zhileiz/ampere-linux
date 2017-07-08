@@ -586,15 +586,12 @@ static int fsi_i2c_probe(struct device *dev)
 			port->adapter.bus_recovery_info =
 				&fsi_i2c_bus_recovery_info;
 			port->adapter.algo_data = port;
-			/* number ports uniquely */
-			port->adapter.nr = (i2c->idx * I2C_MASTER_NR_OFFSET) +
-				port_no;
 
 			snprintf(port->adapter.name,
 				 sizeof(port->adapter.name), "fsi_i2c-%u",
 				 port_no);
 
-			rc = i2c_add_numbered_adapter(&port->adapter);
+			rc = i2c_add_adapter(&port->adapter);
 			if (rc < 0)
 				return rc;
 
