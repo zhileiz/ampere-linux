@@ -135,7 +135,6 @@ struct fsi_i2c_master {
 	int			idx;
 	u8			fifo_size;
 	struct list_head	ports;
-	struct ida		ida;
 	wait_queue_head_t	wait;
 	struct semaphore	lock;
 };
@@ -554,7 +553,7 @@ static int fsi_i2c_probe(struct device *dev)
 	struct fsi_i2c_master *i2c;
 	struct fsi_i2c_port *port;
 	struct device_node *np;
-	int rc, idx;
+	int rc;
 	u32 port_no;
 
 	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
@@ -565,7 +564,6 @@ static int fsi_i2c_probe(struct device *dev)
 	sema_init(&i2c->lock, 1);
 	i2c->fsi = to_fsi_dev(dev);
 	i2c->idx = ida_simple_get(&fsi_i2c_ida, 1, INT_MAX, GFP_KERNEL);
-	ida_init(&i2c->ida);
 	INIT_LIST_HEAD(&i2c->ports);
 
 	if (dev->of_node) {
@@ -573,12 +571,6 @@ static int fsi_i2c_probe(struct device *dev)
 		for_each_child_of_node(dev->of_node, np) {
 			rc = of_property_read_u32(np, "port", &port_no);
 			if (rc || port_no > 0xFFFF)
-				continue;
-
-			/* make sure we don't overlap index with a buggy dts */
-			idx = ida_simple_get(&i2c->ida, port_no,
-					     port_no + 1, GFP_KERNEL);
-			if (idx < 0)
 				continue;
 
 			port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
@@ -599,8 +591,8 @@ static int fsi_i2c_probe(struct device *dev)
 				port_no;
 
 			snprintf(port->adapter.name,
-				 sizeof(port->adapter.name),
-				 "fsi_i2c-%u", port_no);
+				 sizeof(port->adapter.name), "fsi_i2c-%u",
+				 port_no);
 
 			rc = i2c_add_numbered_adapter(&port->adapter);
 			if (rc < 0)
@@ -627,8 +619,6 @@ static int fsi_i2c_remove(struct device *dev)
 	list_for_each_entry(port, &i2c->ports, list) {
 		i2c_del_adapter(&port->adapter);
 	}
-
-	ida_destroy(&i2c->ida);
 
 	ida_simple_remove(&fsi_i2c_ida, i2c->idx);
 
