@@ -132,7 +132,6 @@
 
 struct fsi_i2c_master {
 	struct fsi_device	*fsi;
-	int			idx;
 	u8			fifo_size;
 	struct list_head	ports;
 	wait_queue_head_t	wait;
@@ -146,8 +145,6 @@ struct fsi_i2c_port {
 	u16			port;
 	u16			xfrd;
 };
-
-static DEFINE_IDA(fsi_i2c_ida);
 
 static int fsi_i2c_read_reg(struct fsi_device *fsi, unsigned int reg,
 			    u32 *data)
@@ -563,7 +560,6 @@ static int fsi_i2c_probe(struct device *dev)
 	init_waitqueue_head(&i2c->wait);
 	sema_init(&i2c->lock, 1);
 	i2c->fsi = to_fsi_dev(dev);
-	i2c->idx = ida_simple_get(&fsi_i2c_ida, 1, INT_MAX, GFP_KERNEL);
 	INIT_LIST_HEAD(&i2c->ports);
 
 	if (dev->of_node) {
@@ -616,8 +612,6 @@ static int fsi_i2c_remove(struct device *dev)
 	list_for_each_entry(port, &i2c->ports, list) {
 		i2c_del_adapter(&port->adapter);
 	}
-
-	ida_simple_remove(&fsi_i2c_ida, i2c->idx);
 
 	return 0;
 }
