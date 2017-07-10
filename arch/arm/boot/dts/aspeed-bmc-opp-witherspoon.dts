@@ -205,6 +205,7 @@
 	max31785@52 {
 		compatible = "maxim,max31785";
 		reg = <0x52>;
+		fault-max-fan;
 	};
 
 	dps310@76 {
