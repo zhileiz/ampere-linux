@@ -71,10 +71,10 @@
 		};
 	};
 
-	gpio-fsi {
+	fsi: gpio-fsi {
 		compatible = "fsi-master-gpio", "fsi-master";
-
-		status = "okay";
+		#address-cells = <2>;
+		#size-cells = <0>;
 
 		/*
 		 * These 2 GPIOs are set per board revision in aspeed.c.
@@ -95,6 +95,8 @@
 			<&adc 12>, <&adc 13>, <&adc 14>, <&adc 15>;
 	};
 };
+
+#include "ibm-power9-cfam.dtsi"
 
 &fmc {
 	status = "okay";
