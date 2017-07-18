@@ -49,6 +49,7 @@
         };
 
 	gpio-fsi {
+		status = "disabled";
 		compatible = "fsi-master-gpio", "fsi-master";
 
 		clock-gpios = <&gpio ASPEED_GPIO(A, 4) GPIO_ACTIVE_HIGH>;
@@ -289,6 +290,13 @@
 		gpios = <ASPEED_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "SYS_PWROK_BMC";
+	};
+
+	pin_gpio_h6 {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(H, 6) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "SCM1_FSI0_DATA_EN";
 	};
 
 	pin_gpio_h7 {
