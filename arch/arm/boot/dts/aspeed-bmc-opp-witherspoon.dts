@@ -84,7 +84,12 @@
 		trans-gpios = <&gpio ASPEED_GPIO(R, 2) GPIO_ACTIVE_HIGH>;
 	};
 
-	iio-hwmon {
+	iio-hwmon-dps310 {
+		compatible = "iio-hwmon";
+		io-channels = <&dps 0>;
+	};
+
+	iio-hwmon-bmp280 {
 		compatible = "iio-hwmon";
 		io-channels = <&bmp 1>;
 	};
@@ -208,9 +213,10 @@
 		fault-max-fan;
 	};
 
-	dps310@76 {
+	dps: dps310@76 {
 		compatible = "infineon,dps310";
 		reg = <0x76>;
+		#io-channel-cells = <0>;
 	};
 
 	pca0: pca9552@60 {
