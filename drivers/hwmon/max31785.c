@@ -297,6 +297,11 @@ static ssize_t max31785_fan_set_target(struct max31785 *data, int channel,
 
 	mutex_lock(&data->lock);
 
+	data->fan_config[channel] |= MAX31785_FAN_CFG_CONTROL_MODE_RPM;
+	rc = max31785_write_fan_byte(data->client, channel,
+				MAX31785_REG_FAN_CONFIG_1_2,
+				data->fan_config[channel]);
+
 	/* Write new RPM value */
 	data->fan_command[channel] = rpm;
 	rc = max31785_write_fan_word(data->client, channel,
@@ -341,6 +346,11 @@ static ssize_t max31785_pwm_set(struct max31785 *data, int channel, long pwm)
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
+
+	data->fan_config[channel] &= ~MAX31785_FAN_CFG_CONTROL_MODE_RPM;
+	rc = max31785_write_fan_byte(data->client, channel,
+				MAX31785_REG_FAN_CONFIG_1_2,
+				data->fan_config[channel]);
 
 	/* Write new PWM value */
 	data->fan_command[channel] = pwm * MAX31785_FAN_COMMAND_PWM_RATIO;
@@ -458,7 +468,7 @@ static int max31785_init_fans(struct max31785 *data)
 		}
 	}
 
-	return rv;
+	return 0;
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
@@ -840,12 +850,12 @@ static int max31785_probe(struct i2c_client *client,
 	if (rc)
 		return rc;
 
-	rc = max31785_init_fans(data);
-	if (rc)
-		return rc;
-
 	rc = max31785_get_capabilities(data);
 	if (rc < 0)
+		return rc;
+
+	rc = max31785_init_fans(data);
+	if (rc)
 		return rc;
 
 	if (max31785_has_dual_rotor(data))
