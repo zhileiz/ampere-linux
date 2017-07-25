@@ -69,24 +69,31 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 					struct device_node *parent)
 {
 	struct aspeed_i2c_ic *i2c_ic;
+	int ret = 0;
 
 	i2c_ic = kzalloc(sizeof(*i2c_ic), GFP_KERNEL);
 	if (!i2c_ic)
 		return -ENOMEM;
 
 	i2c_ic->base = of_iomap(node, 0);
-	if (IS_ERR(i2c_ic->base))
-		return PTR_ERR(i2c_ic->base);
+	if (IS_ERR(i2c_ic->base)) {
+		ret = PTR_ERR(i2c_ic->base);
+		goto err_free_ic;
+	}
 
 	i2c_ic->parent_irq = irq_of_parse_and_map(node, 0);
-	if (i2c_ic->parent_irq < 0)
-		return i2c_ic->parent_irq;
+	if (i2c_ic->parent_irq < 0) {
+		ret = i2c_ic->parent_irq;
+		goto err_iounmap;
+	}
 
-	i2c_ic->irq_domain = irq_domain_add_linear(
-			node, ASPEED_I2C_IC_NUM_BUS,
-			&aspeed_i2c_ic_irq_domain_ops, NULL);
-	if (!i2c_ic->irq_domain)
-		return -ENOMEM;
+	i2c_ic->irq_domain = irq_domain_add_linear(node, ASPEED_I2C_IC_NUM_BUS,
+						   &aspeed_i2c_ic_irq_domain_ops,
+						   NULL);
+	if (!i2c_ic->irq_domain) {
+		ret = -ENOMEM;
+		goto err_iounmap;
+	}
 
 	i2c_ic->irq_domain->name = "aspeed-i2c-domain";
 
@@ -96,6 +103,12 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 	pr_info("i2c controller registered, irq %d\n", i2c_ic->parent_irq);
 
 	return 0;
+
+err_iounmap:
+	iounmap(i2c_ic->base);
+err_free_ic:
+	kfree(i2c_ic);
+	return ret;
 }
 
 IRQCHIP_DECLARE(ast2400_i2c_ic, "aspeed,ast2400-i2c-ic", aspeed_i2c_ic_of_init);

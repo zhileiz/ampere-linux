@@ -78,11 +78,6 @@
 #define ASPEED_I2CD_INTR_RX_DONE			BIT(2)
 #define ASPEED_I2CD_INTR_TX_NAK				BIT(1)
 #define ASPEED_I2CD_INTR_TX_ACK				BIT(0)
-#define ASPEED_I2CD_INTR_ERROR						       \
-		(ASPEED_I2CD_INTR_ARBIT_LOSS |				       \
-		 ASPEED_I2CD_INTR_ABNORMAL |				       \
-		 ASPEED_I2CD_INTR_SCL_TIMEOUT |				       \
-		 ASPEED_I2CD_INTR_SDA_DL_TIMEOUT)
 #define ASPEED_I2CD_INTR_ALL						       \
 		(ASPEED_I2CD_INTR_SDA_DL_TIMEOUT |			       \
 		 ASPEED_I2CD_INTR_BUS_RECOVER_DONE |			       \
@@ -137,7 +132,8 @@ struct aspeed_i2c_bus {
 	/* Synchronizes I/O mem access to base. */
 	spinlock_t			lock;
 	struct completion		cmd_complete;
-	int				irq;
+	unsigned long			parent_clk_frequency;
+	u32				bus_frequency;
 	/* Transaction state. */
 	enum aspeed_i2c_master_state	master_state;
 	struct i2c_msg			*msgs;
@@ -146,6 +142,8 @@ struct aspeed_i2c_bus {
 	size_t				msgs_count;
 	bool				send_stop;
 	int				cmd_err;
+	/* Protected only by i2c_lock_bus */
+	int				master_xfer_result;
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	struct i2c_client		*slave;
 	enum aspeed_i2c_slave_state	slave_state;
@@ -167,7 +165,7 @@ static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
 		/* Bus is idle: no recovery needed. */
 		if (command & ASPEED_I2CD_SCL_LINE_STS)
 			goto out;
-		dev_dbg(bus->dev, "bus hung (state %x), attempting recovery\n",
+		dev_dbg(bus->dev, "SCL hung (state %x), attempting recovery\n",
 			command);
 
 		reinit_completion(&bus->cmd_complete);
@@ -185,13 +183,14 @@ static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
 		/* Recovery failed. */
 		else if (!(readl(bus->base + ASPEED_I2C_CMD_REG) &
 			   ASPEED_I2CD_SCL_LINE_STS))
-			ret = -EIO;
+			goto reset_out;
 	/* Bus error. */
 	} else {
-		dev_dbg(bus->dev, "bus hung (state %x), attempting recovery\n",
+		dev_dbg(bus->dev, "SDA hung (state %x), attempting recovery\n",
 			command);
 
 		reinit_completion(&bus->cmd_complete);
+		/* Writes 1 to 8 SCL clock cycles until SDA is released. */
 		writel(ASPEED_I2CD_BUS_RECOVER_CMD,
 		       bus->base + ASPEED_I2C_CMD_REG);
 		spin_unlock_irqrestore(&bus->lock, flags);
@@ -207,7 +206,7 @@ static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
 		/* Recovery failed. */
 		else if (!(readl(bus->base + ASPEED_I2C_CMD_REG) &
 			   ASPEED_I2CD_SDA_LINE_STS))
-			ret = -EIO;
+			goto reset_out;
 	}
 
 out:
@@ -325,7 +324,8 @@ out:
 }
 #endif /* CONFIG_I2C_SLAVE */
 
-static void __aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
+/* precondition: bus.lock has been acquired. */
+static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
 {
 	u32 command = ASPEED_I2CD_M_START_CMD | ASPEED_I2CD_M_TX_CMD;
 	struct i2c_msg *msg = &bus->msgs[bus->msgs_index];
@@ -346,20 +346,35 @@ static void __aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
 	writel(command, bus->base + ASPEED_I2C_CMD_REG);
 }
 
-static void __aspeed_i2c_do_stop(struct aspeed_i2c_bus *bus)
+/* precondition: bus.lock has been acquired. */
+static void aspeed_i2c_do_stop(struct aspeed_i2c_bus *bus)
 {
 	bus->master_state = ASPEED_I2C_MASTER_STOP;
 	writel(ASPEED_I2CD_M_STOP_CMD, bus->base + ASPEED_I2C_CMD_REG);
 }
 
-static void __aspeed_i2c_next_msg_or_stop(struct aspeed_i2c_bus *bus)
+/* precondition: bus.lock has been acquired. */
+static void aspeed_i2c_next_msg_or_stop(struct aspeed_i2c_bus *bus)
 {
 	if (bus->msgs_index + 1 < bus->msgs_count) {
 		bus->msgs_index++;
-		__aspeed_i2c_do_start(bus);
+		aspeed_i2c_do_start(bus);
 	} else {
-		__aspeed_i2c_do_stop(bus);
+		aspeed_i2c_do_stop(bus);
 	}
+}
+
+static int aspeed_i2c_is_irq_error(u32 irq_status)
+{
+	if (irq_status & ASPEED_I2CD_INTR_ARBIT_LOSS)
+		return -EAGAIN;
+	if (irq_status & (ASPEED_I2CD_INTR_SDA_DL_TIMEOUT |
+			  ASPEED_I2CD_INTR_SCL_TIMEOUT))
+		return -EBUSY;
+	if (irq_status & (ASPEED_I2CD_INTR_ABNORMAL))
+		return -EPROTO;
+
+	return 0;
 }
 
 static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
@@ -367,9 +382,11 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 	u32 irq_status, status_ack = 0, command = 0;
 	struct i2c_msg *msg;
 	u8 recv_byte;
+	int ret;
 
 	spin_lock(&bus->lock);
 	irq_status = readl(bus->base + ASPEED_I2C_INTR_STS_REG);
+	/* Ack all interrupt bits. */
 	writel(irq_status, bus->base + ASPEED_I2C_INTR_STS_REG);
 
 	if (irq_status & ASPEED_I2CD_INTR_BUS_RECOVER_DONE) {
@@ -379,15 +396,24 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 	}
 
 	/*
-	 * Either we encountered an interrupt that reports an error, or we are
-	 * in an invalid state.
+	 * We encountered an interrupt that reports an error: the hardware
+	 * should clear the command queue effectively taking us back to the
+	 * INACTIVE state.
 	 */
-	if (irq_status & ASPEED_I2CD_INTR_ERROR ||
-	    (!bus->msgs && bus->master_state != ASPEED_I2C_MASTER_STOP)) {
+	ret = aspeed_i2c_is_irq_error(irq_status);
+	if (ret < 0) {
 		dev_dbg(bus->dev, "received error interrupt: 0x%08x",
 			irq_status);
+		bus->cmd_err = ret;
+		bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
+		goto out_complete;
+	}
+
+	/* We are in an invalid state; reset bus to a known state. */
+	if (!bus->msgs && bus->master_state != ASPEED_I2C_MASTER_STOP) {
+		dev_err(bus->dev, "bus in unknown state");
 		bus->cmd_err = -EIO;
-		__aspeed_i2c_do_stop(bus);
+		aspeed_i2c_do_stop(bus);
 		goto out_no_complete;
 	}
 	msg = &bus->msgs[bus->msgs_index];
@@ -399,12 +425,17 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 	 */
 	if (bus->master_state == ASPEED_I2C_MASTER_START) {
 		if (unlikely(!(irq_status & ASPEED_I2CD_INTR_TX_ACK))) {
-			dev_dbg(bus->dev,
-				"no slave present at %02x", msg->addr);
+			pr_devel("no slave present at %02x", msg->addr);
 			status_ack |= ASPEED_I2CD_INTR_TX_NAK;
-			goto error_and_stop;
+			bus->cmd_err = -ENXIO;
+			aspeed_i2c_do_stop(bus);
+			goto out_no_complete;
 		}
 		status_ack |= ASPEED_I2CD_INTR_TX_ACK;
+		if (msg->len == 0) { /* SMBUS_QUICK */
+			aspeed_i2c_do_stop(bus);
+			goto out_no_complete;
+		}
 		if (msg->flags & I2C_M_RD)
 			bus->master_state = ASPEED_I2C_MASTER_RX_FIRST;
 		else
@@ -431,7 +462,7 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 			writel(ASPEED_I2CD_M_TX_CMD,
 			       bus->base + ASPEED_I2C_CMD_REG);
 		} else {
-			__aspeed_i2c_next_msg_or_stop(bus);
+			aspeed_i2c_next_msg_or_stop(bus);
 		}
 		goto out_no_complete;
 	case ASPEED_I2C_MASTER_RX_FIRST:
@@ -452,7 +483,7 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 		if (msg->flags & I2C_M_RECV_LEN) {
 			if (unlikely(recv_byte > I2C_SMBUS_BLOCK_MAX)) {
 				bus->cmd_err = -EPROTO;
-				__aspeed_i2c_do_stop(bus);
+				aspeed_i2c_do_stop(bus);
 				goto out_no_complete;
 			}
 			msg->len = recv_byte +
@@ -467,7 +498,7 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 				command |= ASPEED_I2CD_M_S_RX_CMD_LAST;
 			writel(command, bus->base + ASPEED_I2C_CMD_REG);
 		} else {
-			__aspeed_i2c_next_msg_or_stop(bus);
+			aspeed_i2c_next_msg_or_stop(bus);
 		}
 		goto out_no_complete;
 	case ASPEED_I2C_MASTER_STOP:
@@ -491,14 +522,19 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 	default:
 		WARN(1, "unknown master state\n");
 		bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
-		bus->cmd_err = -EIO;
+		bus->cmd_err = -EINVAL;
 		goto out_complete;
 	}
 error_and_stop:
 	bus->cmd_err = -EIO;
-	__aspeed_i2c_do_stop(bus);
+	aspeed_i2c_do_stop(bus);
 	goto out_no_complete;
 out_complete:
+	bus->msgs = NULL;
+	if (bus->cmd_err)
+		bus->master_xfer_result = bus->cmd_err;
+	else
+		bus->master_xfer_result = bus->msgs_index + 1;
 	complete(&bus->cmd_complete);
 out_no_complete:
 	if (irq_status != status_ack)
@@ -520,16 +556,13 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 	}
 #endif /* CONFIG_I2C_SLAVE */
 
-	if (aspeed_i2c_master_irq(bus))
-		return IRQ_HANDLED;
-	else
-		return IRQ_NONE;
+	return aspeed_i2c_master_irq(bus) ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
 				  struct i2c_msg *msgs, int num)
 {
-	struct aspeed_i2c_bus *bus = adap->algo_data;
+	struct aspeed_i2c_bus *bus = i2c_get_adapdata(adap);
 	unsigned long time_left, flags;
 	int ret = 0;
 
@@ -547,30 +580,22 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
 		spin_lock_irqsave(&bus->lock, flags);
 	}
 
+	bus->cmd_err = 0;
 	bus->msgs = msgs;
 	bus->msgs_index = 0;
 	bus->msgs_count = num;
 
 	reinit_completion(&bus->cmd_complete);
-	__aspeed_i2c_do_start(bus);
+	aspeed_i2c_do_start(bus);
 	spin_unlock_irqrestore(&bus->lock, flags);
 
 	time_left = wait_for_completion_timeout(&bus->cmd_complete,
 						bus->adap.timeout);
 
-	spin_lock_irqsave(&bus->lock, flags);
-	bus->msgs = NULL;
 	if (time_left == 0)
-		ret = -ETIMEDOUT;
+		return -ETIMEDOUT;
 	else
-		ret = bus->cmd_err;
-	spin_unlock_irqrestore(&bus->lock, flags);
-
-	/* If nothing went wrong, return number of messages transferred. */
-	if (ret >= 0)
-		return bus->msgs_index + 1;
-	else
-		return ret;
+		return bus->master_xfer_result;
 }
 
 static u32 aspeed_i2c_functionality(struct i2c_adapter *adap)
@@ -579,6 +604,7 @@ static u32 aspeed_i2c_functionality(struct i2c_adapter *adap)
 }
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
+/* precondition: bus.lock has been acquired. */
 static void __aspeed_i2c_reg_slave(struct aspeed_i2c_bus *bus, u16 slave_addr)
 {
 	u32 addr_reg_val, func_ctrl_reg_val;
@@ -597,10 +623,9 @@ static void __aspeed_i2c_reg_slave(struct aspeed_i2c_bus *bus, u16 slave_addr)
 
 static int aspeed_i2c_reg_slave(struct i2c_client *client)
 {
-	struct aspeed_i2c_bus *bus;
+	struct aspeed_i2c_bus *bus = i2c_get_adapdata(client->adapter);
 	unsigned long flags;
 
-	bus = client->adapter->algo_data;
 	spin_lock_irqsave(&bus->lock, flags);
 	if (bus->slave) {
 		spin_unlock_irqrestore(&bus->lock, flags);
@@ -618,7 +643,7 @@ static int aspeed_i2c_reg_slave(struct i2c_client *client)
 
 static int aspeed_i2c_unreg_slave(struct i2c_client *client)
 {
-	struct aspeed_i2c_bus *bus = client->adapter->algo_data;
+	struct aspeed_i2c_bus *bus = i2c_get_adapdata(client->adapter);
 	u32 func_ctrl_reg_val;
 	unsigned long flags;
 
@@ -687,71 +712,38 @@ static u32 aspeed_i2c_get_clk_reg_val(u32 divisor)
 			| (base_clk & ASPEED_I2CD_TIME_BASE_DIVISOR_MASK);
 }
 
-static int __aspeed_i2c_init_clk(struct aspeed_i2c_bus *bus,
-				 struct platform_device *pdev)
+/* precondition: bus.lock has been acquired. */
+static int aspeed_i2c_init_clk(struct aspeed_i2c_bus *bus)
 {
-	u32 clk_freq, divisor, clk_reg_val;
-	struct clk *pclk;
-	int ret;
+	u32 divisor, clk_reg_val;
 
-	pclk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pclk)) {
-		dev_err(&pdev->dev, "clk_get failed\n");
-		return PTR_ERR(pclk);
-	}
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "bus-frequency", &clk_freq);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"Could not read bus-frequency property\n");
-		clk_freq = 100000;
-	}
-	divisor = clk_get_rate(pclk) / clk_freq;
-	/* We just need the clock rate, we don't actually use the clk object. */
-	devm_clk_put(&pdev->dev, pclk);
-
+	divisor = bus->parent_clk_frequency / bus->bus_frequency;
 	clk_reg_val = aspeed_i2c_get_clk_reg_val(divisor);
 	writel(clk_reg_val, bus->base + ASPEED_I2C_AC_TIMING_REG1);
-
-	/*
-	 * If the base divisor is non-zero then we do not want to enable high
-	 * speed mode, otherwise we might as well enable it.
-	 * For reference, setting high speed mode will make the base divisor
-	 * zero and corresponds to a minimum SCL frequency of about 1.5MHz.
-	 */
-	if (clk_reg_val & ASPEED_I2CD_TIME_BASE_DIVISOR_MASK) {
-		writel(ASPEED_NO_TIMEOUT_CTRL,
-		       bus->base + ASPEED_I2C_AC_TIMING_REG2);
-	} else {
-		writel(readl(bus->base + ASPEED_I2C_FUN_CTRL_REG) |
-		       ASPEED_I2CD_M_HIGH_SPEED_EN |
-		       ASPEED_I2CD_M_SDA_DRIVE_1T_EN |
-		       ASPEED_I2CD_SDA_DRIVE_1T_EN,
-		       bus->base + ASPEED_I2C_FUN_CTRL_REG);
-
-		writel(0x3, bus->base + ASPEED_I2C_AC_TIMING_REG2);
-	}
+	writel(ASPEED_NO_TIMEOUT_CTRL, bus->base + ASPEED_I2C_AC_TIMING_REG2);
 
 	return 0;
 }
 
-static int __aspeed_i2c_init(struct aspeed_i2c_bus *bus,
+/* precondition: bus.lock has been acquired. */
+static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
 			     struct platform_device *pdev)
 {
+	u32 fun_ctrl_reg = ASPEED_I2CD_MASTER_EN;
 	int ret;
 
 	/* Disable everything. */
 	writel(0, bus->base + ASPEED_I2C_FUN_CTRL_REG);
 
-	ret = __aspeed_i2c_init_clk(bus, pdev);
+	ret = aspeed_i2c_init_clk(bus);
 	if (ret < 0)
 		return ret;
 
+	if (!of_property_read_bool(pdev->dev.of_node, "multi-master"))
+		fun_ctrl_reg |= ASPEED_I2CD_MULTI_MASTER_DIS;
+
 	/* Enable Master Mode */
-	writel(readl(bus->base + ASPEED_I2C_FUN_CTRL_REG) |
-	       ASPEED_I2CD_MASTER_EN |
-	       /* TODO: provide device tree option for multi-master mode. */
-	       ASPEED_I2CD_MULTI_MASTER_DIS,
+	writel(readl(bus->base + ASPEED_I2C_FUN_CTRL_REG) | fun_ctrl_reg,
 	       bus->base + ASPEED_I2C_FUN_CTRL_REG);
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
@@ -774,20 +766,11 @@ static int aspeed_i2c_reset(struct aspeed_i2c_bus *bus)
 
 	spin_lock_irqsave(&bus->lock, flags);
 
-	/* Disable and quiesce interrupts. */
-	reinit_completion(&bus->cmd_complete);
+	/* Disable and ack all interrupts. */
 	writel(0, bus->base + ASPEED_I2C_INTR_CTRL_REG);
+	writel(0xffffffff, bus->base + ASPEED_I2C_INTR_STS_REG);
 
-	spin_unlock_irqrestore(&bus->lock, flags);
-	/*
-	 * We need to make sure that there are no interrupts that fired just
-	 * before we grabbed the lock; if that did not happen, then we are going
-	 * to timeout and that is okay.
-	 */
-	wait_for_completion_timeout(&bus->cmd_complete, bus->adap.timeout);
-	spin_lock_irqsave(&bus->lock, flags);
-
-	ret = __aspeed_i2c_init(bus, pdev);
+	ret = aspeed_i2c_init(bus, pdev);
 
 	spin_unlock_irqrestore(&bus->lock, flags);
 
@@ -797,8 +780,9 @@ static int aspeed_i2c_reset(struct aspeed_i2c_bus *bus)
 static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 {
 	struct aspeed_i2c_bus *bus;
+	struct clk *parent_clk;
 	struct resource *res;
-	int ret;
+	int irq, ret;
 
 	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
@@ -809,6 +793,21 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	if (IS_ERR(bus->base))
 		return PTR_ERR(bus->base);
 
+	parent_clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(parent_clk))
+		return PTR_ERR(parent_clk);
+	bus->parent_clk_frequency = clk_get_rate(parent_clk);
+	/* We just need the clock rate, we don't actually use the clk object. */
+	devm_clk_put(&pdev->dev, parent_clk);
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "bus-frequency", &bus->bus_frequency);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Could not read bus-frequency property\n");
+		bus->bus_frequency = 100000;
+	}
+
 	/* Initialize the I2C adapter */
 	spin_lock_init(&bus->lock);
 	init_completion(&bus->cmd_complete);
@@ -816,24 +815,26 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	bus->adap.retries = 0;
 	bus->adap.timeout = 5 * HZ;
 	bus->adap.algo = &aspeed_i2c_algo;
-	bus->adap.algo_data = bus;
 	bus->adap.dev.parent = &pdev->dev;
 	bus->adap.dev.of_node = pdev->dev.of_node;
-	snprintf(bus->adap.name, sizeof(bus->adap.name), "Aspeed i2c");
+	strlcpy(bus->adap.name, pdev->name, sizeof(bus->adap.name));
+	i2c_set_adapdata(&bus->adap, bus);
 
 	bus->dev = &pdev->dev;
 
-	/*
-	 * No need to quiesce interrupts because there is no interrupt handler
-	 * installed.
-	 */
+	/* Clean up any left over interrupt state. */
 	writel(0, bus->base + ASPEED_I2C_INTR_CTRL_REG);
-	ret = __aspeed_i2c_init(bus, pdev);
+	writel(0xffffffff, bus->base + ASPEED_I2C_INTR_STS_REG);
+	/*
+	 * bus.lock does not need to be held because the interrupt handler has
+	 * not been enabled yet.
+	 */
+	ret = aspeed_i2c_init(bus, pdev);
 	if (ret < 0)
 		return ret;
 
-	bus->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	ret = devm_request_irq(&pdev->dev, bus->irq, aspeed_i2c_bus_irq,
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	ret = devm_request_irq(&pdev->dev, irq, aspeed_i2c_bus_irq,
 			       0, dev_name(&pdev->dev), bus);
 	if (ret < 0)
 		return ret;
@@ -845,7 +846,7 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bus);
 
 	dev_info(bus->dev, "i2c bus %d registered, irq %d\n",
-		 bus->adap.nr, bus->irq);
+		 bus->adap.nr, irq);
 
 	return 0;
 }
