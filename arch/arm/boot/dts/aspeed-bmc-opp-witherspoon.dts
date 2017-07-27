@@ -541,6 +541,9 @@
 &wdt1 {
 	aspeed,reset-type = "none";
 	aspeed,external-signal;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdtrst1_default>;
 };
 
 &wdt2 {
