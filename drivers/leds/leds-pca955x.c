@@ -383,7 +383,7 @@ static const struct of_device_id of_pca955x_match[] = {
 MODULE_DEVICE_TABLE(of, of_pca955x_match);
 #else
 static struct pca955x_platform_data *
-pca955x_pdata_of_init(struct i2c_client *client, struct pca963x_chipdef *chip)
+pca955x_pdata_of_init(struct i2c_client *client, struct pca955x_chipdef *chip)
 {
 	return ERR_PTR(-ENODEV);
 }
