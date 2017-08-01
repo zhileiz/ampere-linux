@@ -270,9 +270,12 @@ static int max31785_of_fan_config(struct i2c_client *client,
 	if (pb_cfg < 0)
 		return pb_cfg;
 
-	if (!(pb_cfg & PB_FAN_1_INSTALLED)) {
-		dev_warn(dev, "Fan %d is configured but not installed\n", page);
-		return 0;
+	if (of_property_read_bool(child->parent, "use-stored-presence")) {
+		if (!(pb_cfg & PB_FAN_1_INSTALLED))
+			dev_info(dev, "Fan %d is configured but not installed\n",
+				 page);
+	} else {
+		pb_cfg |= PB_FAN_1_INSTALLED;
 	}
 
 	ret = of_property_read_string(child, "maxim,fan-rotor-input", &sval);
