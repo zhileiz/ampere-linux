@@ -10,6 +10,12 @@ Required properties:
 - #address-cells : Must be 1
 - #size-cells    : Must be 0
 
+Optional properties:
+- use-stored-presence    : Do not treat the devicetree description as canon for
+                           fan presence (the 'installed' bit of FAN_CONFIG_*).
+                           Instead, rely on the on the default value store of
+                           the device to populate it.
+
 Capabilities are configured through subnodes of the controller's node.
 
 Fans
