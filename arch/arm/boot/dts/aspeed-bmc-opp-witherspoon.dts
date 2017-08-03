@@ -56,6 +56,77 @@
 		};
 	};
 
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <1000>;
+
+		fan0-presence {
+			label = "fan0-presence";
+			gpios = <&pca0 4 GPIO_ACTIVE_LOW>;
+			linux,code = <4>;
+		};
+
+		fan1-presence {
+			label = "fan1-presence";
+			gpios = <&pca0 5 GPIO_ACTIVE_LOW>;
+			linux,code = <5>;
+		};
+
+		fan2-presence {
+			label = "fan2-presence";
+			gpios = <&pca0 6 GPIO_ACTIVE_LOW>;
+			linux,code = <6>;
+		};
+
+		fan3-presence {
+			label = "fan3-presence";
+			gpios = <&pca0 7 GPIO_ACTIVE_LOW>;
+			linux,code = <7>;
+		};
+	};
+
+	pca_leds {
+		compatible = "gpio-leds";
+
+		fan0 {
+			label = "fan0";
+			default-state = "keep";
+			gpios = <&pca0 0 GPIO_ACTIVE_LOW>;
+		};
+		fan1 {
+			label = "fan1";
+			default-state = "keep";
+			gpios = <&pca0 1 GPIO_ACTIVE_LOW>;
+		};
+		fan2 {
+			label = "fan2";
+			default-state = "keep";
+			gpios = <&pca0 2 GPIO_ACTIVE_LOW>;
+		};
+		fan3 {
+			label = "fan3";
+			default-state = "keep";
+			gpios = <&pca0 3 GPIO_ACTIVE_LOW>;
+		};
+		front_fault {
+			label = "front-fault";
+			default-state = "keep";
+			gpios = <&pca0 13 GPIO_ACTIVE_LOW>;
+		};
+		front_power {
+			label = "front-power";
+			default-state = "keep";
+			gpios = <&pca0 14 GPIO_ACTIVE_LOW>;
+		};
+		front_id {
+			label = "front-id";
+			default-state = "keep";
+			gpios = <&pca0 15 GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -278,47 +349,72 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		fan0: led@0 {
-			label = "fan0";
-			default-state = "keep";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio@0 {
 			reg = <0>;
-			type = <PCA955X_TYPE_LED>;
+			type = <PCA955X_TYPE_GPIO>;
 		};
-		fan1: led@1 {
-			label = "fan1";
-			default-state = "keep";
+		gpio@1 {
 			reg = <1>;
-			type = <PCA955X_TYPE_LED>;
+			type = <PCA955X_TYPE_GPIO>;
 		};
-		fan2: led@2 {
-			label = "fan2";
-			default-state = "keep";
+		gpio@2 {
 			reg = <2>;
-			type = <PCA955X_TYPE_LED>;
+			type = <PCA955X_TYPE_GPIO>;
 		};
-		fan3: led@3 {
-			label = "fan3";
-			default-state = "keep";
+		gpio@3 {
 			reg = <3>;
-			type = <PCA955X_TYPE_LED>;
+			type = <PCA955X_TYPE_GPIO>;
 		};
-		front_fault: led@13 {
-			label = "front-fault";
-			default-state = "keep";
+		gpio@4 {
+			reg = <4>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@5 {
+			reg = <5>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@6 {
+			reg = <6>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@7 {
+			reg = <7>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@8 {
+			reg = <8>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@9 {
+			reg = <9>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@10 {
+			reg = <10>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@11 {
+			reg = <11>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@12 {
+			reg = <12>;
+			type = <PCA955X_TYPE_GPIO>;
+		};
+		gpio@13 {
 			reg = <13>;
-			type = <PCA955X_TYPE_LED>;
+			type = <PCA955X_TYPE_GPIO>;
 		};
-		front_power: led@14 {
-			label = "front-power";
-			default-state = "keep";
+		gpio@14 {
 			reg = <14>;
-			type = <PCA955X_TYPE_LED>;
+			type = <PCA955X_TYPE_GPIO>;
 		};
-		front_id: led@15 {
-			label = "front-id";
-			default-state = "keep";
+		gpio@15 {
 			reg = <15>;
-			type = <PCA955X_TYPE_LED>;
+			type = <PCA955X_TYPE_GPIO>;
 		};
 	};
 };
