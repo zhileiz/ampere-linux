@@ -9,16 +9,20 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/fsi.h>
 #include <linux/i2c.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
 #include <linux/wait.h>
 
-#define FSI_ENGID_I2C_FSI	0x7
+#define FSI_ENGID_I2C		0x7
 
 /* Find left shift from first set bit in m */
 #define MASK_TO_LSH(m)		(__builtin_ffsll(m) - 1ULL)
@@ -30,7 +34,6 @@
 #define SETFIELD(m, v, val)	\
 	(((v) & ~(m)) | ((((typeof(v))(val)) << MASK_TO_LSH(m)) & (m)))
 
-#define I2C_MASTER_NR_OFFSET	100
 #define I2C_DEFAULT_CLK_DIV	6
 
 /* i2c registers */
@@ -150,13 +153,13 @@ static int fsi_i2c_read_reg(struct fsi_device *fsi, unsigned int reg,
 			    u32 *data)
 {
 	int rc;
-	u32 raw_data;
+	__be32 data_be;
 
-	rc = fsi_device_read(fsi, reg, &raw_data, sizeof(raw_data));
+	rc = fsi_device_read(fsi, reg, &data_be, sizeof(data_be));
 	if (rc)
 		return rc;
 
-	*data = be32_to_cpu(raw_data);
+	*data = be32_to_cpu(data_be);
 
 	return 0;
 }
@@ -164,9 +167,9 @@ static int fsi_i2c_read_reg(struct fsi_device *fsi, unsigned int reg,
 static int fsi_i2c_write_reg(struct fsi_device *fsi, unsigned int reg,
 			     u32 *data)
 {
-	u32 raw_data = cpu_to_be32(*data);
+	__be32 data_be = cpu_to_be32(*data);
 
-	return fsi_device_write(fsi, reg, &raw_data, sizeof(raw_data));
+	return fsi_device_write(fsi, reg, &data_be, sizeof(data_be));
 }
 
 static int fsi_i2c_lock_master(struct fsi_i2c_master *i2c, int timeout)
@@ -351,12 +354,12 @@ static int fsi_i2c_read_fifo(struct fsi_i2c_port *port, struct i2c_msg *msg,
 static int fsi_i2c_handle_status(struct fsi_i2c_port *port,
 				 struct i2c_msg *msg, u32 status)
 {
-	struct fsi_i2c_master *i2c = port->master;
-	u8 fifo_count;
 	int rc;
+	u8 fifo_count;
+	struct fsi_i2c_master *i2c = port->master;
+	u32 dummy = 0;
 
 	if (status & I2C_STAT_ERR) {
-		u32 dummy = 0;
 		rc = fsi_i2c_write_reg(i2c->fsi, I2C_FSI_RESET_ERR, &dummy);
 		if (rc)
 			return rc;
@@ -383,10 +386,9 @@ static int fsi_i2c_handle_status(struct fsi_i2c_port *port,
 			rc = -ENODATA;
 		else
 			rc = msg->len;
+
 		return rc;
 	}
-
-	dev_warn(&port->adapter.dev, "no status to handle\n");
 
 	return 0;
 }
@@ -563,7 +565,11 @@ static int fsi_i2c_probe(struct device *dev)
 	i2c->fsi = to_fsi_dev(dev);
 	INIT_LIST_HEAD(&i2c->ports);
 
-	/* Add adapter for each i2c port of the master */
+	rc = fsi_i2c_dev_init(i2c);
+	if (rc)
+		return rc;
+
+	/* Add adapter for each i2c port of the master. */
 	for_each_available_child_of_node(dev->of_node, np) {
 		rc = of_property_read_u32(np, "reg", &port_no);
 		if (rc || port_no > USHRT_MAX)
@@ -571,7 +577,7 @@ static int fsi_i2c_probe(struct device *dev)
 
 		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 		if (!port)
-			return -ENOMEM;
+			break;
 
 		port->master = i2c;
 		port->port = port_no;
@@ -584,18 +590,17 @@ static int fsi_i2c_probe(struct device *dev)
 		port->adapter.algo_data = port;
 
 		snprintf(port->adapter.name, sizeof(port->adapter.name),
-				"fsi_i2c-%u", port_no);
+			 "i2c_bus-%u", port_no);
 
 		rc = i2c_add_adapter(&port->adapter);
-		if (rc < 0)
-			return rc;
+		if (rc < 0) {
+			dev_err(dev, "Failed to register adapter: %d\n", rc);
+			devm_kfree(dev, port);
+			continue;
+		}
 
 		list_add(&port->list, &i2c->ports);
 	}
-
-	rc = fsi_i2c_dev_init(i2c);
-	if (rc)
-		return rc;
 
 	dev_set_drvdata(dev, i2c);
 
@@ -607,22 +612,24 @@ static int fsi_i2c_remove(struct device *dev)
 	struct fsi_i2c_master *i2c = dev_get_drvdata(dev);
 	struct fsi_i2c_port *port;
 
-	list_for_each_entry(port, &i2c->ports, list) {
-		i2c_del_adapter(&port->adapter);
+	if (!list_empty(&i2c->ports)) {
+		list_for_each_entry(port, &i2c->ports, list) {
+			i2c_del_adapter(&port->adapter);
+		}
 	}
 
 	return 0;
 }
 
 static const struct fsi_device_id fsi_i2c_ids[] = {
-	{ FSI_ENGID_I2C_FSI, FSI_VERSION_ANY },
+	{ FSI_ENGID_I2C, FSI_VERSION_ANY },
 	{ 0 }
 };
 
 static struct fsi_driver fsi_i2c_driver = {
 	.id_table = fsi_i2c_ids,
 	.drv = {
-		.name = "fsi_i2c_master",
+		.name = "i2c-fsi",
 		.bus = &fsi_bus_type,
 		.probe = fsi_i2c_probe,
 		.remove = fsi_i2c_remove,
