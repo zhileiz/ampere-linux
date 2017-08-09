@@ -163,9 +163,21 @@ void occ_parse_poll_response(struct occ *occ)
 	}
 }
 
+void occ_set_error(struct occ *occ, int error)
+{
+	occ->error_count++;
+	occ->error = error;
+}
+
+void occ_reset_error(struct occ *occ)
+{
+	occ->error_count = 0;
+	occ->error = 0;
+}
+
 int occ_poll(struct occ *occ)
 {
-	int rc;
+	int rc, error = occ->error;
 	struct occ_poll_response_header *header;
 	u16 checksum = occ->poll_cmd_data + 1;
 	u8 cmd[8];
@@ -181,7 +193,7 @@ int occ_poll(struct occ *occ)
 
 	rc = occ->send_cmd(occ, cmd);
 	if (rc)
-		return rc;
+		goto done;
 
 	header = (struct occ_poll_response_header *)occ->resp.data;
 
@@ -197,19 +209,21 @@ int occ_poll(struct occ *occ)
 
 	if (header->status & OCC_STAT_MASTER) {
 		if (hweight8(header->occs_present) !=
-		    atomic_read(&occ_num_occs)) {
-			occ->error = -EXDEV;
-			occ->bad_present_count++;
-		} else
-			occ->bad_present_count = 0;
+		    atomic_read(&occ_num_occs))
+			occ->error = -ENXIO;
 	}
+
+done:
+	/* notify userspace if we change error state and have an error */
+	if (occ->error != error && occ->error && occ->error_attr_name)
+		sysfs_notify(&occ->bus_dev->kobj, NULL, occ->error_attr_name);
 
 	return rc;
 }
 
 int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
 {
-	int rc;
+	int rc, error = occ->error;
 	u8 cmd[8];
 	u16 checksum = 0x24;
 	__be16 user_power_cap_be;
@@ -239,6 +253,10 @@ int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
 	rc = occ->send_cmd(occ, cmd);
 	mutex_unlock(&occ->lock);
 
+	/* notify userspace if we change error state and have an error*/
+	if (occ->error != error && occ->error && occ->error_attr_name)
+		sysfs_notify(&occ->bus_dev->kobj, NULL, occ->error_attr_name);
+
 	return rc;
 }
 
@@ -260,14 +278,9 @@ int occ_update_response(struct occ *occ)
 static ssize_t occ_show_error(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	int error = 0;
 	struct occ *occ = dev_get_drvdata(dev);
 
-	if (occ->error_count > OCC_ERROR_COUNT_THRESHOLD || occ->last_safe ||
-	    occ->bad_present_count > OCC_ERROR_COUNT_THRESHOLD)
-		error = occ->error;
-
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", error);
+	return snprintf(buf, PAGE_SIZE - 1, "%d\n", occ->error);
 }
 
 static ssize_t occ_show_status(struct device *dev,
@@ -1194,6 +1207,7 @@ int occ_create_status_attrs(struct occ *occ)
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_error, 0444,
 							    occ_show_error,
 							    NULL, 0);
+	occ->error_attr_name = occ->status_attrs[7].dev_attr.attr.name;
 
 	for (i = 0; i < OCC_NUM_STATUS_ATTRS; ++i) {
 		rc = device_create_file(dev, &occ->status_attrs[i].dev_attr);

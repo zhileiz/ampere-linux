@@ -98,7 +98,7 @@ static int p8_i2c_occ_putscom_be(struct i2c_client *client, u32 address,
 
 static int p8_i2c_occ_send_cmd(struct occ *occ, u8 *cmd)
 {
-	int i, rc;
+	int i, rc, error;
 	unsigned long start;
 	u16 data_length;
 	struct p8_i2c_occ *p8_i2c_occ = to_p8_i2c_occ(occ);
@@ -161,22 +161,18 @@ retry:
 		rc = -EFAULT;
 	}
 
-	occ->error = resp->return_status;
-
 	if (rc < 0) {
-		occ->error_count++;
-		dev_warn(&client->dev, "occ bad response:%d\n",
-			 resp->return_status);
-		return rc;
+		error = resp->return_status;
+		dev_warn(&client->dev, "occ bad response:%d\n", error);
+		goto done;
 	}
 
 	data_length = get_unaligned_be16(&resp->data_length_be);
 	if (data_length > OCC_RESP_DATA_BYTES) {
-		occ->error_count++;
-		occ->error = -EDOM;
+		rc = -EIO;
 		dev_warn(&client->dev, "occ bad data length:%d\n",
 			 data_length);
-		return occ->error;
+		goto assign;
 	}
 
 	for (i = 8; i < data_length + 7; i += 8) {
@@ -185,13 +181,15 @@ retry:
 			goto err;
 	}
 
-	occ->error_count = 0;
-	return data_length + 7;
+	occ_reset_error(occ);
+	return 0;
 
 err:
-	occ->error_count++;
-	occ->error = rc;
 	dev_err(&client->dev, "i2c scom op failed rc:%d\n", rc);
+assign:
+	error = rc;
+done:
+	occ_set_error(occ, error);
 	return rc;
 }
 

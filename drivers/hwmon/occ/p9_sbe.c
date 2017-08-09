@@ -25,7 +25,7 @@ struct p9_sbe_occ {
 
 static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd)
 {
-	int rc;
+	int rc, error;
 	unsigned long start;
 	struct occ_client *client;
 	struct occ_response *resp = &occ->resp;
@@ -35,9 +35,10 @@ static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd)
 
 retry:
 	client = occ_drv_open(p9_sbe_occ->sbe, 0);
-	if (!client)
-		/* don't increment occ error counter */
-		return -ENODEV;
+	if (!client) {
+		rc = -ENODEV;
+		goto assign;
+	}
 
 	rc = occ_drv_write(client, (const char *)&cmd[1], 7);
 	if (rc < 0)
@@ -62,7 +63,8 @@ retry:
 		}
 		break;
 	case RESP_RETURN_SUCCESS:
-		rc = 0;
+		occ_reset_error(occ);
+		return 0;
 		break;
 	case RESP_RETURN_CMD_INVAL:
 	case RESP_RETURN_CMD_LEN:
@@ -77,23 +79,17 @@ retry:
 		rc = -EFAULT;
 	}
 
-	occ->error = resp->return_status;
-
-	if (rc < 0) {
-		occ->error_count++;
-		dev_warn(occ->bus_dev, "occ bad response:%d\n",
-			 resp->return_status);
-		return rc;
-	}
-
-	occ->error_count = 0;
-	return 0;
+	error = resp->return_status;
+	dev_warn(occ->bus_dev, "occ bad response:%d\n", error);
+	goto done;
 
 err:
-	occ->error_count++;
-	occ->error = rc;
 	occ_drv_release(client);
 	dev_err(occ->bus_dev, "occ bus op failed rc:%d\n", rc);
+assign:
+	error = rc;
+done:
+	occ_set_error(occ, error);
 	return rc;
 }
 
