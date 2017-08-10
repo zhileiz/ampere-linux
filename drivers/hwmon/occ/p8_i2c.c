@@ -169,7 +169,7 @@ retry:
 
 	data_length = get_unaligned_be16(&resp->data_length_be);
 	if (data_length > OCC_RESP_DATA_BYTES) {
-		rc = -EIO;
+		rc = -EMSGSIZE;
 		dev_warn(&client->dev, "occ bad data length:%d\n",
 			 data_length);
 		goto assign;

@@ -166,7 +166,8 @@ void occ_parse_poll_response(struct occ *occ)
 void occ_set_error(struct occ *occ, int error)
 {
 	occ->error_count++;
-	occ->error = error;
+	if (occ->error_count > OCC_ERROR_COUNT_THRESHOLD)
+		occ->error = error;
 }
 
 void occ_reset_error(struct occ *occ)

@@ -13,6 +13,8 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/sysfs.h>
 
+#define OCC_ERROR_COUNT_THRESHOLD	2
+
 #define OCC_UPDATE_FREQUENCY		msecs_to_jiffies(1000)
 #define OCC_RESP_DATA_BYTES		4089
 
