@@ -2098,9 +2098,14 @@ static struct dentry *pmbus_debugfs_dir;	/* pmbus debugfs directory */
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 static int pmbus_debugfs_get(void *data, u64 *val)
 {
+	int rc;
 	struct pmbus_debugfs_entry *entry = data;
 
-	*val = _pmbus_read_byte_data(entry->client, entry->page, entry->reg);
+	rc = _pmbus_read_byte_data(entry->client, entry->page, entry->reg);
+	if (rc < 0)
+		return rc;
+
+	*val = rc;
 
 	return 0;
 }
@@ -2109,10 +2114,15 @@ DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops, pmbus_debugfs_get, NULL,
 
 static int pmbus_debugfs_get_status(void *data, u64 *val)
 {
+	int rc;
 	struct pmbus_debugfs_entry *entry = data;
 	struct pmbus_data *pdata = i2c_get_clientdata(entry->client);
 
-	*val = pdata->read_status(entry->client, entry->page);
+	rc = pdata->read_status(entry->client, entry->page);
+	if (rc < 0)
+		return rc;
+
+	*val = rc;
 
 	return 0;
 }
