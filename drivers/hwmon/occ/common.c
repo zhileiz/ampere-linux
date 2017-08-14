@@ -470,7 +470,7 @@ static ssize_t occ_show_power_1(struct device *dev,
 		val = get_unaligned_be32(&power->accumulator);
 		break;
 	case 3:
-		val = get_unaligned_be16(&power->value);
+		val = get_unaligned_be16(&power->value) * 1000000;
 		break;
 	}
 
@@ -504,7 +504,7 @@ static ssize_t occ_show_power_2(struct device *dev,
 		val = get_unaligned_be64(&power->accumulator);
 		break;
 	case 3:
-		val = get_unaligned_be16(&power->value);
+		val = get_unaligned_be16(&power->value) * 1000000;
 		break;
 	case 4:
 		val = power->function_id;
@@ -541,7 +541,7 @@ static ssize_t occ_show_power_a0(struct device *dev,
 		val = get_unaligned_be16(&power->system.update_time);
 		break;
 	case 2:
-		val = get_unaligned_be16(&power->system.value);
+		val = get_unaligned_be16(&power->system.value) * 1000000;
 		break;
 	case 3:
 		val = get_unaligned_be32(&power->system.update_tag);
@@ -553,7 +553,7 @@ static ssize_t occ_show_power_a0(struct device *dev,
 		val = get_unaligned_be16(&power->proc.update_time);
 		break;
 	case 6:
-		val = get_unaligned_be16(&power->proc.value);
+		val = get_unaligned_be16(&power->proc.value) * 1000000;
 		break;
 	case 7:
 		val = get_unaligned_be32(&power->proc.update_tag);
@@ -562,7 +562,7 @@ static ssize_t occ_show_power_a0(struct device *dev,
 		val = get_unaligned_be64(&power->proc.accumulator);
 		break;
 	case 9:
-		val = get_unaligned_be16(&power->vdd.value);
+		val = get_unaligned_be16(&power->vdd.value) * 1000000;
 		break;
 	case 10:
 		val = get_unaligned_be32(&power->vdd.update_tag);
@@ -571,7 +571,7 @@ static ssize_t occ_show_power_a0(struct device *dev,
 		val = get_unaligned_be64(&power->vdd.accumulator);
 		break;
 	case 12:
-		val = get_unaligned_be16(&power->vdn.value);
+		val = get_unaligned_be16(&power->vdn.value) * 1000000;
 		break;
 	case 13:
 		val = get_unaligned_be32(&power->vdn.update_tag);
