@@ -572,7 +572,7 @@ static void occ_worker(struct work_struct *work)
 again:
 	spin_lock_irq(&occ->list_lock);
 
-	xfr = list_first_entry(&occ->xfrs, struct occ_xfr, link);
+	xfr = list_first_entry_or_null(&occ->xfrs, struct occ_xfr, link);
 	if (!xfr) {
 		spin_unlock_irq(&occ->list_lock);
 		return;
