@@ -38,6 +38,7 @@
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
+		serial5 = &vuart;
 	};
 
 	clocks {
