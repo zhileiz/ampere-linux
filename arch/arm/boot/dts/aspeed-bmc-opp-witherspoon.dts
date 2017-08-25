@@ -91,36 +91,43 @@
 		compatible = "gpio-leds";
 
 		fan0 {
+			retain-state-shutdown;
 			default-state = "keep";
 			gpios = <&pca0 0 GPIO_ACTIVE_LOW>;
 		};
 
 		fan1 {
+			retain-state-shutdown;
 			default-state = "keep";
 			gpios = <&pca0 1 GPIO_ACTIVE_LOW>;
 		};
 
 		fan2 {
+			retain-state-shutdown;
 			default-state = "keep";
 			gpios = <&pca0 2 GPIO_ACTIVE_LOW>;
 		};
 
 		fan3 {
+			retain-state-shutdown;
 			default-state = "keep";
 			gpios = <&pca0 3 GPIO_ACTIVE_LOW>;
 		};
 
 		front-fault {
+			retain-state-shutdown;
 			default-state = "keep";
 			gpios = <&pca0 13 GPIO_ACTIVE_LOW>;
 		};
 
 		front-power {
+			retain-state-shutdown;
 			default-state = "keep";
 			gpios = <&pca0 14 GPIO_ACTIVE_LOW>;
 		};
 
 		front-id {
+			retain-state-shutdown;
 			default-state = "keep";
 			gpios = <&pca0 15 GPIO_ACTIVE_LOW>;
 		};
