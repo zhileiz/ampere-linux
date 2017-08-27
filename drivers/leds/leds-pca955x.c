@@ -342,7 +342,8 @@ pca955x_pdata_of_init(struct i2c_client *client, struct pca955x_chipdef *chip)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->leds = devm_kzalloc(&client->dev,
-			   sizeof(struct pca955x_led) * chip->bits, GFP_KERNEL);
+				   sizeof(struct pca955x_led) * chip->bits,
+				   GFP_KERNEL);
 	if (!pdata->leds)
 		return ERR_PTR(-ENOMEM);
 
@@ -430,16 +431,14 @@ static int pca955x_probe(struct i2c_client *client,
 			"slave address 0x%02x\n",
 			client->name, chip->bits, client->addr);
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	if (pdata) {
-		if (pdata->num_leds != chip->bits) {
-			dev_err(&client->dev, "board info claims %d LEDs"
-					" on a %d-bit chip\n",
-					pdata->num_leds, chip->bits);
-			return -ENODEV;
-		}
+	if (pdata->num_leds != chip->bits) {
+		dev_err(&client->dev,
+			"board info claims %d LEDs on a %d-bit chip\n",
+			pdata->num_leds, chip->bits);
+		return -ENODEV;
 	}
 
 	pca955x = devm_kzalloc(&client->dev, sizeof(*pca955x), GFP_KERNEL);
@@ -458,12 +457,10 @@ static int pca955x_probe(struct i2c_client *client,
 	pca955x->chipdef = chip;
 
 	for (i = 0; i < chip->bits; i++) {
-		struct pca955x_led *pdata_led = &pdata->leds[i];
-
 		pca955x_led = &pca955x->leds[i];
 		pca955x_led->led_num = i;
 		pca955x_led->pca955x = pca955x;
-		pca955x_led->type = pdata_led->type;
+		pca955x_led->type = pdata->leds[i].type;
 
 		switch (pca955x_led->type) {
 		case PCA955X_TYPE_NONE:
@@ -476,27 +473,20 @@ static int pca955x_probe(struct i2c_client *client,
 			 * Platform data can specify LED names and
 			 * default triggers
 			 */
-			if (pdata) {
-				if (pdata->leds[i].name)
-					snprintf(pca955x_led->name,
-						 sizeof(pca955x_led->name),
-						 "pca955x:%s",
-						 pdata->leds[i].name);
-				if (pdata->leds[i].default_trigger)
-					pca955x_led->led_cdev.default_trigger =
-						pdata->leds[i].default_trigger;
-			} else {
+			if (pdata->leds[i].name)
 				snprintf(pca955x_led->name,
-					 sizeof(pca955x_led->name),
-					 "pca955x:%d", i);
-			}
+					sizeof(pca955x_led->name), "pca955x:%s",
+					pdata->leds[i].name);
+			if (pdata->leds[i].default_trigger)
+				pca955x_led->led_cdev.default_trigger =
+					pdata->leds[i].default_trigger;
 
 			pca955x_led->led_cdev.name = pca955x_led->name;
 			pca955x_led->led_cdev.brightness_set_blocking =
 				pca955x_led_set;
 
 			err = devm_led_classdev_register(&client->dev,
-						 &pca955x_led->led_cdev);
+							&pca955x_led->led_cdev);
 			if (err)
 				return err;
 
@@ -536,11 +526,10 @@ static int pca955x_probe(struct i2c_client *client,
 			pca955x->gpio.parent = NULL;
 			dev_warn(&client->dev, "could not add gpiochip\n");
 			return err;
-		} else {
-			dev_info(&client->dev, "gpios %i...%i\n",
-				 pca955x->gpio.base, pca955x->gpio.base +
-				 pca955x->gpio.ngpio - 1);
 		}
+		dev_info(&client->dev, "gpios %i...%i\n",
+			 pca955x->gpio.base, pca955x->gpio.base +
+			 pca955x->gpio.ngpio - 1);
 	}
 #endif
 
