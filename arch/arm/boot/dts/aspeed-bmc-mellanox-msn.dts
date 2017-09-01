@@ -24,7 +24,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-#include "aspeed-bmc-mellanox-msn-flash-layout.dtsi"
+#include "aspeed-bmc-opp-flash-layout.dtsi"
 	};
 };
 
