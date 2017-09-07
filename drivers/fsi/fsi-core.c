@@ -214,7 +214,7 @@ int fsi_slave_report_and_clear_errors(struct fsi_slave *slave)
 	if (rc)
 		return rc;
 
-	dev_info(&slave->dev, "status: 0x%08x, sisc: 0x%08x\n",
+	dev_dbg(&slave->dev, "status: 0x%08x, sisc: 0x%08x\n",
 			be32_to_cpu(stat), be32_to_cpu(irq));
 
 	/* clear interrupts */
@@ -677,7 +677,7 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 
 	rc = fsi_master_read(master, link, id, 0, &chip_id, sizeof(chip_id));
 	if (rc) {
-		dev_warn(&master->dev, "can't read slave %02x:%02x %d\n",
+		dev_dbg(&master->dev, "can't read slave %02x:%02x %d\n",
 				link, id, rc);
 		return -ENODEV;
 	}
