@@ -19,6 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -27,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/pmbus.h>
 #include <linux/gpio.h>
+#include <linux/idr.h>
 #include "pmbus.h"
 
 enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd9090, ucd90910 };
@@ -35,6 +37,7 @@ enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd9090, ucd90910 };
 #define UCD9000_NUM_PAGES		0xd6
 #define UCD9000_FAN_CONFIG_INDEX	0xe7
 #define UCD9000_FAN_CONFIG		0xe8
+#define UCD9000_MFR_STATUS		0xf3
 #define UCD9000_GPIO_SELECT		0xfa
 #define UCD9000_GPIO_CONFIG		0xfb
 #define UCD9000_DEVICE_ID		0xfd
@@ -56,16 +59,28 @@ enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd9090, ucd90910 };
 #define UCD9000_MON_VOLTAGE_HW	4
 
 #define UCD9000_NUM_FAN		4
+#define UCD9000_NAME_SIZE	24
 
 #define UCD9000_GPIO_NAME_LEN	16
 #define UCD90160_NUM_GPIOS	26
+#define UCD90160_GPI_COUNT	8
+#define UCD90160_GPI_FAULT_BASE	16
+
+static DEFINE_IDA(ucd9000_ida);
 
 struct ucd9000_data {
 	u8 fan_data[UCD9000_NUM_FAN][I2C_SMBUS_BLOCK_MAX];
 	struct pmbus_driver_info info;
 	struct gpio_chip gpio;
+	struct dentry *debugfs;
+	int idx;
 };
 #define to_ucd9000_data(_info) container_of(_info, struct ucd9000_data, info)
+
+struct ucd9000_debugfs_entry {
+	struct i2c_client *client;
+	u8 index;
+};
 
 static int ucd9000_get_fan_config(struct i2c_client *client, int fan)
 {
@@ -294,6 +309,138 @@ static int ucd9000_gpio_direction_output(struct gpio_chip *gc,
 	return ucd9000_gpio_set_direction(gc, offset, UCD9000_GPIO_OUTPUT, val);
 }
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+static int ucd9000_get_mfr_status(struct i2c_client *client, u32 *buffer)
+{
+	int ret;
+
+	ret = pmbus_set_page(client, 0);
+	if (ret < 0) {
+		dev_err(&client->dev, "pmbus_set_page failed. rc:%d\n", ret);
+
+		return ret;
+	}
+
+	/*
+	 * Warning:
+	 *
+	 * Though not currently supported this will cause stack corruption for
+	 * ucd90240!  Command reference, page 81:
+	 *
+	 *    With the ucd90120 and ucd90124 devices, this command [MFR_STATUS]
+	 *    is 2 bytes long (bits 0-15).  With the ucd90240 this command is 5
+	 *    bytes long.  With all other devices, it is 4 bytes long.
+	 */
+	return i2c_smbus_read_block_data(client, UCD9000_MFR_STATUS,
+					(u8 *)buffer);
+}
+
+static int ucd9000_debugfs_get_mfr_status_bit(void *data, u64 *val)
+{
+	struct ucd9000_debugfs_entry *entry = data;
+	struct i2c_client *client = entry->client;
+	int nr = entry->index;
+	u32 buffer;
+	int ret;
+
+	ret = ucd9000_get_mfr_status(client, &buffer);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to read mfr status. rc:%d\n",
+			ret);
+
+		return ret;
+	}
+
+	*val = !!(ret & BIT(nr));
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(ucd9000_debugfs_ops_mfr_status_bit,
+		ucd9000_debugfs_get_mfr_status_bit, NULL, "%1lld\n");
+
+static int ucd9000_debugfs_get_mfr_status_word(void *data, u64 *val)
+{
+	struct ucd9000_debugfs_entry *entry = data;
+	struct i2c_client *client = entry->client;
+	u32 buffer;
+	int ret;
+
+	ret = ucd9000_get_mfr_status(client, &buffer);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to read mfr status. rc:%d\n",
+			ret);
+
+		return ret;
+	}
+
+	*val = ret;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(ucd9000_debugfs_ops_mfr_status_word,
+		ucd9000_debugfs_get_mfr_status_word, NULL, "%08llx\n");
+
+static int ucd9000_init_debugfs(struct i2c_client *client,
+				struct ucd9000_data *data)
+{
+	struct ucd9000_debugfs_entry *entries;
+	char name[UCD9000_NAME_SIZE];
+	int i;
+
+	data->idx = ida_simple_get(&ucd9000_ida, 0, INT_MAX, GFP_KERNEL);
+	scnprintf(name, UCD9000_NAME_SIZE, "ucd9000.%d", data->idx);
+	data->debugfs = debugfs_create_dir(name, NULL);
+	if (IS_ERR(data->debugfs)) {
+		dev_warn(&client->dev, "Failed to create debugfs dir: %p\n",
+			data->debugfs);
+		data->debugfs = NULL;
+		ida_simple_remove(&ucd9000_ida, data->idx);
+		return 0;
+	}
+
+	/*
+	 * Warning:
+	 *
+	 * Makes assumption we're on a ucd90160 type! entries will be different
+	 * sizes for other types.
+	 */
+	entries = devm_kzalloc(&client->dev, sizeof(*entries) *
+				(UCD90160_GPI_COUNT + 1) * 10, GFP_KERNEL);
+	if (!entries) {
+		ida_simple_remove(&ucd9000_ida, data->idx);
+		return -ENOMEM;
+	}
+
+	/*
+	 * Warning:
+	 *
+	 * This makes the assumption we're probing a ucd90160 type and how the
+	 * GPI information is organized.  Needs to account for all other
+	 * ucd9000 varieties.
+	 */
+	for (i = 0; i < UCD90160_GPI_COUNT; i++) {
+		entries[i].client = client;
+		entries[i].index = UCD90160_GPI_FAULT_BASE + i;
+		scnprintf(name, UCD9000_NAME_SIZE, "gpi%d_alarm", i+1);
+		debugfs_create_file(name, 0444, data->debugfs, &entries[i],
+				&ucd9000_debugfs_ops_mfr_status_bit);
+	}
+	entries[i].client = client;
+	scnprintf(name, UCD9000_NAME_SIZE, "mfr_status");
+	debugfs_create_file(name, 0444, data->debugfs, &entries[i],
+			&ucd9000_debugfs_ops_mfr_status_word);
+
+	return 0;
+}
+#else
+static int ucd9000_init_debugfs(struct i2c_client *client,
+				struct ucd9000_data *data)
+{
+	return 0;
+}
+#endif /* IS_ENABLED(CONFIG_DEBUG_FS) */
+
 static int ucd9000_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -433,7 +580,21 @@ static int ucd9000_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	ret = ucd9000_init_debugfs(client, data);
+	if (ret < 0)
+		dev_warn(&client->dev, "Failed to register debugfs: %d\n", ret);
+
 	return pmbus_do_probe(client, mid, info);
+}
+
+static int ucd9000_remove(struct i2c_client *client)
+{
+	struct ucd9000_data *data
+		= to_ucd9000_data(pmbus_get_driver_info(client));
+
+	ida_simple_remove(&ucd9000_ida, data->idx);
+	debugfs_remove_recursive(data->debugfs);
+	return pmbus_do_remove(client);
 }
 
 /* This is the driver that will be inserted */
@@ -442,7 +603,7 @@ static struct i2c_driver ucd9000_driver = {
 		.name = "ucd9000",
 	},
 	.probe = ucd9000_probe,
-	.remove = pmbus_do_remove,
+	.remove = ucd9000_remove,
 	.id_table = ucd9000_id,
 };
 
