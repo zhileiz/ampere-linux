@@ -156,6 +156,11 @@
 	flash = <&spi1>;
 };
 
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
+
 &mbox {
 	status = "okay";
 };
