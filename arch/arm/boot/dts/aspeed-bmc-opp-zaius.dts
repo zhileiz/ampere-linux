@@ -282,7 +282,10 @@
 			#size-cells = <0>;
 
 			hotswap@10 {
-				compatible = "ti,lm5066";
+				/* Device is LM5066I so prefer that driver
+				 * support if available
+				 */
+				compatible = "ti,lm5066i", "ti,lm5066";
 				reg = <0x10>;
 			};
 		};
