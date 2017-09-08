@@ -281,12 +281,12 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			hotswap@10 {
+			hotswap@54 {
 				/* Device is LM5066I so prefer that driver
 				 * support if available
 				 */
 				compatible = "ti,lm5066i", "ti,lm5066";
-				reg = <0x10>;
+				reg = <0x54>;
 			};
 		};
 	};
