@@ -702,7 +702,7 @@ config RENESAS_WDT
 	  Renesas R-Car and other SH-Mobile SoCs (usually named RWDT or SWDT).
 
 config ASPEED_WATCHDOG
-	tristate "Aspeed 2400 watchdog support"
+	tristate "Aspeed BMC watchdog support"
 	depends on ARCH_ASPEED || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
