@@ -207,53 +207,54 @@
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,g5-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
+				ranges = <0x0 0x1e6e2000 0x1a8>;
 
 				#address-cells = <1>;
-				#size-cells = <0>;
+				#size-cells = <1>;
+
+				pinctrl: pinctrl@1e6e2000 {
+					compatible = "aspeed,g5-pinctrl";
+				};
 
 				clk_clkin: clk_clkin@70 {
 					#clock-cells = <0>;
 					compatible = "aspeed,g5-clkin-clock";
-					reg = <0x70>;
+					reg = <0x70 0x0>;
 				};
 
 				clk_hpll: clk_hpll@24 {
 					#clock-cells = <0>;
 					compatible = "aspeed,g5-hpll-clock";
-					reg = <0x24>;
+					reg = <0x24 0x0>;
 					clocks = <&clk_clkin>;
 				};
 
 				clk_ahb: clk_ahb@70 {
 					#clock-cells = <0>;
 					compatible = "aspeed,g5-ahb-clock";
-					reg = <0x70>;
+					reg = <0x70 0x0>;
 					clocks = <&clk_hpll>;
 				};
 
 				clk_apb: clk_apb@08 {
 					#clock-cells = <0>;
 					compatible = "aspeed,g5-apb-clock";
-					reg = <0x08>;
+					reg = <0x08 0x0>;
 					clocks = <&clk_hpll>;
 				};
 
 				clk_uart: clk_uart@2c {
 					#clock-cells = <0>;
 					compatible = "aspeed,g5-uart-clock";
-					reg = <0x2c>;
+					reg = <0x2c 0x0>;
 				};
 
-				pinctrl: pinctrl@1e6e2000 {
-					compatible = "aspeed,g5-pinctrl";
+				hwrng@1e6e2078 {
+					compatible = "timeriomem_rng";
+					reg = <0x78 0x4>;
+					period = <1>;
+					quality = <100>;
 				};
-			};
-
-			hwrng@1e6e2078 {
-				compatible = "timeriomem_rng";
-				reg = <0x1e6e2078 0x4>;
-				period = <1>;
-				quality = <100>;
 			};
 
 			gfx: display@1e6e6000 {
