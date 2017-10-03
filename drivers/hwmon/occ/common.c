@@ -19,10 +19,6 @@
 #define OCC_EXT_STAT_MEM_THROTTLE	0x20
 #define OCC_EXT_STAT_QUICK_DROP		0x10
 
-#define OCC_TEMP_SENSOR_FAULT		0xFF
-
-#define OCC_FRU_TYPE_VRM		3
-
 atomic_t occ_num_occs = ATOMIC_INIT(0);
 
 struct temp_sensor_1 {
@@ -381,22 +377,10 @@ static ssize_t occ_show_temp_2(struct device *dev,
 		val = get_unaligned_be32(&temp->sensor_id);
 		break;
 	case 1:
-		val = temp->value;
-		if (val == OCC_TEMP_SENSOR_FAULT)
-			return -EREMOTEIO;
-
-		if (temp->fru_type != OCC_FRU_TYPE_VRM) {
-			if (val == 0)
-				return -EAGAIN;
-
-			val *= 1000;
-		}
+		val = temp->value * 1000;
 		break;
 	case 2:
 		val = temp->fru_type;
-		break;
-	case 3:
-		val = temp->value == OCC_TEMP_SENSOR_FAULT;
 		break;
 	}
 
@@ -796,7 +780,6 @@ static ssize_t occ_show_extended(struct device *dev,
 int occ_setup_sensor_attrs(struct occ *occ)
 {
 	unsigned int i, s;
-	struct temp_sensor_2 *temp;
 	struct device *dev = occ->bus_dev;
 	struct occ_sensors *sensors = &occ->sensors;
 	struct occ_attribute *attr;
@@ -816,7 +799,7 @@ int occ_setup_sensor_attrs(struct occ *occ)
 		occ->num_attrs += (sensors->temp.num_sensors * 2);
 		break;
 	case 2:
-		occ->num_attrs += (sensors->temp.num_sensors * 4);
+		occ->num_attrs += (sensors->temp.num_sensors * 3);
 		show_temp = occ_show_temp_2;
 		break;
 	default:
@@ -888,22 +871,13 @@ int occ_setup_sensor_attrs(struct occ *occ)
 
 	for (i = 0; i < sensors->temp.num_sensors; ++i) {
 		s = i + 1;
-		temp = ((struct temp_sensor_2 *)sensors->temp.data) + i;
 
 		snprintf(attr->name, sizeof(attr->name), "temp%d_label", s);
 		attr->sensor = OCC_INIT_ATTR(attr->name, 0444, show_temp, NULL,
 					     0, i);
 		attr++;
 
-		if (sensors->temp.version > 1 &&
-		    temp->fru_type == OCC_FRU_TYPE_VRM) {
-			snprintf(attr->name, sizeof(attr->name), "temp%d_alarm",
-				 s);
-		} else {
-			snprintf(attr->name, sizeof(attr->name), "temp%d_input",
-				 s);
-		}
-
+		snprintf(attr->name, sizeof(attr->name), "temp%d_input", s);
 		attr->sensor = OCC_INIT_ATTR(attr->name, 0444, show_temp, NULL,
 					     1, i);
 		attr++;
@@ -913,12 +887,6 @@ int occ_setup_sensor_attrs(struct occ *occ)
 				 "temp%d_fru_type", s);
 			attr->sensor = OCC_INIT_ATTR(attr->name, 0444,
 						     show_temp, NULL, 2, i);
-			attr++;
-
-			snprintf(attr->name, sizeof(attr->name), "temp%d_fault",
-				 s);
-			attr->sensor = OCC_INIT_ATTR(attr->name, 0444,
-						     show_temp, NULL, 3, i);
 			attr++;
 		}
 	}
