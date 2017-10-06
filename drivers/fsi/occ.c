@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
@@ -32,6 +33,9 @@
 #define OCC_SRAM_BYTES		4096
 #define OCC_CMD_DATA_BYTES	4090
 #define OCC_RESP_DATA_BYTES	4089
+
+#define OCC_TIMEOUT_MS		1000
+#define OCC_CMD_IN_PRG_WAIT_MS	50
 
 struct occ {
 	struct device *sbefifo;
@@ -588,6 +592,9 @@ static void occ_worker(struct work_struct *work)
 {
 	int rc = 0, empty, waiting, canceled;
 	u16 resp_data_length;
+	unsigned long start;
+	const unsigned long timeout = msecs_to_jiffies(OCC_TIMEOUT_MS);
+	const long int wait_time = msecs_to_jiffies(OCC_CMD_IN_PRG_WAIT_MS);
 	struct occ_xfr *xfr;
 	struct occ_response *resp;
 	struct occ_client *client;
@@ -609,6 +616,8 @@ again:
 	spin_unlock_irq(&occ->list_lock);
 	mutex_lock(&occ->occ_lock);
 
+	start = jiffies;
+
 	/* write occ command */
 	rc = occ_putsram(sbefifo, 0xFFFBE000, xfr->buf,
 			 xfr->cmd_data_length);
@@ -620,9 +629,21 @@ again:
 		goto done;
 
 	/* read occ response */
-	rc = occ_getsram(sbefifo, 0xFFFBF000, xfr->buf, 8);
-	if (rc)
-		goto done;
+	do {
+		rc = occ_getsram(sbefifo, 0xFFFBF000, xfr->buf, 8);
+		if (rc)
+			goto done;
+
+		if (resp->return_status == OCC_RESP_CMD_IN_PRG) {
+			rc = -EALREADY;
+
+			if (time_after(jiffies, start + timeout))
+				break;
+
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(wait_time);
+		}
+	} while (rc);
 
 	resp_data_length = get_unaligned_be16(&resp->data_length);
 	if (resp_data_length > OCC_RESP_DATA_BYTES) {
