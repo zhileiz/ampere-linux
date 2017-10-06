@@ -147,7 +147,7 @@ static int sbefifo_ack_eot(struct sbefifo *sbefifo)
 		return ret;
 
 	return sbefifo_outw(sbefifo, SBEFIFO_DWN | SBEFIFO_EOT_ACK,
-			SBEFIFO_EOT_MAGIC);
+			    SBEFIFO_EOT_MAGIC);
 }
 
 static size_t sbefifo_dev_nwreadable(u32 sts)
@@ -221,6 +221,7 @@ static bool sbefifo_buf_readnb(struct sbefifo_buf *buf, size_t n)
 		rpos = buf->buf;
 
 	WRITE_ONCE(buf->rpos, rpos);
+
 	return rpos == wpos;
 }
 
@@ -240,14 +241,14 @@ static bool sbefifo_buf_wrotenb(struct sbefifo_buf *buf, size_t n)
 		set_bit(SBEFIFO_BUF_FULL, &buf->flags);
 
 	WRITE_ONCE(buf->wpos, wpos);
+
 	return rpos == wpos;
 }
 
 static void sbefifo_free(struct kref *kref)
 {
-	struct sbefifo *sbefifo;
+	struct sbefifo *sbefifo = container_of(kref, struct sbefifo, kref);
 
-	sbefifo = container_of(kref, struct sbefifo, kref);
 	kfree(sbefifo);
 }
 
@@ -284,8 +285,7 @@ static struct sbefifo_xfr *sbefifo_client_next_xfr(
 	if (list_empty(&client->xfrs))
 		return NULL;
 
-	return container_of(client->xfrs.next, struct sbefifo_xfr,
-			client);
+	return container_of(client->xfrs.next, struct sbefifo_xfr, client);
 }
 
 static bool sbefifo_xfr_rsp_pending(struct sbefifo_client *client)
@@ -360,6 +360,7 @@ static struct sbefifo_xfr *sbefifo_next_xfr(struct sbefifo *sbefifo)
 			kfree(xfr);
 			continue;
 		}
+
 		return xfr;
 	}
 
@@ -381,7 +382,7 @@ static void sbefifo_poll_timer(unsigned long data)
 
 	spin_lock(&sbefifo->lock);
 	xfr = list_first_entry_or_null(&sbefifo->xfrs, struct sbefifo_xfr,
-			xfrs);
+				       xfrs);
 	if (!xfr)
 		goto out_unlock;
 
@@ -399,8 +400,7 @@ static void sbefifo_poll_timer(unsigned long data)
 
 	 /* Drain the write buffer. */
 	while ((bufn = sbefifo_buf_nbreadable(wbuf))) {
-		ret = sbefifo_inw(sbefifo, SBEFIFO_UP | SBEFIFO_STS,
-				&sts);
+		ret = sbefifo_inw(sbefifo, SBEFIFO_UP | SBEFIFO_STS, &sts);
 		if (ret)
 			goto out;
 
@@ -425,9 +425,8 @@ static void sbefifo_poll_timer(unsigned long data)
 
 	 /* Send EOT if the writer is finished. */
 	if (test_and_clear_bit(SBEFIFO_XFR_WRITE_DONE, &xfr->flags)) {
-		ret = sbefifo_outw(sbefifo,
-				SBEFIFO_UP | SBEFIFO_EOT_RAISE,
-				SBEFIFO_EOT_MAGIC);
+		ret = sbefifo_outw(sbefifo, SBEFIFO_UP | SBEFIFO_EOT_RAISE,
+				   SBEFIFO_EOT_MAGIC);
 		if (ret)
 			goto out;
 
@@ -477,7 +476,7 @@ static void sbefifo_poll_timer(unsigned long data)
 			set_bit(SBEFIFO_XFR_COMPLETE, &xfr->flags);
 			list_del(&xfr->xfrs);
 			if (unlikely(test_bit(SBEFIFO_XFR_CANCEL,
-							&xfr->flags)))
+					      &xfr->flags)))
 				kfree(xfr);
 			break;
 		}
@@ -487,7 +486,7 @@ out:
 	if (unlikely(ret)) {
 		sbefifo->rc = ret;
 		dev_err(&sbefifo->fsi_dev->dev,
-				"Fatal bus access failure: %d\n", ret);
+			"Fatal bus access failure: %d\n", ret);
 		list_for_each_entry(xfr, &sbefifo->xfrs, xfrs)
 			kfree(xfr);
 		INIT_LIST_HEAD(&sbefifo->xfrs);
@@ -508,7 +507,7 @@ out_unlock:
 static int sbefifo_open(struct inode *inode, struct file *file)
 {
 	struct sbefifo *sbefifo = container_of(file->private_data,
-			struct sbefifo, mdev);
+					       struct sbefifo, mdev);
 	struct sbefifo_client *client;
 	int ret;
 
@@ -562,12 +561,13 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 
 	sbefifo_get_client(client);
 	if (wait_event_interruptible(sbefifo->wait,
-				(ret = READ_ONCE(sbefifo->rc)) ||
-				(n = sbefifo_buf_nbreadable(
-						&client->rbuf)))) {
+				     (ret = READ_ONCE(sbefifo->rc)) ||
+				     (n = sbefifo_buf_nbreadable(
+					&client->rbuf)))) {
 		sbefifo_put_client(client);
 		return -ERESTARTSYS;
 	}
+
 	if (ret) {
 		INIT_LIST_HEAD(&client->xfrs);
 		sbefifo_put_client(client);
@@ -581,8 +581,9 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 			sbefifo_put_client(client);
 			return -EFAULT;
 		}
-	} else
+	} else {
 		memcpy(kbuf, READ_ONCE(client->rbuf.rpos), n);
+	}
 
 	if (sbefifo_buf_readnb(&client->rbuf, n)) {
 		xfr = sbefifo_client_next_xfr(client);
@@ -605,8 +606,8 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 	return n;
 }
 
-static ssize_t sbefifo_read(struct file *file, char __user *buf,
-		size_t len, loff_t *offset)
+static ssize_t sbefifo_read(struct file *file, char __user *buf, size_t len,
+			    loff_t *offset)
 {
 	struct sbefifo_client *client = file->private_data;
 
@@ -648,6 +649,7 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 		spin_unlock_irq(&sbefifo->lock);
 		return -ENOMEM;
 	}
+
 	spin_unlock_irq(&sbefifo->lock);
 
 	sbefifo_get_client(client);
@@ -659,8 +661,8 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 	while (len) {
 		if (wait_event_interruptible(sbefifo->wait,
 				READ_ONCE(sbefifo->rc) ||
-					(sbefifo_client_next_xfr(client) == xfr &&
-					 (n = sbefifo_buf_nbwriteable(
+				(sbefifo_client_next_xfr(client) == xfr &&
+				 (n = sbefifo_buf_nbwriteable(
 							&client->wbuf))))) {
 			set_bit(SBEFIFO_XFR_CANCEL, &xfr->flags);
 			sbefifo_get(sbefifo);
@@ -670,6 +672,7 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 			sbefifo_put_client(client);
 			return -ERESTARTSYS;
 		}
+
 		if (sbefifo->rc) {
 			INIT_LIST_HEAD(&client->xfrs);
 			sbefifo_put_client(client);
@@ -719,7 +722,7 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 }
 
 static ssize_t sbefifo_write(struct file *file, const char __user *buf,
-		size_t len, loff_t *offset)
+			     size_t len, loff_t *offset)
 {
 	struct sbefifo_client *client = file->private_data;
 
@@ -820,22 +823,21 @@ static int sbefifo_probe(struct device *dev)
 
 	sbefifo->fsi_dev = fsi_dev;
 
-	ret = sbefifo_inw(sbefifo,
-			SBEFIFO_UP | SBEFIFO_STS, &sts);
+	ret = sbefifo_inw(sbefifo, SBEFIFO_UP | SBEFIFO_STS, &sts);
 	if (ret)
 		return ret;
+
 	if (!(sts & SBEFIFO_EMPTY)) {
-		dev_err(&sbefifo->fsi_dev->dev,
-				"Found data in upstream fifo\n");
+		dev_err(dev, "Found data in upstream fifo\n");
 		return -EIO;
 	}
 
 	ret = sbefifo_inw(sbefifo, SBEFIFO_DWN | SBEFIFO_STS, &sts);
 	if (ret)
 		return ret;
+
 	if (!(sts & SBEFIFO_EMPTY)) {
-		dev_err(&sbefifo->fsi_dev->dev,
-				"Found data in downstream fifo\n");
+		dev_err(dev, "Found data in downstream fifo\n");
 		return -EIO;
 	}
 
@@ -848,13 +850,13 @@ static int sbefifo_probe(struct device *dev)
 
 	sbefifo->idx = ida_simple_get(&sbefifo_ida, 1, INT_MAX, GFP_KERNEL);
 	snprintf(sbefifo->name, sizeof(sbefifo->name), "sbefifo%d",
-			sbefifo->idx);
+		 sbefifo->idx);
 	init_waitqueue_head(&sbefifo->wait);
 	INIT_LIST_HEAD(&sbefifo->xfrs);
 
 	/* This bit of silicon doesn't offer any interrupts... */
 	setup_timer(&sbefifo->poll_timer, sbefifo_poll_timer,
-			(unsigned long)sbefifo);
+		    (unsigned long)sbefifo);
 
 	if (dev->of_node) {
 		/* create platform devs for dts child nodes (occ, etc) */
@@ -863,7 +865,7 @@ static int sbefifo_probe(struct device *dev)
 				 sbefifo->name, child_idx++);
 			child = of_platform_device_create(np, child_name, dev);
 			if (!child)
-				dev_warn(&sbefifo->fsi_dev->dev,
+				dev_warn(dev,
 					 "failed to create child node dev\n");
 		}
 	}
