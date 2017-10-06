@@ -46,6 +46,7 @@ struct occ {
 	spinlock_t list_lock;		/* lock access to the xfrs list */
 	struct mutex occ_lock;		/* lock access to the hardware */
 	struct work_struct work;
+	bool cancel;
 };
 
 #define to_occ(x)	container_of((x), struct occ, mdev)
@@ -117,11 +118,14 @@ static struct workqueue_struct *occ_wq;
 
 static DEFINE_IDA(occ_ida);
 
-static void occ_enqueue_xfr(struct occ_xfr *xfr)
+static int occ_enqueue_xfr(struct occ_xfr *xfr)
 {
 	int empty;
 	struct occ_client *client = to_client(xfr);
 	struct occ *occ = client->occ;
+
+	if (occ->cancel)
+		return -ENODEV;
 
 	spin_lock_irq(&occ->list_lock);
 
@@ -132,6 +136,8 @@ static void occ_enqueue_xfr(struct occ_xfr *xfr)
 
 	if (empty)
 		queue_work(occ_wq, &occ->work);
+
+	return 0;
 }
 
 static struct occ_client *occ_open_common(struct occ *occ, unsigned long flags)
@@ -166,10 +172,10 @@ static int occ_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static inline bool occ_read_ready(struct occ_xfr *xfr)
+static inline bool occ_read_ready(struct occ_xfr *xfr, struct occ *occ)
 {
 	return test_bit(XFR_COMPLETE, &xfr->flags) ||
-		test_bit(XFR_CANCELED, &xfr->flags);
+		test_bit(XFR_CANCELED, &xfr->flags) || occ->cancel;
 }
 
 static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
@@ -178,6 +184,7 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 	int rc;
 	size_t bytes;
 	struct occ_xfr *xfr;
+	struct occ *occ;
 
 	if (!client)
 		return -ENODEV;
@@ -186,6 +193,7 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 		return -EINVAL;
 
 	xfr = &client->xfr;
+	occ = client->occ;
 
 	spin_lock_irq(&client->lock);
 
@@ -212,7 +220,7 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 		spin_unlock_irq(&client->lock);
 
 		rc = wait_event_interruptible(client->wait,
-					      occ_read_ready(xfr));
+					      occ_read_ready(xfr, occ));
 
 		spin_lock_irq(&client->lock);
 
@@ -285,7 +293,7 @@ static ssize_t occ_write_common(struct occ_client *client,
 
 	spin_lock_irq(&client->lock);
 
-	if (test_and_set_bit(CLIENT_XFR_PENDING, &client->flags)) {
+	if (test_bit(CLIENT_XFR_PENDING, &client->flags)) {
 		rc = -EBUSY;
 		goto done;
 	}
@@ -323,8 +331,11 @@ static ssize_t occ_write_common(struct occ_client *client,
 	xfr->cmd_data_length = data_length + 6;
 	client->read_offset = 0;
 
-	occ_enqueue_xfr(xfr);
+	rc = occ_enqueue_xfr(xfr);
+	if (rc)
+		goto done;
 
+	set_bit(CLIENT_XFR_PENDING, &client->flags);
 	rc = len;
 
 done:
@@ -602,6 +613,9 @@ static void occ_worker(struct work_struct *work)
 	struct device *sbefifo = occ->sbefifo;
 
 again:
+	if (occ->cancel)
+		return;
+
 	spin_lock_irq(&occ->list_lock);
 
 	xfr = list_first_entry_or_null(&occ->xfrs, struct occ_xfr, link);
@@ -762,23 +776,13 @@ static int occ_probe(struct platform_device *pdev)
 			if (occ->idx < 0)
 				occ->idx = ida_simple_get(&occ_ida, 1, INT_MAX,
 							  GFP_KERNEL);
-		} else
+		} else {
 			occ->idx = ida_simple_get(&occ_ida, 1, INT_MAX,
 						  GFP_KERNEL);
-
-		/* create platform devs for dts child nodes (hwmon, etc) */
-		for_each_child_of_node(dev->of_node, np) {
-			snprintf(child_name, sizeof(child_name), "occ%d-dev%d",
-				 occ->idx, child_idx++);
-			child = of_platform_device_create(np, child_name, dev);
-			if (!child)
-				dev_warn(dev,
-					 "failed to create child node dev\n");
 		}
-	} else
+	} else {
 		occ->idx = ida_simple_get(&occ_ida, 1, INT_MAX, GFP_KERNEL);
-
-	platform_set_drvdata(pdev, occ);
+	}
 
 	snprintf(occ->name, sizeof(occ->name), "occ%d", occ->idx);
 	occ->mdev.fops = &occ_fops;
@@ -788,9 +792,21 @@ static int occ_probe(struct platform_device *pdev)
 
 	rc = misc_register(&occ->mdev);
 	if (rc) {
-		dev_err(dev, "failed to register miscdevice\n");
+		dev_err(dev, "failed to register miscdevice: %d\n", rc);
+		ida_simple_remove(&occ_ida, occ->idx);
 		return rc;
 	}
+
+	/* create platform devs for dts child nodes (hwmon, etc) */
+	for_each_available_child_of_node(dev->of_node, np) {
+		snprintf(child_name, sizeof(child_name), "occ%d-dev%d",
+			 occ->idx, child_idx++);
+		child = of_platform_device_create(np, child_name, dev);
+		if (!child)
+			dev_warn(dev, "failed to create child node dev\n");
+	}
+
+	platform_set_drvdata(pdev, occ);
 
 	return 0;
 }
@@ -798,10 +814,23 @@ static int occ_probe(struct platform_device *pdev)
 static int occ_remove(struct platform_device *pdev)
 {
 	struct occ *occ = platform_get_drvdata(pdev);
+	struct occ_xfr *xfr;
+	struct occ_client *client;
 
-	flush_work(&occ->work);
+	occ->cancel = true;
+
+	spin_lock_irq(&occ->list_lock);
+	list_for_each_entry(xfr, &occ->xfrs, link) {
+		client = to_client(xfr);
+		wake_up_all(&client->wait);
+	}
+	spin_unlock_irq(&occ->list_lock);
+
 	misc_deregister(&occ->mdev);
 	device_for_each_child(&pdev->dev, NULL, occ_unregister_child);
+
+	cancel_work_sync(&occ->work);
+
 	ida_simple_remove(&occ_ida, occ->idx);
 
 	return 0;
