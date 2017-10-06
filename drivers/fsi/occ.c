@@ -168,10 +168,15 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 {
 	int rc;
 	size_t bytes;
-	struct occ_xfr *xfr = &client->xfr;
+	struct occ_xfr *xfr;
+
+	if (!client)
+		return -ENODEV;
 
 	if (len > OCC_SRAM_BYTES)
 		return -EINVAL;
+
+	xfr = &client->xfr;
 
 	spin_lock_irq(&client->lock);
 
@@ -263,10 +268,15 @@ static ssize_t occ_write_common(struct occ_client *client,
 	int rc;
 	unsigned int i;
 	u16 data_length, checksum = 0;
-	struct occ_xfr *xfr = &client->xfr;
+	struct occ_xfr *xfr;
+
+	if (!client)
+		return -ENODEV;
 
 	if (len > (OCC_CMD_DATA_BYTES + 3) || len < 3)
 		return -EINVAL;
+
+	xfr = &client->xfr;
 
 	spin_lock_irq(&client->lock);
 	if (test_and_set_bit(CLIENT_XFR_PENDING, &client->flags)) {
@@ -327,8 +337,14 @@ static ssize_t occ_write(struct file *file, const char __user *buf,
 
 static int occ_release_common(struct occ_client *client)
 {
-	struct occ_xfr *xfr = &client->xfr;
-	struct occ *occ = client->occ;
+	struct occ *occ;
+	struct occ_xfr *xfr;
+
+	if (!client)
+		return -ENODEV;
+
+	xfr = &client->xfr;
+	occ = client->occ;
 
 	spin_lock_irq(&client->lock);
 
