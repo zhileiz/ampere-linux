@@ -132,9 +132,8 @@ static void occ_enqueue_xfr(struct occ_xfr *xfr)
 
 static struct occ_client *occ_open_common(struct occ *occ, unsigned long flags)
 {
-	struct occ_client *client;
+	struct occ_client *client = kzalloc(sizeof(*client), GFP_KERNEL);
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return NULL;
 
@@ -163,6 +162,12 @@ static int occ_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static inline bool occ_read_ready(struct occ_xfr *xfr)
+{
+	return test_bit(XFR_COMPLETE, &xfr->flags) ||
+		test_bit(XFR_CANCELED, &xfr->flags);
+}
+
 static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 			       char *kbuf, size_t len)
 {
@@ -185,8 +190,9 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 		if (client->read_offset) {
 			rc = 0;
 			client->read_offset = 0;
-		} else
+		} else {
 			rc = -ENOMSG;
+		}
 
 		goto done;
 	}
@@ -202,8 +208,7 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 		spin_unlock_irq(&client->lock);
 
 		rc = wait_event_interruptible(client->wait,
-			test_bit(XFR_COMPLETE, &xfr->flags) ||
-			test_bit(XFR_CANCELED, &xfr->flags));
+					      occ_read_ready(xfr));
 
 		spin_lock_irq(&client->lock);
 
@@ -227,12 +232,14 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 
 	bytes = min(len, xfr->resp_data_length - client->read_offset);
 	if (ubuf) {
-		if (copy_to_user(ubuf, &xfr->buf[client->read_offset], bytes)) {
+		if (copy_to_user(ubuf, &xfr->buf[client->read_offset],
+				 bytes)) {
 			rc = -EFAULT;
 			goto done;
 		}
-	} else
+	} else {
 		memcpy(kbuf, &xfr->buf[client->read_offset], bytes);
+	}
 
 	client->read_offset += bytes;
 
@@ -273,6 +280,7 @@ static ssize_t occ_write_common(struct occ_client *client,
 	xfr = &client->xfr;
 
 	spin_lock_irq(&client->lock);
+
 	if (test_and_set_bit(CLIENT_XFR_PENDING, &client->flags)) {
 		rc = -EBUSY;
 		goto done;
@@ -280,7 +288,6 @@ static ssize_t occ_write_common(struct occ_client *client,
 
 	/* clear out the transfer */
 	memset(xfr, 0, sizeof(*xfr));
-
 	xfr->buf[0] = 1;
 
 	if (ubuf) {
@@ -288,8 +295,9 @@ static ssize_t occ_write_common(struct occ_client *client,
 			rc = -EFAULT;
 			goto done;
 		}
-	} else
+	} else {
 		memcpy(&xfr->buf[1], kbuf, len);
+	}
 
 	data_length = (xfr->buf[2] << 8) + xfr->buf[3];
 	if (data_length > OCC_CMD_DATA_BYTES) {
@@ -446,7 +454,7 @@ static int occ_getsram(struct device *sbefifo, u32 address, u8 *data,
 	rc = occ_write_sbefifo(client, (const char *)buf, sizeof(buf));
 	if (rc)
 		goto done;
-	
+
 	resp = kzalloc(data_len, GFP_KERNEL);
 	if (!resp) {
 		rc = -ENOMEM;
