@@ -58,7 +58,6 @@ struct sbefifo {
 	struct fsi_device *fsi_dev;
 	struct miscdevice mdev;
 	wait_queue_head_t wait;
-	struct list_head link;
 	struct list_head xfrs;
 	struct kref kref;
 	spinlock_t lock;
@@ -95,8 +94,6 @@ struct sbefifo_client {
 	struct kref kref;
 	unsigned long f_flags;
 };
-
-static struct list_head sbefifo_fifos;
 
 static DEFINE_IDA(sbefifo_ida);
 
@@ -267,9 +264,12 @@ static struct sbefifo_xfr *sbefifo_enq_xfr(struct sbefifo_client *client)
 	struct sbefifo *sbefifo = client->dev;
 	struct sbefifo_xfr *xfr;
 
+	if (READ_ONCE(sbefifo->rc))
+		return ERR_PTR(sbefifo->rc);
+
 	xfr = kzalloc(sizeof(*xfr), GFP_KERNEL);
 	if (!xfr)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	xfr->rbuf = &client->rbuf;
 	xfr->wbuf = &client->wbuf;
@@ -490,7 +490,7 @@ out:
 	}
 
 	sbefifo_put(sbefifo);
-	wake_up(&sbefifo->wait);
+	wake_up_interruptible(&sbefifo->wait);
 
 out_unlock:
 	spin_unlock(&sbefifo->lock);
@@ -605,7 +605,7 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 		} else {
 			kfree(xfr);
 			list_del(&xfr->client);
-			wake_up(&sbefifo->wait);
+			wake_up_interruptible(&sbefifo->wait);
 		}
 	}
 
@@ -664,9 +664,9 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 	}
 
 	xfr = sbefifo_enq_xfr(client);		/* this xfr queued up */
-	if (!xfr) {
+	if (IS_ERR(xfr)) {
 		spin_unlock_irq(&sbefifo->lock);
-		ret = -ENOMEM;
+		ret = PTR_ERR(xfr);
 		goto out;
 	}
 
@@ -769,18 +769,15 @@ static const struct file_operations sbefifo_fops = {
 struct sbefifo_client *sbefifo_drv_open(struct device *dev,
 					unsigned long flags)
 {
-	struct sbefifo_client *client = NULL;
-	struct sbefifo *sbefifo;
-	struct fsi_device *fsi_dev = to_fsi_dev(dev);
+	struct sbefifo_client *client;
+	struct sbefifo *sbefifo = dev_get_drvdata(dev);
 
-	list_for_each_entry(sbefifo, &sbefifo_fifos, link) {
-		if (sbefifo->fsi_dev != fsi_dev)
-			continue;
+	if (!sbefifo)
+		return NULL;
 
-		client = sbefifo_new_client(sbefifo);
-		if (client)
-			client->f_flags = flags;
-	}
+	client = sbefifo_new_client(sbefifo);
+	if (client)
+		client->f_flags = flags;
 
 	return client;
 }
@@ -854,69 +851,68 @@ static int sbefifo_probe(struct device *dev)
 		return -EIO;
 	}
 
-	sbefifo->mdev.minor = MISC_DYNAMIC_MINOR;
-	sbefifo->mdev.fops = &sbefifo_fops;
-	sbefifo->mdev.name = sbefifo->name;
-	sbefifo->mdev.parent = dev;
 	spin_lock_init(&sbefifo->lock);
 	kref_init(&sbefifo->kref);
+	init_waitqueue_head(&sbefifo->wait);
+	INIT_LIST_HEAD(&sbefifo->xfrs);
 
 	sbefifo->idx = ida_simple_get(&sbefifo_ida, 1, INT_MAX, GFP_KERNEL);
 	snprintf(sbefifo->name, sizeof(sbefifo->name), "sbefifo%d",
 		 sbefifo->idx);
-	init_waitqueue_head(&sbefifo->wait);
-	INIT_LIST_HEAD(&sbefifo->xfrs);
 
 	/* This bit of silicon doesn't offer any interrupts... */
 	setup_timer(&sbefifo->poll_timer, sbefifo_poll_timer,
 		    (unsigned long)sbefifo);
 
-	if (dev->of_node) {
-		/* create platform devs for dts child nodes (occ, etc) */
-		for_each_child_of_node(dev->of_node, np) {
-			snprintf(child_name, sizeof(child_name), "%s-dev%d",
-				 sbefifo->name, child_idx++);
-			child = of_platform_device_create(np, child_name, dev);
-			if (!child)
-				dev_warn(dev,
-					 "failed to create child node dev\n");
-		}
+	sbefifo->mdev.minor = MISC_DYNAMIC_MINOR;
+	sbefifo->mdev.fops = &sbefifo_fops;
+	sbefifo->mdev.name = sbefifo->name;
+	sbefifo->mdev.parent = dev;
+	ret = misc_register(&sbefifo->mdev);
+	if (ret) {
+		dev_err(dev, "failed to register miscdevice: %d\n", ret);
+		ida_simple_remove(&sbefifo_ida, sbefifo->idx);
+		sbefifo_put(sbefifo);
+		return ret;
 	}
 
-	list_add(&sbefifo->link, &sbefifo_fifos);
-	
-	return misc_register(&sbefifo->mdev);
+	/* create platform devs for dts child nodes (occ, etc) */
+	for_each_available_child_of_node(dev->of_node, np) {
+		snprintf(child_name, sizeof(child_name), "%s-dev%d",
+			 sbefifo->name, child_idx++);
+		child = of_platform_device_create(np, child_name, dev);
+		if (!child)
+			dev_warn(dev, "failed to create child %s dev\n",
+				 child_name);
+	}
+
+	dev_set_drvdata(dev, sbefifo);
+
+	return 0;
 }
 
 static int sbefifo_remove(struct device *dev)
 {
-	struct fsi_device *fsi_dev = to_fsi_dev(dev);
-	struct sbefifo *sbefifo, *sbefifo_tmp;
+	struct sbefifo *sbefifo = dev_get_drvdata(dev);
 	struct sbefifo_xfr *xfr;
 
-	list_for_each_entry_safe(sbefifo, sbefifo_tmp, &sbefifo_fifos, link) {
-		if (sbefifo->fsi_dev != fsi_dev)
-			continue;
+	WRITE_ONCE(sbefifo->rc, -ENODEV);
+	wake_up_all(&sbefifo->wait);
 
-		device_for_each_child(dev, NULL, sbefifo_unregister_child);
+	misc_deregister(&sbefifo->mdev);
+	device_for_each_child(dev, NULL, sbefifo_unregister_child);
 
-		misc_deregister(&sbefifo->mdev);
-		list_del(&sbefifo->link);
-		ida_simple_remove(&sbefifo_ida, sbefifo->idx);
+	ida_simple_remove(&sbefifo_ida, sbefifo->idx);
 
-		if (del_timer_sync(&sbefifo->poll_timer))
-			sbefifo_put(sbefifo);
-
-		spin_lock(&sbefifo->lock);
-		list_for_each_entry(xfr, &sbefifo->xfrs, xfrs)
-			kfree(xfr);
-		spin_unlock(&sbefifo->lock);
-
-		WRITE_ONCE(sbefifo->rc, -ENODEV);
-
-		wake_up(&sbefifo->wait);
+	if (del_timer_sync(&sbefifo->poll_timer))
 		sbefifo_put(sbefifo);
-	}
+
+	spin_lock(&sbefifo->lock);
+	list_for_each_entry(xfr, &sbefifo->xfrs, xfrs)
+		kfree(xfr);
+	spin_unlock(&sbefifo->lock);
+
+	sbefifo_put(sbefifo);
 
 	return 0;
 }
@@ -941,7 +937,6 @@ static struct fsi_driver sbefifo_drv = {
 
 static int sbefifo_init(void)
 {
-	INIT_LIST_HEAD(&sbefifo_fifos);
 	return fsi_driver_register(&sbefifo_drv);
 }
 
