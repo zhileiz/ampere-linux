@@ -713,9 +713,6 @@ static int occ_probe(struct platform_device *pdev)
 	mutex_init(&occ->occ_lock);
 	INIT_WORK(&occ->work, occ_worker);
 
-	/* ensure NULL before we probe children, so they don't hang FSI */
-	platform_set_drvdata(pdev, NULL);
-
 	if (dev->of_node) {
 		rc = of_property_read_u32(dev->of_node, "reg", &reg);
 		if (!rc) {
