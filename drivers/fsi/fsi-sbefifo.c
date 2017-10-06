@@ -545,6 +545,16 @@ static unsigned int sbefifo_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
+static bool sbefifo_read_ready(struct sbefifo *sbefifo,
+			       struct sbefifo_client *client, size_t *n,
+			       size_t *ret)
+{
+	*n = sbefifo_buf_nbreadable(&client->rbuf);
+	*ret = READ_ONCE(sbefifo->rc);
+
+	return *ret || *n;
+}
+
 static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 				   char __user *ubuf, char *kbuf, size_t len)
 {
@@ -561,9 +571,8 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 
 	sbefifo_get_client(client);
 	if (wait_event_interruptible(sbefifo->wait,
-				     (ret = READ_ONCE(sbefifo->rc)) ||
-				     (n = sbefifo_buf_nbreadable(
-					&client->rbuf)))) {
+				     sbefifo_read_ready(sbefifo, client, &n,
+							&ret))) {
 		sbefifo_put_client(client);
 		return -ERESTARTSYS;
 	}
@@ -619,6 +628,16 @@ static ssize_t sbefifo_read(struct file *file, char __user *buf, size_t len,
 	return sbefifo_read_common(client, buf, NULL, len);
 }
 
+static bool sbefifo_write_ready(struct sbefifo *sbefifo,
+				struct sbefifo_xfr *xfr,
+				struct sbefifo_client *client, size_t *n)
+{
+	struct sbefifo_xfr *next = sbefifo_client_next_xfr(client);
+
+	*n = sbefifo_buf_nbwriteable(&client->wbuf);
+	return READ_ONCE(sbefifo->rc) || (next == xfr && *n);
+}
+
 static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 				    const char __user *ubuf, const char *kbuf,
 				    size_t len)
@@ -660,10 +679,9 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 	 */
 	while (len) {
 		if (wait_event_interruptible(sbefifo->wait,
-				READ_ONCE(sbefifo->rc) ||
-				(sbefifo_client_next_xfr(client) == xfr &&
-				 (n = sbefifo_buf_nbwriteable(
-							&client->wbuf))))) {
+					     sbefifo_write_ready(sbefifo, xfr,
+								 client,
+								 &n))) {
 			set_bit(SBEFIFO_XFR_CANCEL, &xfr->flags);
 			sbefifo_get(sbefifo);
 			if (mod_timer(&sbefifo->poll_timer, jiffies))
