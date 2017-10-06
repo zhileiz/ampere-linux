@@ -947,6 +947,8 @@ static int sbefifo_init(void)
 static void sbefifo_exit(void)
 {
 	fsi_driver_unregister(&sbefifo_drv);
+
+	ida_destroy(&sbefifo_ida);
 }
 
 module_init(sbefifo_init);
