@@ -252,12 +252,6 @@ static ssize_t occ_read(struct file *file, char __user *buf, size_t len,
 {
 	struct occ_client *client = file->private_data;
 
-	/* check this ahead of time so we don't go changing the xfr state
-	 * needlessly
-	 */
-	if (!access_ok(VERIFY_WRITE, buf, len))
-		return -EFAULT;
-
 	return occ_read_common(client, buf, NULL, len);
 }
 
@@ -325,12 +319,6 @@ static ssize_t occ_write(struct file *file, const char __user *buf,
 			 size_t len, loff_t *offset)
 {
 	struct occ_client *client = file->private_data;
-
-	/* check this ahead of time so we don't go changing the xfr state
-	 * needlessly
-	 */
-	if (!access_ok(VERIFY_READ, buf, len))
-		return -EFAULT;
 
 	return occ_write_common(client, buf, NULL, len);
 }
