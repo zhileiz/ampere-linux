@@ -289,7 +289,6 @@ static ssize_t occ_write_common(struct occ_client *client,
 
 	if (ubuf) {
 		if (copy_from_user(&xfr->buf[1], ubuf, len)) {
-			kfree(xfr);
 			rc = -EFAULT;
 			goto done;
 		}
@@ -298,7 +297,6 @@ static ssize_t occ_write_common(struct occ_client *client,
 
 	data_length = (xfr->buf[2] << 8) + xfr->buf[3];
 	if (data_length > OCC_CMD_DATA_BYTES) {
-		kfree(xfr);
 		rc = -EINVAL;
 		goto done;
 	}
