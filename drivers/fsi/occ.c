@@ -50,9 +50,9 @@ struct occ_response {
 	u8 seq_no;
 	u8 cmd_type;
 	u8 return_status;
-	u16 data_length;
+	__be16 data_length;
 	u8 data[OCC_RESP_DATA_BYTES];
-	u16 checksum;
+	__be16 checksum;
 } __packed;
 
 /*
@@ -425,7 +425,7 @@ static int occ_getsram(struct device *sbefifo, u32 address, u8 *data,
 {
 	int rc;
 	u8 *resp;
-	u32 buf[5];
+	__be32 buf[5];
 	u32 data_len = ((len + 7) / 8) * 8;
 	struct sbefifo_client *client;
 
@@ -476,7 +476,7 @@ static int occ_putsram(struct device *sbefifo, u32 address, u8 *data,
 		       ssize_t len)
 {
 	int rc;
-	u32 *buf;
+	__be32 *buf;
 	u32 data_len = ((len + 7) / 8) * 8;
 	size_t cmd_len = data_len + 20;
 	struct sbefifo_client *client;
@@ -522,7 +522,7 @@ free:
 static int occ_trigger_attn(struct device *sbefifo)
 {
 	int rc;
-	u32 buf[6];
+	__be32 buf[6];
 	struct sbefifo_client *client;
 
 	buf[0] = cpu_to_be32(0x6);
@@ -560,6 +560,7 @@ static void occ_worker(struct work_struct *work)
 	int rc = 0, empty, waiting, canceled;
 	u16 resp_data_length;
 	struct occ_xfr *xfr;
+	struct occ_response *resp;
 	struct occ_client *client;
 	struct occ *occ = container_of(work, struct occ, work);
 	struct device *sbefifo = occ->sbefifo;
@@ -573,6 +574,7 @@ again:
 		return;
 	}
 
+	resp = (struct occ_response *)xfr->buf;
 	set_bit(XFR_IN_PROGRESS, &xfr->flags);
 
 	spin_unlock_irq(&occ->list_lock);
@@ -591,7 +593,7 @@ again:
 	if (rc)
 		goto done;
 
-	resp_data_length = (xfr->buf[3] << 8) + xfr->buf[4];
+	resp_data_length = get_unaligned_be16(&resp->data_length);
 	if (resp_data_length > OCC_RESP_DATA_BYTES) {
 		rc = -EDOM;
 		goto done;
