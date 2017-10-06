@@ -13,8 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __FSI_SBEFIFO_H__
-#define __FSI_SBEFIFO_H__
+#ifndef LINUX_FSI_SBEFIFO_H
+#define LINUX_FSI_SBEFIFO_H
 
 struct device;
 struct sbefifo_client;
@@ -27,4 +27,4 @@ extern int sbefifo_drv_write(struct sbefifo_client *client, const char *buf,
 			     size_t len);
 extern void sbefifo_drv_release(struct sbefifo_client *client);
 
-#endif /* __FSI_SBEFIFO_H__ */
+#endif /* LINUX_FSI_SBEFIFO_H */
