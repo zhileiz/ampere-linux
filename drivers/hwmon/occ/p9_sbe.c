@@ -26,14 +26,10 @@ struct p9_sbe_occ {
 static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd)
 {
 	int rc, error;
-	unsigned long start;
 	struct occ_client *client;
 	struct occ_response *resp = &occ->resp;
 	struct p9_sbe_occ *p9_sbe_occ = to_p9_sbe_occ(occ);
 
-	start = jiffies;
-
-retry:
 	client = occ_drv_open(p9_sbe_occ->sbe, 0);
 	if (!client) {
 		rc = -ENODEV;
@@ -52,15 +48,7 @@ retry:
 
 	switch (resp->return_status) {
 	case RESP_RETURN_CMD_IN_PRG:
-		if (time_after(jiffies,
-			       start + msecs_to_jiffies(OCC_TIMEOUT_MS)))
-			rc = -EALREADY;
-		else {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(msecs_to_jiffies(OCC_CMD_IN_PRG_MS));
-
-			goto retry;
-		}
+		rc = -ETIMEDOUT;
 		break;
 	case RESP_RETURN_SUCCESS:
 		occ_reset_error(occ);
