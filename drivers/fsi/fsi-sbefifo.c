@@ -103,7 +103,7 @@ static DEFINE_IDA(sbefifo_ida);
 static int sbefifo_inw(struct sbefifo *sbefifo, int reg, u32 *word)
 {
 	int rc;
-	u32 raw_word;
+	__be32 raw_word;
 
 	rc = fsi_device_read(sbefifo->fsi_dev, reg, &raw_word,
 			     sizeof(raw_word));
@@ -111,17 +111,19 @@ static int sbefifo_inw(struct sbefifo *sbefifo, int reg, u32 *word)
 		return rc;
 
 	*word = be32_to_cpu(raw_word);
+
 	return 0;
 }
 
 static int sbefifo_outw(struct sbefifo *sbefifo, int reg, u32 word)
 {
-	u32 raw_word = cpu_to_be32(word);
+	__be32 raw_word = cpu_to_be32(word);
 
 	return fsi_device_write(sbefifo->fsi_dev, reg, &raw_word,
 				sizeof(raw_word));
 }
 
+/* Don't flip endianness of data to/from FIFO, just pass through. */
 static int sbefifo_readw(struct sbefifo *sbefifo, u32 *word)
 {
 	return fsi_device_read(sbefifo->fsi_dev, SBEFIFO_DWN, word,
