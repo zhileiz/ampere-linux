@@ -279,20 +279,12 @@ static struct sbefifo_xfr *sbefifo_enq_xfr(struct sbefifo_client *client)
 	return xfr;
 }
 
-static struct sbefifo_xfr *sbefifo_client_next_xfr(
-		struct sbefifo_client *client)
-{
-	if (list_empty(&client->xfrs))
-		return NULL;
-
-	return container_of(client->xfrs.next, struct sbefifo_xfr, client);
-}
-
 static bool sbefifo_xfr_rsp_pending(struct sbefifo_client *client)
 {
-	struct sbefifo_xfr *xfr;
+	struct sbefifo_xfr *xfr = list_first_entry_or_null(&client->xfrs,
+							   struct sbefifo_xfr,
+							   client);
 
-	xfr = sbefifo_client_next_xfr(client);
 	if (xfr && test_bit(SBEFIFO_XFR_RESP_PENDING, &xfr->flags))
 		return true;
 
@@ -595,7 +587,15 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 	}
 
 	if (sbefifo_buf_readnb(&client->rbuf, n)) {
-		xfr = sbefifo_client_next_xfr(client);
+		xfr = list_first_entry_or_null(&client->xfrs,
+					       struct sbefifo_xfr, client);
+		if (!xfr) {
+			/* should be impossible to not have an xfr here */
+			WARN_ONCE(1, "no xfr in queue");
+			sbefifo_put_client(client);
+			return -EPROTO;
+		}
+
 		if (!test_bit(SBEFIFO_XFR_COMPLETE, &xfr->flags)) {
 			/*
 			 * Fill the read buffer back up.
@@ -632,7 +632,9 @@ static bool sbefifo_write_ready(struct sbefifo *sbefifo,
 				struct sbefifo_xfr *xfr,
 				struct sbefifo_client *client, size_t *n)
 {
-	struct sbefifo_xfr *next = sbefifo_client_next_xfr(client);
+	struct sbefifo_xfr *next = list_first_entry_or_null(&client->xfrs,
+							    struct sbefifo_xfr,
+							    client);
 
 	*n = sbefifo_buf_nbwriteable(&client->wbuf);
 	return READ_ONCE(sbefifo->rc) || (next == xfr && *n);
