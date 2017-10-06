@@ -621,11 +621,6 @@ static ssize_t sbefifo_read(struct file *file, char __user *buf, size_t len,
 {
 	struct sbefifo_client *client = file->private_data;
 
-	WARN_ON(*offset);
-
-	if (!access_ok(VERIFY_WRITE, buf, len))
-		return -EFAULT;
-
 	return sbefifo_read_common(client, buf, NULL, len);
 }
 
@@ -747,11 +742,6 @@ static ssize_t sbefifo_write(struct file *file, const char __user *buf,
 			     size_t len, loff_t *offset)
 {
 	struct sbefifo_client *client = file->private_data;
-
-	WARN_ON(*offset);
-
-	if (!access_ok(VERIFY_READ, buf, len))
-		return -EFAULT;
 
 	return sbefifo_write_common(client, buf, NULL, len);
 }
