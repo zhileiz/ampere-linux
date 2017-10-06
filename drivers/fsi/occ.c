@@ -46,14 +46,6 @@ struct occ {
 
 #define to_occ(x)	container_of((x), struct occ, mdev)
 
-struct occ_command {
-	u8 seq_no;
-	u8 cmd_type;
-	u16 data_length;
-	u8 data[OCC_CMD_DATA_BYTES];
-	u16 checksum;
-} __packed;
-
 struct occ_response {
 	u8 seq_no;
 	u8 cmd_type;
