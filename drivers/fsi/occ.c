@@ -39,8 +39,8 @@ struct occ {
 	int idx;
 	struct miscdevice mdev;
 	struct list_head xfrs;
-	spinlock_t list_lock;
-	struct mutex occ_lock;
+	spinlock_t list_lock;		/* lock access to the xfrs list */
+	struct mutex occ_lock;		/* lock access to the hardware */
 	struct work_struct work;
 };
 
@@ -57,17 +57,17 @@ struct occ_response {
 
 /*
  * transfer flags are NOT mutually exclusive
- * 
+ *
  * Initial flags are none; transfer is created and queued from write(). All
- * 	flags are cleared when the transfer is completed by closing the file or
- * 	reading all of the available response data.
+ *  flags are cleared when the transfer is completed by closing the file or
+ *  reading all of the available response data.
  * XFR_IN_PROGRESS is set when a transfer is started from occ_worker_putsram,
- * 	and cleared if the transfer fails or occ_worker_getsram completes.
+ *  and cleared if the transfer fails or occ_worker_getsram completes.
  * XFR_COMPLETE is set when a transfer fails or finishes occ_worker_getsram.
  * XFR_CANCELED is set when the transfer's client is released.
  * XFR_WAITING is set from read() if the transfer isn't complete and
- * 	NONBLOCKING wasn't specified. Cleared in read() when transfer completes
- * 	or fails.
+ *  O_NONBLOCK wasn't specified. Cleared in read() when transfer completes or
+ *  fails.
  */
 enum {
 	XFR_IN_PROGRESS,
@@ -89,9 +89,9 @@ struct occ_xfr {
  * client flags
  *
  * CLIENT_NONBLOCKING is set during open() if the file was opened with the
- * 	O_NONBLOCKING flag.
+ *  O_NONBLOCK flag.
  * CLIENT_XFR_PENDING is set during write() and cleared when all data has been
- * 	read.
+ *  read.
  */
 enum {
 	CLIENT_NONBLOCKING,
@@ -101,7 +101,7 @@ enum {
 struct occ_client {
 	struct occ *occ;
 	struct occ_xfr xfr;
-	spinlock_t lock;
+	spinlock_t lock;		/* lock access to the client state */
 	wait_queue_head_t wait;
 	size_t read_offset;
 	unsigned long flags;
@@ -286,10 +286,15 @@ static ssize_t occ_write_common(struct occ_client *client,
 		goto done;
 	}
 
-	/* clear out the transfer */
-	memset(xfr, 0, sizeof(*xfr));
-	xfr->buf[0] = 1;
+	memset(xfr, 0, sizeof(*xfr));	/* clear out the transfer */
+	xfr->buf[0] = 1;		/* occ sequence number */
 
+	/*
+	 * Assume user data follows the occ command format.
+	 * byte 0: command type
+	 * bytes 1-2: data length (msb first)
+	 * bytes 3-n: data
+	 */
 	if (ubuf) {
 		if (copy_from_user(&xfr->buf[1], ubuf, len)) {
 			rc = -EFAULT;
@@ -373,7 +378,7 @@ static int occ_release_common(struct occ_client *client)
 		return 0;
 	}
 
-	/* operation is in progress; let worker clean up*/
+	/* operation is in progress; let worker clean up */
 	spin_unlock_irq(&occ->list_lock);
 	spin_unlock_irq(&client->lock);
 	return 0;
@@ -438,9 +443,13 @@ static int occ_getsram(struct device *sbefifo, u32 address, u8 *data,
 	int rc;
 	u8 *resp;
 	__be32 buf[5];
-	u32 data_len = ((len + 7) / 8) * 8;
+	u32 data_len = ((len + 7) / 8) * 8;	/* must be multiples of 8 B */
 	struct sbefifo_client *client;
 
+	/*
+	 * Magic sequence to do SBE getsram command. SBE will fetch data from
+	 * specified SRAM address.
+	 */
 	buf[0] = cpu_to_be32(0x5);
 	buf[1] = cpu_to_be32(0xa403);
 	buf[2] = cpu_to_be32(1);
@@ -489,7 +498,7 @@ static int occ_putsram(struct device *sbefifo, u32 address, u8 *data,
 {
 	int rc;
 	__be32 *buf;
-	u32 data_len = ((len + 7) / 8) * 8;
+	u32 data_len = ((len + 7) / 8) * 8;	/* must be multiples of 8 B */
 	size_t cmd_len = data_len + 20;
 	struct sbefifo_client *client;
 
@@ -497,6 +506,10 @@ static int occ_putsram(struct device *sbefifo, u32 address, u8 *data,
 	if (!buf)
 		return -ENOMEM;
 
+	/*
+	 * Magic sequence to do SBE putsram command. SBE will transfer
+	 * data to specified SRAM address.
+	 */
 	buf[0] = cpu_to_be32(0x5 + (data_len / 4));
 	buf[1] = cpu_to_be32(0xa404);
 	buf[2] = cpu_to_be32(1);
@@ -537,11 +550,15 @@ static int occ_trigger_attn(struct device *sbefifo)
 	__be32 buf[6];
 	struct sbefifo_client *client;
 
+	/*
+	 * Magic sequence to do SBE putscom command. SBE will write 8 bytes to
+	 * specified SCOM address.
+	 */
 	buf[0] = cpu_to_be32(0x6);
 	buf[1] = cpu_to_be32(0xa202);
 	buf[2] = 0;
 	buf[3] = cpu_to_be32(0x6D035);
-	buf[4] = cpu_to_be32(0x20010000);
+	buf[4] = cpu_to_be32(0x20010000);	/* trigger occ attention */
 	buf[5] = 0;
 
 	client = sbefifo_drv_open(sbefifo, 0);
@@ -592,6 +609,7 @@ again:
 	spin_unlock_irq(&occ->list_lock);
 	mutex_lock(&occ->occ_lock);
 
+	/* write occ command */
 	rc = occ_putsram(sbefifo, 0xFFFBE000, xfr->buf,
 			 xfr->cmd_data_length);
 	if (rc)
@@ -601,6 +619,7 @@ again:
 	if (rc)
 		goto done;
 
+	/* read occ response */
 	rc = occ_getsram(sbefifo, 0xFFFBF000, xfr->buf, 8);
 	if (rc)
 		goto done;
