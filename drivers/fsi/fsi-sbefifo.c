@@ -11,20 +11,27 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/errno.h>
-#include <linux/idr.h>
+#include <linux/fs.h>
 #include <linux/fsi.h>
+#include <linux/fsi-sbefifo.h>
+#include <linux/idr.h>
+#include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/uaccess.h>
+#include <linux/wait.h>
 
 /*
  * The SBEFIFO is a pipe-like FSI device for communicating with
