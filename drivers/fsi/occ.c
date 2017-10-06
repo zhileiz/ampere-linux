@@ -402,7 +402,7 @@ static int occ_write_sbefifo(struct sbefifo_client *client, const char *buf,
 		total += rc;
 	} while (total < len);
 
-	return (total == len) ? 0 : -EMSGSIZE;
+	return (total == len) ? 0 : -ENOSPC;
 }
 
 static int occ_read_sbefifo(struct sbefifo_client *client, char *buf,
@@ -421,7 +421,7 @@ static int occ_read_sbefifo(struct sbefifo_client *client, char *buf,
 		total += rc;
 	} while (total < len);
 
-	return (total == len) ? 0 : -EMSGSIZE;
+	return (total == len) ? 0 : -ENODATA;
 }
 
 static int occ_getsram(struct device *sbefifo, u32 address, u8 *data,
@@ -466,7 +466,7 @@ static int occ_getsram(struct device *sbefifo, u32 address, u8 *data,
 	    (be32_to_cpu(buf[1]) == 0xC0DEA403))
 		memcpy(data, resp, len);
 	else
-		rc = -EFAULT;
+		rc = -EBADMSG;
 
 free:
 	kfree(resp);
@@ -514,7 +514,7 @@ static int occ_putsram(struct device *sbefifo, u32 address, u8 *data,
 	/* check for good response */
 	if ((be32_to_cpu(buf[0]) != data_len) ||
 	    (be32_to_cpu(buf[1]) != 0xC0DEA404))
-		rc = -EFAULT;
+		rc = -EBADMSG;
 
 done:
 	sbefifo_drv_release(client);
@@ -551,7 +551,7 @@ static int occ_trigger_attn(struct device *sbefifo)
 	/* check for good response */
 	if ((be32_to_cpu(buf[0]) != 0xC0DEA202) ||
 	    (be32_to_cpu(buf[1]) & 0x0FFFFFFF))
-		rc = -EFAULT;
+		rc = -EBADMSG;
 
 done:
 	sbefifo_drv_release(client);
@@ -599,7 +599,7 @@ again:
 
 	resp_data_length = get_unaligned_be16(&resp->data_length);
 	if (resp_data_length > OCC_RESP_DATA_BYTES) {
-		rc = -EDOM;
+		rc = -EMSGSIZE;
 		goto done;
 	}
 
