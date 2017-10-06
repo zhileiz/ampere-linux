@@ -51,6 +51,8 @@
 #define   SBEFIFO_EOT_MAGIC		0xffffffff
 #define SBEFIFO_EOT_ACK		0x14
 
+#define SBEFIFO_RESCHEDULE	msecs_to_jiffies(500)
+
 struct sbefifo {
 	struct timer_list poll_timer;
 	struct fsi_device *fsi_dev;
@@ -404,7 +406,7 @@ static void sbefifo_poll_timer(unsigned long data)
 		if (devn == 0) {
 			/* No open slot for write.  Reschedule. */
 			sbefifo->poll_timer.expires = jiffies +
-				msecs_to_jiffies(500);
+				SBEFIFO_RESCHEDULE;
 			add_timer(&sbefifo->poll_timer);
 			goto out_unlock;
 		}
@@ -445,7 +447,7 @@ static void sbefifo_poll_timer(unsigned long data)
 		if (devn == 0) {
 			/* No data yet.  Reschedule. */
 			sbefifo->poll_timer.expires = jiffies +
-				msecs_to_jiffies(500);
+				SBEFIFO_RESCHEDULE;
 			add_timer(&sbefifo->poll_timer);
 			goto out_unlock;
 		}
