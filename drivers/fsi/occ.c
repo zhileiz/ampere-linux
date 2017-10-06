@@ -798,6 +798,8 @@ static void occ_exit(void)
 	destroy_workqueue(occ_wq);
 
 	platform_driver_unregister(&occ_driver);
+
+	ida_destroy(&occ_ida);
 }
 
 module_init(occ_init);
