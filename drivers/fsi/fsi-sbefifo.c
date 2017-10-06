@@ -655,7 +655,7 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 	n = sbefifo_buf_nbwriteable(&client->wbuf);
 
 	spin_lock_irq(&sbefifo->lock);
-	xfr = sbefifo_next_xfr(sbefifo);
+	xfr = sbefifo_next_xfr(sbefifo);	/* next xfr to be executed */
 
 	if ((client->f_flags & O_NONBLOCK) && xfr && n < len) {
 		spin_unlock_irq(&sbefifo->lock);
@@ -663,7 +663,7 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 		goto out;
 	}
 
-	xfr = sbefifo_enq_xfr(client);
+	xfr = sbefifo_enq_xfr(client);		/* this xfr queued up */
 	if (!xfr) {
 		spin_unlock_irq(&sbefifo->lock);
 		ret = -ENOMEM;
@@ -719,8 +719,9 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 		len -= n;
 		ret += n;
 
-		/* set flag before starting the worker, as it may run through
-		 * and check the flag before we exit this loop!
+		/*
+		 * Set this before starting timer to avoid race condition on
+		 * this flag with the timer function writer.
 		 */
 		if (!len)
 			set_bit(SBEFIFO_XFR_WRITE_DONE, &xfr->flags);
@@ -955,4 +956,5 @@ module_init(sbefifo_init);
 module_exit(sbefifo_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Brad Bishop <bradleyb@fuzziesquirrel.com>");
-MODULE_DESCRIPTION("Linux device interface to the POWER self boot engine");
+MODULE_AUTHOR("Eddie James <eajames@linux.vnet.ibm.com>");
+MODULE_DESCRIPTION("Linux device interface to the POWER Self Boot Engine");
