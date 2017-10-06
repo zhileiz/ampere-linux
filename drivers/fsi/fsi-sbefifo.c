@@ -541,10 +541,15 @@ static bool sbefifo_read_ready(struct sbefifo *sbefifo,
 			       struct sbefifo_client *client, size_t *n,
 			       size_t *ret)
 {
+	struct sbefifo_xfr *xfr = list_first_entry_or_null(&client->xfrs,
+							   struct sbefifo_xfr,
+							   client);
+
 	*n = sbefifo_buf_nbreadable(&client->rbuf);
 	*ret = READ_ONCE(sbefifo->rc);
 
-	return *ret || *n;
+	return *ret || *n ||
+		(xfr && test_bit(SBEFIFO_XFR_COMPLETE, &xfr->flags));
 }
 
 static ssize_t sbefifo_read_common(struct sbefifo_client *client,
