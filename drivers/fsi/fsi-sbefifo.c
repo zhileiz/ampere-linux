@@ -565,22 +565,21 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 	if (wait_event_interruptible(sbefifo->wait,
 				     sbefifo_read_ready(sbefifo, client, &n,
 							&ret))) {
-		sbefifo_put_client(client);
-		return -ERESTARTSYS;
+		ret = -ERESTARTSYS;
+		goto out;
 	}
 
 	if (ret) {
 		INIT_LIST_HEAD(&client->xfrs);
-		sbefifo_put_client(client);
-		return ret;
+		goto out;
 	}
 
 	n = min_t(size_t, n, len);
 
 	if (ubuf) {
 		if (copy_to_user(ubuf, READ_ONCE(client->rbuf.rpos), n)) {
-			sbefifo_put_client(client);
-			return -EFAULT;
+			ret = -EFAULT;
+			goto out;
 		}
 	} else {
 		memcpy(kbuf, READ_ONCE(client->rbuf.rpos), n);
@@ -592,8 +591,8 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 		if (!xfr) {
 			/* should be impossible to not have an xfr here */
 			WARN_ONCE(1, "no xfr in queue");
-			sbefifo_put_client(client);
-			return -EPROTO;
+			ret = -EPROTO;
+			goto out;
 		}
 
 		if (!test_bit(SBEFIFO_XFR_COMPLETE, &xfr->flags)) {
@@ -610,9 +609,11 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 		}
 	}
 
-	sbefifo_put_client(client);
+	ret = n;
 
-	return n;
+out:
+	sbefifo_put_client(client);
+	return ret;
 }
 
 static ssize_t sbefifo_read(struct file *file, char __user *buf, size_t len,
@@ -689,14 +690,14 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 			if (mod_timer(&sbefifo->poll_timer, jiffies))
 				sbefifo_put(sbefifo);
 
-			sbefifo_put_client(client);
-			return -ERESTARTSYS;
+			ret = -ERESTARTSYS;
+			goto out;
 		}
 
 		if (sbefifo->rc) {
 			INIT_LIST_HEAD(&client->xfrs);
-			sbefifo_put_client(client);
-			return sbefifo->rc;
+			ret = sbefifo->rc;
+			goto out;
 		}
 
 		n = min_t(size_t, n, len);
@@ -708,8 +709,8 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 				sbefifo_get(sbefifo);
 				if (mod_timer(&sbefifo->poll_timer, jiffies))
 					sbefifo_put(sbefifo);
-				sbefifo_put_client(client);
-				return -EFAULT;
+				ret = -EFAULT;
+				goto out;
 			}
 
 			ubuf += n;
@@ -736,8 +737,8 @@ static ssize_t sbefifo_write_common(struct sbefifo_client *client,
 			sbefifo_put(sbefifo);
 	}
 
+out:
 	sbefifo_put_client(client);
-
 	return ret;
 }
 
