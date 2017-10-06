@@ -70,15 +70,11 @@ struct occ_response {
  *  and cleared if the transfer fails or occ_worker_getsram completes.
  * XFR_COMPLETE is set when a transfer fails or finishes occ_worker_getsram.
  * XFR_CANCELED is set when the transfer's client is released.
- * XFR_WAITING is set from read() if the transfer isn't complete and
- *  O_NONBLOCK wasn't specified. Cleared in read() when transfer completes or
- *  fails.
  */
 enum {
 	XFR_IN_PROGRESS,
 	XFR_COMPLETE,
 	XFR_CANCELED,
-	XFR_WAITING,
 };
 
 struct occ_xfr {
@@ -104,6 +100,7 @@ enum {
 };
 
 struct occ_client {
+	struct kref kref;
 	struct occ *occ;
 	struct occ_xfr xfr;
 	spinlock_t lock;		/* lock access to the client state */
@@ -140,6 +137,24 @@ static int occ_enqueue_xfr(struct occ_xfr *xfr)
 	return 0;
 }
 
+static void occ_get_client(struct occ_client *client)
+{
+	kref_get(&client->kref);
+}
+
+static void occ_client_release(struct kref *kref)
+{
+	struct occ_client *client = container_of(kref, struct occ_client,
+						 kref);
+
+	kfree(client);
+}
+
+static void occ_put_client(struct occ_client *client)
+{
+	kref_put(&client->kref, occ_client_release);
+}
+
 static struct occ_client *occ_open_common(struct occ *occ, unsigned long flags)
 {
 	struct occ_client *client = kzalloc(sizeof(*client), GFP_KERNEL);
@@ -148,6 +163,7 @@ static struct occ_client *occ_open_common(struct occ *occ, unsigned long flags)
 		return NULL;
 
 	client->occ = occ;
+	kref_init(&client->kref);
 	spin_lock_init(&client->lock);
 	init_waitqueue_head(&client->wait);
 
@@ -192,6 +208,7 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 	if (len > OCC_SRAM_BYTES)
 		return -EINVAL;
 
+	occ_get_client(client);
 	xfr = &client->xfr;
 	occ = client->occ;
 
@@ -215,8 +232,6 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 			goto done;
 		}
 
-		set_bit(XFR_WAITING, &xfr->flags);
-
 		spin_unlock_irq(&client->lock);
 
 		rc = wait_event_interruptible(client->wait,
@@ -224,15 +239,12 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 
 		spin_lock_irq(&client->lock);
 
-		if (test_bit(XFR_CANCELED, &xfr->flags)) {
-			spin_unlock_irq(&client->lock);
-			kfree(client);
-			return -EBADFD;
-		}
-
-		clear_bit(XFR_WAITING, &xfr->flags);
 		if (!test_bit(XFR_COMPLETE, &xfr->flags)) {
-			rc = -EINTR;
+			if (occ->cancel || test_bit(XFR_CANCELED, &xfr->flags))
+				rc = -ECANCELED;
+			else
+				rc = -EINTR;
+
 			goto done;
 		}
 	}
@@ -263,6 +275,7 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 
 done:
 	spin_unlock_irq(&client->lock);
+	occ_put_client(client);
 	return rc;
 }
 
@@ -289,6 +302,7 @@ static ssize_t occ_write_common(struct occ_client *client,
 	if (len > (OCC_CMD_DATA_BYTES + 3) || len < 3)
 		return -EINVAL;
 
+	occ_get_client(client);
 	xfr = &client->xfr;
 
 	spin_lock_irq(&client->lock);
@@ -340,6 +354,7 @@ static ssize_t occ_write_common(struct occ_client *client,
 
 done:
 	spin_unlock_irq(&client->lock);
+	occ_put_client(client);
 	return rc;
 }
 
@@ -364,38 +379,26 @@ static int occ_release_common(struct occ_client *client)
 
 	spin_lock_irq(&client->lock);
 
-	if (!test_bit(CLIENT_XFR_PENDING, &client->flags)) {
-		spin_unlock_irq(&client->lock);
-		kfree(client);
-		return 0;
-	}
+	set_bit(XFR_CANCELED, &xfr->flags);
+	if (!test_bit(CLIENT_XFR_PENDING, &client->flags))
+		goto done;
 
 	spin_lock_irq(&occ->list_lock);
 
-	set_bit(XFR_CANCELED, &xfr->flags);
 	if (!test_bit(XFR_IN_PROGRESS, &xfr->flags)) {
 		/* already deleted from list if complete */
 		if (!test_bit(XFR_COMPLETE, &xfr->flags))
 			list_del(&xfr->link);
-
-		spin_unlock_irq(&occ->list_lock);
-
-		if (test_bit(XFR_WAITING, &xfr->flags)) {
-			/* blocking read; let reader clean up */
-			wake_up_interruptible(&client->wait);
-			spin_unlock_irq(&client->lock);
-			return 0;
-		}
-
-		spin_unlock_irq(&client->lock);
-
-		kfree(client);
-		return 0;
 	}
 
-	/* operation is in progress; let worker clean up */
 	spin_unlock_irq(&occ->list_lock);
+
+	wake_up_all(&client->wait);
+
+done:
 	spin_unlock_irq(&client->lock);
+
+	occ_put_client(client);
 	return 0;
 }
 
@@ -601,7 +604,7 @@ done:
 
 static void occ_worker(struct work_struct *work)
 {
-	int rc = 0, empty, waiting, canceled;
+	int rc = 0, empty;
 	u16 resp_data_length;
 	unsigned long start;
 	const unsigned long timeout = msecs_to_jiffies(OCC_TIMEOUT_MS);
@@ -624,6 +627,8 @@ again:
 		return;
 	}
 
+	client = to_client(xfr);
+	occ_get_client(client);
 	resp = (struct occ_response *)xfr->buf;
 	set_bit(XFR_IN_PROGRESS, &xfr->flags);
 
@@ -679,29 +684,18 @@ done:
 	mutex_unlock(&occ->occ_lock);
 
 	xfr->rc = rc;
-	client = to_client(xfr);
-
-	/* lock client to prevent race with read() */
-	spin_lock_irq(&client->lock);
-
 	set_bit(XFR_COMPLETE, &xfr->flags);
-	waiting = test_bit(XFR_WAITING, &xfr->flags);
-
-	spin_unlock_irq(&client->lock);
 
 	spin_lock_irq(&occ->list_lock);
 
 	clear_bit(XFR_IN_PROGRESS, &xfr->flags);
 	list_del(&xfr->link);
 	empty = list_empty(&occ->xfrs);
-	canceled = test_bit(XFR_CANCELED, &xfr->flags);
 
 	spin_unlock_irq(&occ->list_lock);
 
-	if (waiting)
-		wake_up_interruptible(&client->wait);
-	else if (canceled)
-		kfree(client);
+	wake_up_interruptible(&client->wait);
+	occ_put_client(client);
 
 	if (!empty)
 		goto again;
