@@ -37,6 +37,8 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
+#include "aspeed-bmc-opp-flash-layout.dtsi"
+
 	};
 };
 
