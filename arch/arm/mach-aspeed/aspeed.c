@@ -104,6 +104,10 @@ static void __init do_firestone_setup(void)
 
 	/* Override serial destination to use the dedicated serial port */
 	writel(0x00004000, AST_IO(AST_BASE_LPC | 0x174));
+
+	/* Workaround to make hostboot run into default SUART init */
+	/* Otherwise it fails to boot */
+	writel(0x00000000, AST_IO(AST_BASE_LPC | 0x170));
 }
 
 static void __init do_garrison_setup(void)
