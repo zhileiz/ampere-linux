@@ -182,6 +182,7 @@ int occ_poll(struct occ *occ)
 	u16 checksum = occ->poll_cmd_data + 1;
 	u8 cmd[8];
 	u8 occs_present = header->occs_present;
+	u8 ext_status = header->ext_status;
 
 	cmd[0] = 0;
 	cmd[1] = 0;
@@ -206,10 +207,26 @@ int occ_poll(struct occ *occ)
 	} else
 		occ->last_safe = 0;
 
-	if (occs_present != header->occs_present && occ->hwmon &&
-	    (header->status & OCC_STAT_MASTER)) {
-		sysfs_notify(&occ->bus_dev->kobj, NULL,
-			     occ->status_attrs[7].dev_attr.attr.name);
+	if (occ->hwmon) {
+		if (occs_present != header->occs_present &&
+		    (header->status & OCC_STAT_MASTER))
+			sysfs_notify(&occ->bus_dev->kobj, NULL,
+				     occ->status_attrs[7].dev_attr.attr.name);
+
+		if ((header->ext_status & OCC_EXT_STAT_DVFS_OT) !=
+		    (ext_status & OCC_EXT_STAT_DVFS_OT))
+			sysfs_notify(&occ->bus_dev->kobj, NULL,
+				     occ->status_attrs[2].dev_attr.attr.name);
+
+		if ((header->ext_status & OCC_EXT_STAT_DVFS_POWER) !=
+		    (ext_status & OCC_EXT_STAT_DVFS_POWER))
+			sysfs_notify(&occ->bus_dev->kobj, NULL,
+				     occ->status_attrs[3].dev_attr.attr.name);
+
+		if ((header->ext_status & OCC_EXT_STAT_MEM_THROTTLE) !=
+		    (ext_status & OCC_EXT_STAT_MEM_THROTTLE))
+			sysfs_notify(&occ->bus_dev->kobj, NULL,
+				     occ->status_attrs[4].dev_attr.attr.name);
 	}
 
 done:
