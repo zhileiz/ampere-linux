@@ -176,8 +176,6 @@ static int p9_sbe_occ_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	atomic_inc(&occ_num_occs);
-
 	return rc;
 }
 
@@ -189,8 +187,6 @@ static int p9_sbe_occ_remove(struct platform_device *pdev)
 	p9_sbe_occ->sbe = NULL;
 	p9_sbe_occ_close_client(p9_sbe_occ);
 	occ_remove_status_attrs(occ);
-
-	atomic_dec(&occ_num_occs);
 
 	return 0;
 }

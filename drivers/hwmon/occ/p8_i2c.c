@@ -248,8 +248,6 @@ static int p8_i2c_occ_probe(struct i2c_client *client,
 		return rc;
 	}
 
-	atomic_inc(&occ_num_occs);
-
 	return 0;
 }
 
@@ -258,8 +256,6 @@ static int p8_i2c_occ_remove(struct i2c_client *client)
 	struct occ *occ = dev_get_drvdata(&client->dev);
 
 	occ_remove_status_attrs(occ);
-
-	atomic_dec(&occ_num_occs);
 
 	return 0;
 }

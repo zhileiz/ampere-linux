@@ -10,7 +10,7 @@
 #include <asm/unaligned.h>
 #include "common.h"
 
-#define OCC_NUM_STATUS_ATTRS		8
+#define OCC_NUM_STATUS_ATTRS		9
 
 #define OCC_STAT_MASTER			0x80
 #define OCC_STAT_ACTIVE			0x01
@@ -18,8 +18,6 @@
 #define OCC_EXT_STAT_DVFS_POWER		0x40
 #define OCC_EXT_STAT_MEM_THROTTLE	0x20
 #define OCC_EXT_STAT_QUICK_DROP		0x10
-
-atomic_t occ_num_occs = ATOMIC_INIT(0);
 
 struct temp_sensor_1 {
 	u16 sensor_id;
@@ -179,9 +177,11 @@ void occ_reset_error(struct occ *occ)
 int occ_poll(struct occ *occ)
 {
 	int rc, error = occ->error;
-	struct occ_poll_response_header *header;
+	struct occ_poll_response_header *header =
+		(struct occ_poll_response_header *)occ->resp.data;
 	u16 checksum = occ->poll_cmd_data + 1;
 	u8 cmd[8];
+	u8 occs_present = header->occs_present;
 
 	cmd[0] = 0;
 	cmd[1] = 0;
@@ -196,8 +196,6 @@ int occ_poll(struct occ *occ)
 	if (rc)
 		goto done;
 
-	header = (struct occ_poll_response_header *)occ->resp.data;
-
 	if (header->occ_state == OCC_STATE_SAFE) {
 		if (occ->last_safe) {
 			if (time_after(jiffies,
@@ -208,10 +206,10 @@ int occ_poll(struct occ *occ)
 	} else
 		occ->last_safe = 0;
 
-	if (header->status & OCC_STAT_MASTER) {
-		if (hweight8(header->occs_present) !=
-		    atomic_read(&occ_num_occs))
-			occ->error = -ENXIO;
+	if (occs_present != header->occs_present && occ->hwmon &&
+	    (header->status & OCC_STAT_MASTER)) {
+		sysfs_notify(&occ->bus_dev->kobj, NULL,
+			     occ->status_attrs[7].dev_attr.attr.name);
 	}
 
 done:
@@ -320,6 +318,12 @@ static ssize_t occ_show_status(struct device *dev,
 		break;
 	case 6:
 		val = header->occ_state;
+		break;
+	case 7:
+		if (header->status & OCC_STAT_MASTER)
+			val = hweight8(header->occs_present);
+		else
+			val = 1;
 		break;
 	default:
 		return -EINVAL;
@@ -1203,12 +1207,16 @@ int occ_create_status_attrs(struct occ *occ)
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_status, 0444,
 							    occ_show_status,
 							    NULL, 6);
-
 	occ->status_attrs[7] =
+		(struct sensor_device_attribute)SENSOR_ATTR(occs_present, 0444,
+							    occ_show_status,
+							    NULL, 7);
+
+	occ->status_attrs[8] =
 		(struct sensor_device_attribute)SENSOR_ATTR(occ_error, 0444,
 							    occ_show_error,
 							    NULL, 0);
-	occ->error_attr_name = occ->status_attrs[7].dev_attr.attr.name;
+	occ->error_attr_name = occ->status_attrs[8].dev_attr.attr.name;
 
 	for (i = 0; i < OCC_NUM_STATUS_ATTRS; ++i) {
 		rc = device_create_file(dev, &occ->status_attrs[i].dev_attr);
