@@ -129,6 +129,11 @@
 			&pinctrl_ddcclk_default &pinctrl_ddcdat_default>;
 };
 
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
+
 &mac0 {
 	status = "okay";
 

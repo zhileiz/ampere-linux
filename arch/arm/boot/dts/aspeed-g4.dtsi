@@ -117,6 +117,13 @@
 					status = "disabled";
 				};
 
+				lpc_snoop: lpc-snoop@0 {
+					compatible = "aspeed,ast2400-lpc-snoop";
+					reg = <0x0 0x80>;
+					interrupts = <8>;
+					status = "disabled";
+				};
+
 				mbox: mbox@180 {
 					compatible = "aspeed,ast2400-mbox";
 					reg = <0x180 0x5c>;
