@@ -312,22 +312,27 @@ static struct sbefifo_client *sbefifo_new_client(struct sbefifo *sbefifo)
 
 static void sbefifo_client_release(struct kref *kref)
 {
+	struct sbefifo *sbefifo;
 	struct sbefifo_client *client;
 	struct sbefifo_xfr *xfr;
 
 	client = container_of(kref, struct sbefifo_client, kref);
-	list_for_each_entry(xfr, &client->xfrs, client) {
-		/*
-		 * The client left with pending or running xfrs.
-		 * Cancel them.
-		 */
-		set_bit(SBEFIFO_XFR_CANCEL, &xfr->flags);
-		sbefifo_get(client->dev);
-		if (mod_timer(&client->dev->poll_timer, jiffies))
-			sbefifo_put(client->dev);
+	sbefifo = client->dev;
+
+	if (!READ_ONCE(sbefifo->rc)) {
+		list_for_each_entry(xfr, &client->xfrs, client) {
+			/*
+			 * The client left with pending or running xfrs.
+			 * Cancel them.
+			 */
+			set_bit(SBEFIFO_XFR_CANCEL, &xfr->flags);
+			sbefifo_get(sbefifo);
+			if (mod_timer(&client->dev->poll_timer, jiffies))
+				sbefifo_put(sbefifo);
+		}
 	}
 
-	sbefifo_put(client->dev);
+	sbefifo_put(sbefifo);
 	kfree(client);
 }
 
@@ -901,7 +906,16 @@ static int sbefifo_remove(struct device *dev)
 	struct sbefifo *sbefifo = dev_get_drvdata(dev);
 	struct sbefifo_xfr *xfr;
 
+	spin_lock(&sbefifo->lock);
+
 	WRITE_ONCE(sbefifo->rc, -ENODEV);
+	list_for_each_entry(xfr, &sbefifo->xfrs, xfrs)
+		kfree(xfr);
+
+	INIT_LIST_HEAD(&sbefifo->xfrs);
+
+	spin_unlock(&sbefifo->lock);
+
 	wake_up_all(&sbefifo->wait);
 
 	misc_deregister(&sbefifo->mdev);
@@ -911,11 +925,6 @@ static int sbefifo_remove(struct device *dev)
 
 	if (del_timer_sync(&sbefifo->poll_timer))
 		sbefifo_put(sbefifo);
-
-	spin_lock(&sbefifo->lock);
-	list_for_each_entry(xfr, &sbefifo->xfrs, xfrs)
-		kfree(xfr);
-	spin_unlock(&sbefifo->lock);
 
 	sbefifo_put(sbefifo);
 
