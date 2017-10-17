@@ -47,8 +47,10 @@
 
 #define SBEFIFO_STS		0x04
 #define   SBEFIFO_EMPTY			BIT(20)
+#define   SBEFIFO_STS_RESET_REQ		BIT(25)
 #define SBEFIFO_EOT_RAISE	0x08
 #define   SBEFIFO_EOT_MAGIC		0xffffffff
+#define SBEFIFO_REQ_RESET	0x0C
 #define SBEFIFO_EOT_ACK		0x14
 
 #define SBEFIFO_RESCHEDULE	msecs_to_jiffies(500)
@@ -831,6 +833,36 @@ static int sbefifo_unregister_child(struct device *dev, void *data)
 	return 0;
 }
 
+static int sbefifo_request_reset(struct sbefifo *sbefifo)
+{
+	int ret;
+	u32 status;
+	unsigned long start;
+	const unsigned int wait_time = 5;	/* jiffies */
+	const unsigned long timeout = msecs_to_jiffies(250);
+
+	ret = sbefifo_outw(sbefifo, SBEFIFO_UP | SBEFIFO_REQ_RESET, 1);
+	if (ret)
+		return ret;
+
+	start = jiffies;
+
+	do {
+		ret = sbefifo_inw(sbefifo, SBEFIFO_UP | SBEFIFO_STS, &status);
+		if (ret)
+			return ret;
+
+		if (!(status & SBEFIFO_STS_RESET_REQ))
+			return 0;
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (schedule_timeout(wait_time) > 0)
+			return -EINTR;
+	} while (time_after(start + timeout, jiffies));
+
+	return -ETIME;
+}
+
 static int sbefifo_probe(struct device *dev)
 {
 	struct fsi_device *fsi_dev = to_fsi_dev(dev);
@@ -838,7 +870,7 @@ static int sbefifo_probe(struct device *dev)
 	struct device_node *np;
 	struct platform_device *child;
 	char child_name[32];
-	u32 sts;
+	u32 up, down;
 	int ret, child_idx = 0;
 
 	dev_dbg(dev, "Found sbefifo device\n");
@@ -848,22 +880,21 @@ static int sbefifo_probe(struct device *dev)
 
 	sbefifo->fsi_dev = fsi_dev;
 
-	ret = sbefifo_inw(sbefifo, SBEFIFO_UP | SBEFIFO_STS, &sts);
+	ret = sbefifo_inw(sbefifo, SBEFIFO_UP | SBEFIFO_STS, &up);
 	if (ret)
 		return ret;
 
-	if (!(sts & SBEFIFO_EMPTY)) {
-		dev_err(dev, "Found data in upstream fifo\n");
-		return -EIO;
-	}
-
-	ret = sbefifo_inw(sbefifo, SBEFIFO_DWN | SBEFIFO_STS, &sts);
+	ret = sbefifo_inw(sbefifo, SBEFIFO_DWN | SBEFIFO_STS, &down);
 	if (ret)
 		return ret;
 
-	if (!(sts & SBEFIFO_EMPTY)) {
-		dev_err(dev, "Found data in downstream fifo\n");
-		return -EIO;
+	if (!(up & SBEFIFO_EMPTY) || !(down & SBEFIFO_EMPTY)) {
+		ret = sbefifo_request_reset(sbefifo);
+		if (ret) {
+			dev_err(dev,
+				"fifos weren't empty and failed the reset\n");
+			return ret;
+		}
 	}
 
 	spin_lock_init(&sbefifo->lock);
