@@ -321,6 +321,11 @@ static void sbefifo_client_release(struct kref *kref)
 
 	if (!READ_ONCE(sbefifo->rc)) {
 		list_for_each_entry(xfr, &client->xfrs, client) {
+			if (test_bit(SBEFIFO_XFR_COMPLETE, &xfr->flags)) {
+				kfree(xfr);
+				continue;
+			}
+
 			/*
 			 * The client left with pending or running xfrs.
 			 * Cancel them.
