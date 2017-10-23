@@ -1407,10 +1407,7 @@ int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 	}
 
 	ndp = TO_NCSI_DEV_PRIV(nd);
-	if (!ndp) {
-		netdev_warn(dev, "ncsi: No ncsi_dev_priv?\n");
-		return 0;
-	}
+	ncf = ndp->hot_channel->filters[NCSI_FILTER_VLAN];
 
 	/* Add the VLAN id to our internal list */
 	list_for_each_entry_rcu(vlan, &ndp->vlan_vids, list) {
@@ -1422,17 +1419,11 @@ int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 		}
 	}
 
-	if (!ndp->hot_channel) {
-		netdev_warn(dev,
-			    "ncsi: no available filter to check maximum\n");
-	} else {
-		ncf = ndp->hot_channel->filters[NCSI_FILTER_VLAN];
-		if (n_vids >= ncf->total) {
-			netdev_info(dev,
-				    "NCSI Channel supports up to %u VLAN tags but %u are already set\n",
-				    ncf->total, n_vids);
-			return -EINVAL;
-		}
+	if (n_vids >= ncf->total) {
+		netdev_info(dev,
+			    "NCSI Channel supports up to %u VLAN tags but %u are already set\n",
+			    ncf->total, n_vids);
+		return -EINVAL;
 	}
 
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
