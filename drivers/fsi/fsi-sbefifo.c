@@ -54,6 +54,7 @@
 #define SBEFIFO_EOT_ACK		0x14
 
 #define SBEFIFO_RESCHEDULE	msecs_to_jiffies(500)
+#define SBEFIFO_MAX_RESCHDULE	msecs_to_jiffies(5000)
 
 struct sbefifo {
 	struct timer_list poll_timer;
@@ -77,6 +78,7 @@ struct sbefifo_buf {
 };
 
 struct sbefifo_xfr {
+	unsigned long wait_data_timeout;
 	struct sbefifo_buf *rbuf;
 	struct sbefifo_buf *wbuf;
 	struct list_head client;
@@ -451,11 +453,27 @@ static void sbefifo_poll_timer(unsigned long data)
 
 		devn = sbefifo_dev_nwreadable(sts);
 		if (devn == 0) {
+			/*
+			 * Limit the maximum waiting period for data in the
+			 * FIFO. If the SBE isn't running, we will wait
+			 * forever.
+			 */
+			if (!xfr->wait_data_timeout) {
+				xfr->wait_data_timeout =
+					jiffies + SBEFIFO_MAX_RESCHDULE;
+			} else if (time_after(jiffies,
+					      xfr->wait_data_timeout)) {
+				ret = -ETIME;
+				goto out;
+			}
+
 			/* No data yet.  Reschedule. */
 			sbefifo->poll_timer.expires = jiffies +
 				SBEFIFO_RESCHEDULE;
 			add_timer(&sbefifo->poll_timer);
 			goto out_unlock;
+		} else {
+			xfr->wait_data_timeout = 0;
 		}
 
 		/* Fill.  The EOT word is discarded.  */
