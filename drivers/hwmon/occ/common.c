@@ -872,7 +872,7 @@ int occ_setup_sensor_attrs(struct occ *occ)
 
 	switch (sensors->extended.version) {
 	case 1:
-		occ->num_attrs += sensors->extended.num_sensors;
+		occ->num_attrs += (sensors->extended.num_sensors * 3);
 		break;
 	default:
 		sensors->extended.num_sensors = 0;
