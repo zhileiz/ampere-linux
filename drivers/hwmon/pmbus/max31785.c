@@ -436,6 +436,7 @@ static int max31785_of_fan_config(struct i2c_client *client,
 
 			info->pages = max(info->pages, virtual + 1);
 			info->func[virtual] |= PMBUS_HAVE_FAN12;
+			info->func[virtual] |= PMBUS_PAGE_VIRTUAL;
 		}
 	}
 
