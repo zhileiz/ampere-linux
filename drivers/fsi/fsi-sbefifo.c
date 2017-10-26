@@ -316,14 +316,15 @@ static void sbefifo_client_release(struct kref *kref)
 {
 	struct sbefifo *sbefifo;
 	struct sbefifo_client *client;
-	struct sbefifo_xfr *xfr;
+	struct sbefifo_xfr *xfr, *tmp;
 
 	client = container_of(kref, struct sbefifo_client, kref);
 	sbefifo = client->dev;
 
 	if (!READ_ONCE(sbefifo->rc)) {
-		list_for_each_entry(xfr, &client->xfrs, client) {
+		list_for_each_entry_safe(xfr, tmp, &client->xfrs, client) {
 			if (test_bit(SBEFIFO_XFR_COMPLETE, &xfr->flags)) {
+				list_del(&xfr->client);
 				kfree(xfr);
 				continue;
 			}
@@ -376,7 +377,7 @@ static void sbefifo_poll_timer(unsigned long data)
 	static const unsigned long EOT_MASK = 0x000000ff;
 	struct sbefifo *sbefifo = (void *)data;
 	struct sbefifo_buf *rbuf, *wbuf;
-	struct sbefifo_xfr *xfr = NULL;
+	struct sbefifo_xfr *xfr, *tmp;
 	struct sbefifo_buf drain;
 	size_t devn, bufn;
 	int eot = 0;
@@ -491,8 +492,10 @@ out:
 		sbefifo->rc = ret;
 		dev_err(&sbefifo->fsi_dev->dev,
 			"Fatal bus access failure: %d\n", ret);
-		list_for_each_entry(xfr, &sbefifo->xfrs, xfrs)
+		list_for_each_entry_safe(xfr, tmp, &sbefifo->xfrs, xfrs) {
+			list_del(&xfr->xfrs);
 			kfree(xfr);
+		}
 		INIT_LIST_HEAD(&sbefifo->xfrs);
 
 	} else if (eot && sbefifo_next_xfr(sbefifo)) {
@@ -620,8 +623,8 @@ static ssize_t sbefifo_read_common(struct sbefifo_client *client,
 			if (mod_timer(&client->dev->poll_timer, jiffies))
 				sbefifo_put(sbefifo);
 		} else {
-			kfree(xfr);
 			list_del(&xfr->client);
+			kfree(xfr);
 			wake_up_interruptible(&sbefifo->wait);
 		}
 	}
@@ -940,13 +943,15 @@ static int sbefifo_probe(struct device *dev)
 static int sbefifo_remove(struct device *dev)
 {
 	struct sbefifo *sbefifo = dev_get_drvdata(dev);
-	struct sbefifo_xfr *xfr;
+	struct sbefifo_xfr *xfr, *tmp;
 
 	spin_lock(&sbefifo->lock);
 
 	WRITE_ONCE(sbefifo->rc, -ENODEV);
-	list_for_each_entry(xfr, &sbefifo->xfrs, xfrs)
+	list_for_each_entry_safe(xfr, tmp, &sbefifo->xfrs, xfrs) {
+		list_del(&xfr->xfrs);
 		kfree(xfr);
+	}
 
 	INIT_LIST_HEAD(&sbefifo->xfrs);
 
