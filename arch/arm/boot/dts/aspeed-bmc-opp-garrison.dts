@@ -156,8 +156,8 @@
 &i2c4 {
 	status = "okay";
 
-	occ@50 {
-		compatible = "ibm,occ-i2c";
+	occ-hwmon@50 {
+		compatible = "ibm,p8-occ-hwmon";
 		reg = <0x50>;
 	};
 };
@@ -165,9 +165,9 @@
 &i2c5 {
 	status = "okay";
 
-	occ@50 {
-		compatible = "ibm,occ-i2c";
-		reg = <0x50>;
+	occ-hwmon@51 {
+		compatible = "ibm,p8-occ-hwmon";
+		reg = <0x51>;
 	};
 };
 
