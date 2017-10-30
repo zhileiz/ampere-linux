@@ -175,9 +175,9 @@ int pmbus_set_page(struct i2c_client *client, u8 page)
 		if (rv) {
 			rv = i2c_smbus_write_byte_data(client, PMBUS_PAGE,
 						       page);
-			dev_warn(&client->dev,
-				 "Failed to set page %u, performed one-shot retry %s: %d\n",
-				 page, rv ? "and failed" : "with success", rv);
+			dev_dbg(&client->dev,
+				"Failed to set page %u, performed one-shot retry %s: %d\n",
+				page, rv ? "and failed" : "with success", rv);
 		}
 
 		newpage = i2c_smbus_read_byte_data(client, PMBUS_PAGE);
