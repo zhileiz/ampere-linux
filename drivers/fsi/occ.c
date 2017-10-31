@@ -240,9 +240,7 @@ static ssize_t occ_read_common(struct occ_client *client, char __user *ubuf,
 		spin_lock_irq(&client->lock);
 
 		if (!test_bit(XFR_COMPLETE, &xfr->flags)) {
-			if (test_bit(XFR_CANCELED, &xfr->flags))
-				rc = -ECANCELED;
-			else if (occ->cancel)
+			if (occ->cancel || test_bit(XFR_CANCELED, &xfr->flags))
 				rc = -ENODEV;
 			else
 				rc = -EINTR;
