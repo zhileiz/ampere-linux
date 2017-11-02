@@ -19,6 +19,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/sysfs.h>
 #include <linux/thermal.h>
 
@@ -181,6 +182,7 @@ struct aspeed_cooling_device {
 
 struct aspeed_pwm_tacho_data {
 	struct regmap *regmap;
+	struct reset_control *rst;
 	unsigned long clk_freq;
 	bool pwm_present[8];
 	bool fan_tach_present[16];
@@ -931,6 +933,15 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 			&aspeed_pwm_tacho_regmap_config);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+
+	priv->rst = devm_reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(priv->rst)) {
+		dev_err(dev,
+			"missing or invalid reset controller device tree entry");
+		return PTR_ERR(priv->rst);
+	}
+	reset_control_deassert(priv->rst);
+
 	regmap_write(priv->regmap, ASPEED_PTCR_TACH_SOURCE, 0);
 	regmap_write(priv->regmap, ASPEED_PTCR_TACH_SOURCE_EXT, 0);
 
