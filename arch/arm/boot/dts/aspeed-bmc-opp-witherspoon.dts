@@ -239,6 +239,9 @@
 
 	use-ncsi;
 	no-hw-checksum;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii1_default>;
 };
 
 &i2c0 {

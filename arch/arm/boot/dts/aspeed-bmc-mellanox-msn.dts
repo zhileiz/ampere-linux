@@ -48,6 +48,9 @@
 &mac0 {
 	status = "okay";
 	use-ncsi;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii1_default>;
 };
 
 &i2c5 {
