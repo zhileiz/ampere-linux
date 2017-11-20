@@ -30,4 +30,7 @@ int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
 int sbefifo_parse_status(struct device *dev, u16 cmd, __be32 *response,
 			 size_t resp_len, size_t *data_len);
 
+struct fsi_device;
+struct fsi_device *sbefifo_get_fsidev(struct device *dev);
+
 #endif /* LINUX_FSI_SBEFIFO_H */
