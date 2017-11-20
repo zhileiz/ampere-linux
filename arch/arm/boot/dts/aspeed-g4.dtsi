@@ -231,7 +231,7 @@
 				#gpio-cells = <2>;
 				gpio-controller;
 				compatible = "aspeed,ast2400-gpio";
-				reg = <0x1e780000 0x1000>;
+				reg = <0x1e780000 0x200>;
 				interrupts = <20>;
 				interrupt-controller;
 				gpio-ranges = <&pinctrl 0 0 220>;
