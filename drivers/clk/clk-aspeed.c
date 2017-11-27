@@ -89,7 +89,7 @@ struct aspeed_clk_gate {
 #define to_aspeed_clk_gate(_hw) container_of(_hw, struct aspeed_clk_gate, hw)
 
 /* TODO: ask Aspeed about the actual parent data */
-static const struct aspeed_gate_data aspeed_gates[] __initconst = {
+static const struct aspeed_gate_data aspeed_gates[] = {
 	/*				 clk rst   name			parent	flags */
 	[ASPEED_CLK_GATE_ECLK] =	{  0, -1, "eclk-gate",		"eclk",	0 }, /* Video Engine */
 	[ASPEED_CLK_GATE_GCLK] =	{  1,  7, "gclk-gate",		NULL,	0 }, /* 2D engine */
@@ -115,20 +115,6 @@ static const struct aspeed_gate_data aspeed_gates[] __initconst = {
 	[ASPEED_CLK_GATE_UART4CLK] =	{ 26, -1, "uart4clk-gate",	"uart",	0 }, /* UART4 */
 	[ASPEED_CLK_GATE_SDCLKCLK] =	{ 27, 16, "sdclk-gate",		NULL,	0 }, /* SDIO/SD */
 	[ASPEED_CLK_GATE_LHCCLK] =	{ 28, -1, "lhclk-gate",		"lhclk", 0 }, /* LPC master/LPC+ */
-};
-
-static const char * const eclk_parents[] = {"d1pll", "hpll", "mpll"};
-
-static const struct clk_div_table ast2500_eclk_div_table[] = {
-	{ 0x0, 2 },
-	{ 0x1, 2 },
-	{ 0x2, 3 },
-	{ 0x3, 4 },
-	{ 0x4, 5 },
-	{ 0x5, 6 },
-	{ 0x6, 7 },
-	{ 0x7, 8 },
-	{ 0 }
 };
 
 static const struct clk_div_table ast2500_mac_div_table[] = {
@@ -211,21 +197,18 @@ static struct clk_hw *aspeed_ast2500_calc_pll(const char *name, u32 val)
 struct aspeed_clk_soc_data {
 	const struct clk_div_table *div_table;
 	const struct clk_div_table *mac_div_table;
-	const struct clk_div_table *eclk_div_table;
 	struct clk_hw *(*calc_pll)(const char *name, u32 val);
 };
 
 static const struct aspeed_clk_soc_data ast2500_data = {
 	.div_table = ast2500_div_table,
 	.mac_div_table = ast2500_mac_div_table,
-	.eclk_div_table = ast2500_eclk_div_table,
 	.calc_pll = aspeed_ast2500_calc_pll,
 };
 
 static const struct aspeed_clk_soc_data ast2400_data = {
 	.div_table = ast2400_div_table,
 	.mac_div_table = ast2400_div_table,
-	.eclk_div_table = ast2400_div_table,
 	.calc_pll = aspeed_ast2400_calc_pll,
 };
 
@@ -480,22 +463,6 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
 
-	/* Video Engine (ECLK) mux and clock divider */
-	hw = clk_hw_register_mux(dev, "eclk_mux",
-			eclk_parents, ARRAY_SIZE(eclk_parents), 0,
-			scu_base + ASPEED_CLK_SELECTION, 2, 2,
-			0, &aspeed_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_clk_data->hws[ASPEED_CLK_ECLK_MUX] = hw;
-	hw = clk_hw_register_divider_table(dev, "eclk", "eclk_mux", 0,
-			scu_base + ASPEED_CLK_SELECTION, 28, 3, 0,
-			soc_data->eclk_div_table,
-			&aspeed_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_clk_data->hws[ASPEED_CLK_ECLK] = hw;
-
 	/* P-Bus (BCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "bclk", "hpll", 0,
 			scu_base + ASPEED_CLK_SELECTION_2, 0, 2, 0,
@@ -514,6 +481,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	 *   RGMII
 	 *   RMII
 	 *   UART[1..5] clock source mux
+	 *   Video Engine (ECLK) mux and clock divider
 	 */
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_gates); i++) {
