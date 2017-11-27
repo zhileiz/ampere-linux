@@ -238,6 +238,15 @@
 				clocks = <&clk_hpll>;
 			};
 
+			sgpio: gpio@0x1e780200 {
+				#gpio-cells = <2>;
+				gpio-controller;
+				compatible = "aspeed,ast2400-sgpio";
+				reg = <0x1e780200 0x100>;
+				interrupts = <40>;
+				interrupt-controller;
+			};
+
 			timer: timer@1e782000 {
 				compatible = "aspeed,ast2400-timer";
 				reg = <0x1e782000 0x90>;
