@@ -124,6 +124,75 @@
 		compatible = "iio-hwmon";
 		io-channels = <&adc 11>;
 	};
+
+	i2cmux {
+		compatible = "i2c-mux-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mux-gpios = <&sgpio 10 GPIO_ACTIVE_HIGH>;
+		i2c-parent = <&i2c1>;
+
+		i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* Memory Riser 1 FRU */
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+			};
+
+			/* Memory Riser 2 FRU */
+			eeprom@51 {
+				compatible = "atmel,24c02";
+				reg = <0x51>;
+			};
+
+			/* Memory Riser 3 FRU */
+			eeprom@52 {
+				compatible = "atmel,24c02";
+				reg = <0x52>;
+			};
+
+			/* Memory Riser 4 FRU */
+			eeprom@53 {
+				compatible = "atmel,24c02";
+				reg = <0x53>;
+			};
+		};
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* Memory Riser 5 FRU */
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+			};
+
+			/* Memory Riser 6 FRU */
+			eeprom@51 {
+				compatible = "atmel,24c02";
+				reg = <0x51>;
+			};
+
+			/* Memory Riser 7 FRU */
+			eeprom@52 {
+				compatible = "atmel,24c02";
+				reg = <0x52>;
+			};
+
+			/* Memory Riser 8 FRU */
+			eeprom@53 {
+				compatible = "atmel,24c02";
+				reg = <0x53>;
+			};
+		};
+	};
 };
 
 &fmc {
@@ -202,30 +271,6 @@
 	tmp75@4f {
 		compatible = "ti,tmp75";
 		reg = <0x4f>;
-	};
-
-	/* Memory Riser 1/5 FRU */
-	eeprom@50 {
-		compatible = "atmel,24c02";
-		reg = <0x50>;
-	};
-
-	/* Memory Riser 2/6 FRU */
-	eeprom@51 {
-		compatible = "atmel,24c02";
-		reg = <0x51>;
-	};
-
-	/* Memory Riser 3/7 FRU */
-	eeprom@52 {
-		compatible = "atmel,24c02";
-		reg = <0x52>;
-	};
-
-	/* Memory Riser 4/8 FRU */
-	eeprom@53 {
-		compatible = "atmel,24c02";
-		reg = <0x53>;
 	};
 
 	/* Baseboard FRU */
