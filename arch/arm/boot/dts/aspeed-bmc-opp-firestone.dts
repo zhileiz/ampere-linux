@@ -43,6 +43,16 @@
 			gpios = <&gpio ASPEED_GPIO(A, 2) GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		checkstop {
+			label = "checkstop";
+			gpios = <&gpio ASPEED_GPIO(H, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(H, 0)>;
+		};
+	};
 };
 
 &fmc {

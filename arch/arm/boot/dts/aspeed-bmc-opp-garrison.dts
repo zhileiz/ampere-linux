@@ -1,6 +1,7 @@
 /dts-v1/;
 
 #include "aspeed-g4.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
 #include <dt-bindings/gpio/gpio.h>
 
 / {
@@ -24,6 +25,16 @@
 		vga_memory: framebuffer@5f000000 {
 			no-map;
 			reg = <0x5f000000 0x01000000>; /* 16MB */
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		checkstop {
+			label = "checkstop";
+			gpios = <&gpio ASPEED_GPIO(H, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(H, 0)>;
 		};
 	};
 };
