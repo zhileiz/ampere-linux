@@ -176,7 +176,7 @@
 		status = "okay";
 		m25p,fast-read;
 
-#include "aspeed-bmc-opp-flash-layout.dtsi"
+#include "openbmc-flash-layout.dtsi"
 	};
 	flash@1 {
 		status = "okay";
