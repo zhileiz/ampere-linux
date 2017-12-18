@@ -23,6 +23,8 @@
 
 #include <dt-bindings/clock/aspeed-clock.h>
 
+#define ASPEED_NUM_CLKS		35
+
 #define ASPEED_RESET_CTRL	0x04
 #define ASPEED_CLK_SELECTION	0x08
 #define ASPEED_CLK_STOP_CTRL	0x0c
