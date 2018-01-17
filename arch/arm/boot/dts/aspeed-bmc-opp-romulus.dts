@@ -255,8 +255,11 @@
 	/* CPLD */
 	/* Power Supply */
 	/* Temp Sensor */
-	/* Temp Sensor */
 
+	w83773g@4c {
+		compatible = "nuvoton,w83773g";
+		reg = <0x4c>;
+	};
 };
 
 &i2c13 {
