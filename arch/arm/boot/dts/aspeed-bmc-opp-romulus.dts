@@ -120,6 +120,10 @@
 	flash = <&spi1>;
 };
 
+&mbox {
+       status = "okay";
+};
+
 &uart1 {
 	/* Rear RS-232 connector */
 	status = "okay";
