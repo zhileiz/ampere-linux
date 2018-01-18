@@ -411,6 +411,13 @@
 						compatible = "aspeed,ast2500-ibt-bmc";
 						reg = <0xc0 0x18>;
 						interrupts = <8>;
+					};
+
+					mbox: mbox@180 {
+						compatible = "aspeed,ast2500-mbox";
+						reg = <0x180 0x5c>;
+						interrupts = <46>;
+						#mbox-cells = <1>;
 						status = "disabled";
 					};
 				};
