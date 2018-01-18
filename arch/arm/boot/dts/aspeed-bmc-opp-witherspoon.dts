@@ -234,6 +234,10 @@
 	flash = <&spi1>;
 };
 
+&mbox {
+	status = "okay";
+};
+
 &mac0 {
 	status = "okay";
 	pinctrl-names = "default";
