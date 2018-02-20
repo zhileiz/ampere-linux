@@ -235,9 +235,8 @@ static int aspeed_clk_enable(struct clk_hw *hw)
 	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, 0);
 
 	if (gate->reset_idx >= 0) {
-		/* Delay 10ms */
-		/* TODO: can we sleep here? */
-		msleep(10);
+		/* A delay of 10ms is specified by the ASPEED docs */
+		mdelay(10);
 
 		/* Take IP out of reset */
 		regmap_update_bits(gate->map, ASPEED_RESET_CTRL, rst, 0);
