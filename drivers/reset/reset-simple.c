@@ -122,6 +122,10 @@ static const struct of_device_id reset_simple_dt_ids[] = {
 	{ .compatible = "altr,rst-mgr", .data = &reset_simple_socfpga },
 	{ .compatible = "allwinner,sun6i-a31-clock-reset",
 		.data = &reset_simple_active_low },
+	{ .compatible = "zte,zx296718-reset",
+		.data = &reset_simple_active_low },
+	{ .compatible = "aspeed,ast2400-lpc-reset" },
+	{ .compatible = "aspeed,ast2500-lpc-reset" },
 	{ /* sentinel */ },
 };
 
