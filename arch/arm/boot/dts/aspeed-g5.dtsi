@@ -161,13 +161,13 @@
 				vga_scratch: scratch {
 					compatible = "aspeed,bmc-misc";
 				};
+			};
 
-				hwrng@78 {
-					compatible = "timeriomem_rng";
-					reg = <0x78 0x4>;
-					period = <1>;
-					quality = <100>;
-				};
+			rng: hwrng@78 {
+				compatible = "timeriomem_rng";
+				reg = <0x78 0x4>;
+				period = <1>;
+				quality = <100>;
 			};
 
 			gfx: display@1e6e6000 {
