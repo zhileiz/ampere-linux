@@ -158,9 +158,8 @@
 
 				};
 
-				vga_scratch: scratch@50 {
+				vga_scratch: scratch {
 					compatible = "aspeed,bmc-misc";
-					reg = <0x50 0x20>;
 				};
 
 				hwrng@78 {
@@ -1441,6 +1440,11 @@
 };
 
 &vga_scratch {
+	dac_mux {
+		offset = <0x2c>;
+		bit-mask = <0x3>;
+		bit-shift = <16>;
+	};
 	vga0 {
 		offset = <0x50>;
 		bit-mask = <0xffffffff>;
