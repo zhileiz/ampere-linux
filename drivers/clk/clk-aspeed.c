@@ -349,7 +349,7 @@ static int aspeed_reset_assert(struct reset_controller_dev *rcdev,
 	u32 reg = ASPEED_RESET_CTRL;
 	u32 bit = aspeed_resets[id];
 
-	if (bit >= ASPEED_RESET_CTRL2) {
+	if (bit >= ASPEED_RESET2_OFFSET) {
 		bit -= ASPEED_RESET2_OFFSET;
 		reg = ASPEED_RESET_CTRL2;
 	}
