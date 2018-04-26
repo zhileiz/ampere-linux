@@ -583,7 +583,7 @@ static void __init npcm7xx_clk_init(struct device_node *clk_np)
 
 
 	clk_base = ioremap(res.start, resource_size(&res));
-	if (IS_ERR(clk_base))
+	if (!clk_base)
 		goto npcm7xx_init_error;
 
 
