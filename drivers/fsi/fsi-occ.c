@@ -575,19 +575,16 @@ free:
 static int occ_trigger_attn(struct device *sbefifo)
 {
 	int rc;
-	__be32 buf[6];
+	__be32 buf[7];
 	struct sbefifo_client *client;
 
-	/*
-	 * Magic sequence to do SBE putscom command. SBE will write 8 bytes to
-	 * specified SCOM address.
-	 */
-	buf[0] = cpu_to_be32(0x6);
-	buf[1] = cpu_to_be32(0xa202);
-	buf[2] = 0;
-	buf[3] = cpu_to_be32(0x6D035);
-	buf[4] = cpu_to_be32(0x20010000);	/* trigger occ attention */
-	buf[5] = 0;
+	buf[0] = cpu_to_be32(0x5 + 0x2);        /* Chip-op length in words */
+	buf[1] = cpu_to_be32(0xa404);           /* PutOCCSRAM */
+	buf[2] = cpu_to_be32(0x3);              /* Mode: Circular */
+	buf[3] = cpu_to_be32(0x0);              /* Address: ignored in mode 3 */
+	buf[4] = cpu_to_be32(0x8);              /* Data length in bytes */
+	buf[5] = cpu_to_be32(0x20010000);       /* Trigger OCC attention */
+	buf[6] = 0;
 
 	client = sbefifo_drv_open(sbefifo, 0);
 	if (!client)
@@ -602,8 +599,7 @@ static int occ_trigger_attn(struct device *sbefifo)
 		goto done;
 
 	/* check for good response */
-	if ((be32_to_cpu(buf[0]) != 0xC0DEA202) ||
-	    (be32_to_cpu(buf[1]) & 0x0FFFFFFF))
+	if ((be32_to_cpu(buf[0]) != 8) || (be32_to_cpu(buf[1]) != 0xC0DEA404))
 		rc = -EBADMSG;
 
 done:
