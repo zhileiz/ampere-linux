@@ -58,8 +58,7 @@ struct occ_response {
 	u8 cmd_type;
 	u8 return_status;
 	__be16 data_length;
-	u8 data[OCC_RESP_DATA_BYTES];
-	__be16 checksum;
+	u8 data[OCC_RESP_DATA_BYTES + 2];	/* two bytes checksum */
 } __packed;
 
 /*
@@ -427,6 +426,27 @@ static const struct file_operations occ_fops = {
 	.release = occ_release,
 };
 
+static int occ_verify_checksum(struct occ_response *resp, u16 data_length)
+{
+	u16 i;
+	u16 checksum;
+	/* Fetch the two bytes after the data for the checksum. */
+	u16 checksum_resp = get_unaligned_be16(&resp->data[data_length]);
+
+	checksum = resp->seq_no;
+	checksum += resp->cmd_type;
+	checksum += resp->return_status;
+	checksum += (data_length >> 8) + (data_length & 0xFF);
+
+	for (i = 0; i < data_length; ++i)
+		checksum += resp->data[i];
+
+	if (checksum != checksum_resp)
+		return -EBADMSG;
+
+	return 0;
+}
+
 static int occ_write_sbefifo(struct sbefifo_client *client, const char *buf,
 			     ssize_t len)
 {
@@ -687,6 +707,8 @@ again:
 	}
 
 	xfr->resp_data_length = resp_data_length + 7;
+
+	rc = occ_verify_checksum(resp, resp_data_length);
 
 done:
 	mutex_unlock(&occ->occ_lock);
