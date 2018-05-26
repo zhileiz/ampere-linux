@@ -2424,7 +2424,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 errout:
-	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
 }
@@ -2718,7 +2717,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 errout:
-	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
 }
