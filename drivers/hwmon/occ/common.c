@@ -1359,7 +1359,10 @@ int occ_setup(struct occ *occ, const char *name)
 
 	/* no need to lock */
 	rc = occ_poll(occ);
-	if (rc < 0) {
+	if (rc == -ESHUTDOWN) {
+		dev_info(occ->bus_dev, "host is not ready\n");
+		return rc;
+	} else if (rc < 0) {
 		dev_err(occ->bus_dev, "failed to get OCC poll response: %d\n",
 			rc);
 		return rc;
