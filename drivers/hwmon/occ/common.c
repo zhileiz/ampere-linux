@@ -1166,8 +1166,10 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 	}
 
 	/* put the sensors in the group */
-	for (i = 0; i < num_attrs; ++i)
+	for (i = 0; i < num_attrs; ++i) {
+		sysfs_attr_init(&occ->attrs[i].sensor.dev_attr.attr);
 		occ->group.attrs[i] = &occ->attrs[i].sensor.dev_attr.attr;
+	}
 
 	return 0;
 }
