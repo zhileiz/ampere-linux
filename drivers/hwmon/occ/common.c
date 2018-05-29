@@ -1296,7 +1296,7 @@ done:
 /* only need to do this once at startup, as OCC won't change sensors on us */
 static void occ_parse_poll_response(struct occ *occ)
 {
-	unsigned int i, offset = 0, size = 0;
+	unsigned int i, offset = 0, size = 0, old_offset;
 	struct occ_sensor *sensor;
 	struct occ_sensors *sensors = &occ->sensors;
 	struct occ_response *resp = &occ->resp;
@@ -1305,8 +1305,12 @@ static void occ_parse_poll_response(struct occ *occ)
 	struct occ_poll_response_header *header = &poll->header;
 	struct occ_sensor_data_block *block = &poll->block;
 
+	dev_info(occ->bus_dev, "OCC found, code level: %.16s\n",
+		 header->occ_code_level);
+
 	for (i = 0; i < header->num_sensor_data_blocks; ++i) {
 		block = (struct occ_sensor_data_block *)((u8 *)block + offset);
+		old_offset = offset;
 		offset = (block->header.num_sensors *
 			  block->header.sensor_length) + sizeof(block->header);
 		size += offset;
@@ -1316,6 +1320,10 @@ static void occ_parse_poll_response(struct occ *occ)
 			dev_warn(occ->bus_dev, "exceeded response buffer\n");
 			return;
 		}
+
+		dev_dbg(occ->bus_dev, " %04x..%04x: %.4s (%d sensors)\n",
+			old_offset, offset - 1, block->header.eye_catcher,
+			block->header.num_sensors);
 
 		/* match sensor block type */
 		if (strncmp(block->header.eye_catcher, "TEMP", 4) == 0)
@@ -1338,6 +1346,8 @@ static void occ_parse_poll_response(struct occ *occ)
 		sensor->version = block->header.sensor_format;
 		sensor->data = &block->data;
 	}
+	dev_dbg(occ->bus_dev, "Max resp size: %d+%d=%d\n",
+		 size, sizeof(*header), size + sizeof(*header));
 }
 
 int occ_setup(struct occ *occ, const char *name)
