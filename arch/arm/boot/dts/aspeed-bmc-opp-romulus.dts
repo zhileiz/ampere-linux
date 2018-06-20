@@ -85,7 +85,7 @@
 	};
 };
 
-#include "ibm-power9-cfam.dtsi"
+#include "ibm-power9-dual.dtsi"
 
 &fmc {
 	status = "okay";
@@ -303,4 +303,3 @@
 &vhub {
 	status = "okay";
 };
-

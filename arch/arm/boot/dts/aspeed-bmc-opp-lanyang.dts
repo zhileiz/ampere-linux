@@ -88,7 +88,7 @@
 	};
 };
 
-#include "ibm-power9-cfam.dtsi"
+#include "ibm-power9-dual.dtsi"
 
 &pwm_tacho {
 	status = "okay";
