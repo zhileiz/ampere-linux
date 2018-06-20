@@ -12,22 +12,20 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/fsi-sbefifo.h>
-#include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/miscdevice.h>
+#include <linux/cdev.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/fsi-occ.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
-#include <linux/wait.h>
-#include <linux/workqueue.h>
+#include <linux/fsi.h>
+#include <linux/fsi-sbefifo.h>
+#include <linux/fsi-occ.h>
 
 #define OCC_SRAM_BYTES		4096
 #define OCC_CMD_DATA_BYTES	4090
@@ -47,12 +45,11 @@
 #define OCC_CMD_IN_PRG_WAIT_MS	50
 
 struct occ {
-	struct device *dev;
+	struct platform_device *pdev;
 	struct device *sbefifo;
-	char name[32];
-	int idx;
-	struct miscdevice mdev;
-	struct mutex occ_lock;
+	struct device dev;
+	struct cdev cdev;
+	struct mutex lock;
 };
 
 #define to_occ(x)	container_of((x), struct occ, mdev)
@@ -75,13 +72,10 @@ struct occ_client {
 
 #define to_client(x)	container_of((x), struct occ_client, xfr)
 
-static DEFINE_IDA(occ_ida);
-
 static int occ_open(struct inode *inode, struct file *file)
 {
 	struct occ_client *client = kzalloc(sizeof(*client), GFP_KERNEL);
-	struct miscdevice *mdev = file->private_data;
-	struct occ *occ = to_occ(mdev);
+	struct occ *occ = container_of(inode->i_cdev, struct occ, cdev);
 
 	if (!client)
 		return -ENOMEM;
@@ -182,7 +176,7 @@ static ssize_t occ_write(struct file *file, const char __user *buf,
 
 	/* Submit command */
 	rlen = PAGE_SIZE;
-	rc = fsi_occ_submit(client->occ->dev, cmd, data_length + 6, cmd, &rlen);
+	rc = fsi_occ_submit(&client->occ->pdev->dev, cmd, data_length + 6, cmd, &rlen);
 	if (rc)
 		goto done;
 
@@ -415,9 +409,11 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 		return -EINVAL;
 	}
 
-	mutex_lock(&occ->occ_lock);
-
-	rc = occ_putsram(sbefifo, OCC_SRAM_CMD_ADDR, request, req_len);
+	mutex_lock(&occ->lock);
+	if (!sbefifo)
+		rc = -ENODEV;
+	else
+		rc = occ_putsram(sbefifo, OCC_SRAM_CMD_ADDR, request, req_len);
 	if (rc)
 		goto done;
 
@@ -468,7 +464,7 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 
 	rc = occ_verify_checksum(resp, resp_data_length);
  done:
-	mutex_unlock(&occ->occ_lock);
+	mutex_unlock(&occ->lock);
 
 	return rc;
 }
@@ -483,75 +479,100 @@ static int occ_unregister_child(struct device *dev, void *data)
 	return 0;
 }
 
+static void occ_free(struct device *dev)
+{
+	struct occ *occ = container_of(dev, struct occ, dev);
+
+	put_device(&occ->pdev->dev);
+	kfree(occ);
+}
+
 static int occ_probe(struct platform_device *pdev)
 {
-	int rc;
-	u32 reg;
+	int rc, didx;
 	struct occ *occ;
 	struct platform_device *hwmon_dev;
-	struct device *dev = &pdev->dev;
 	struct platform_device_info hwmon_dev_info = {
-		.parent = dev,
+		.parent = &pdev->dev,
 		.name = "occ-hwmon",
 	};
 
-	occ = devm_kzalloc(dev, sizeof(*occ), GFP_KERNEL);
+	occ = kzalloc(sizeof(*occ), GFP_KERNEL);
 	if (!occ)
 		return -ENOMEM;
 
-	occ->dev = dev;
-	occ->sbefifo = dev->parent;
-	mutex_init(&occ->occ_lock);
-
-	if (dev->of_node) {
-		rc = of_property_read_u32(dev->of_node, "reg", &reg);
-		if (!rc) {
-			/* make sure we don't have a duplicate from dts */
-			occ->idx = ida_simple_get(&occ_ida, reg, reg + 1,
-						  GFP_KERNEL);
-			if (occ->idx < 0)
-				occ->idx = ida_simple_get(&occ_ida, 1, INT_MAX,
-							  GFP_KERNEL);
-		} else {
-			occ->idx = ida_simple_get(&occ_ida, 1, INT_MAX,
-						  GFP_KERNEL);
-		}
-	} else {
-		occ->idx = ida_simple_get(&occ_ida, 1, INT_MAX, GFP_KERNEL);
+	/* Grab a reference to the device (parent of our cdev), we'll drop it later */
+	if (!get_device(&pdev->dev)) {
+		kfree(occ);
+		return -ENODEV;
 	}
 
+	occ->pdev = pdev;
+	occ->sbefifo = pdev->dev.parent;
 	platform_set_drvdata(pdev, occ);
+	mutex_init(&occ->lock);
 
-	snprintf(occ->name, sizeof(occ->name), "occ%d", occ->idx);
-	occ->mdev.fops = &occ_fops;
-	occ->mdev.minor = MISC_DYNAMIC_MINOR;
-	occ->mdev.name = occ->name;
-	occ->mdev.parent = dev;
+	/* Create chardev for userspace access */
+	occ->dev.type = &fsi_cdev_type;
+	occ->dev.parent = &pdev->dev;
+	occ->dev.release = occ_free;
+	device_initialize(&occ->dev);
 
-	rc = misc_register(&occ->mdev);
-	if (rc) {
-		dev_err(dev, "failed to register miscdevice: %d\n", rc);
-		ida_simple_remove(&occ_ida, occ->idx);
-		return rc;
+	/* Allocate a minor in the FSI space */
+	rc = fsi_get_new_minor(sbefifo_get_fsidev(occ->sbefifo),
+			       fsi_dev_occ, &occ->dev.devt, &didx);
+	if (rc)
+		goto err;
+
+	/*
+	 * If we have a device node, try to use the "reg" property as our
+	 * device index, otherwise use didx which is our chip-id on simple
+	 * platforms.
+	 */
+	if (dev_of_node(&pdev->dev)) {
+		u32 reg;
+		rc = of_property_read_u32(dev_of_node(&pdev->dev), "reg", &reg);
+		if (!rc)
+			didx = reg;
 	}
 
-	hwmon_dev_info.id = occ->idx;
+	dev_set_name(&occ->dev, "occ%d", didx);
+	cdev_init(&occ->cdev, &occ_fops);
+	rc = cdev_device_add(&occ->cdev, &occ->dev);
+	if (rc) {
+		dev_err(&pdev->dev, "Error %d creating char device %s\n",
+			rc, dev_name(&occ->dev));
+		goto err_free_minor;
+	}
+
+	hwmon_dev_info.id = didx;
 	hwmon_dev = platform_device_register_full(&hwmon_dev_info);
 	if (!hwmon_dev)
-		dev_warn(dev, "failed to create hwmon device\n");
+		dev_warn(&pdev->dev, "failed to create hwmon device\n");
 
 	return 0;
+ err_free_minor:
+	fsi_free_minor(occ->dev.devt);
+ err:
+	put_device(&occ->dev);
+	return rc;
 }
 
 static int occ_remove(struct platform_device *pdev)
 {
 	struct occ *occ = platform_get_drvdata(pdev);
 
-	misc_deregister(&occ->mdev);
+	/* The parent is potentially going away, so we must not reference it anymore */
+	mutex_lock(&occ->lock);
+	occ->sbefifo = NULL;
+	mutex_unlock(&occ->lock);
+
+	cdev_device_del(&occ->cdev, &occ->dev);
+	fsi_free_minor(occ->dev.devt);
 
 	device_for_each_child(&pdev->dev, NULL, occ_unregister_child);
 
-	ida_simple_remove(&occ_ida, occ->idx);
+	put_device(&occ->dev);
 
 	return 0;
 }
@@ -578,8 +599,6 @@ static int occ_init(void)
 static void occ_exit(void)
 {
 	platform_driver_unregister(&occ_driver);
-
-	ida_destroy(&occ_ida);
 }
 
 module_init(occ_init);

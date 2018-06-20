@@ -915,6 +915,14 @@ static const struct file_operations sbefifo_fops = {
 	.release	= sbefifo_user_release,
 };
 
+struct fsi_device *sbefifo_get_fsidev(struct device *dev)
+{
+	struct sbefifo *sbefifo = dev_get_drvdata(dev);
+
+	return sbefifo->fsi_dev;
+}
+EXPORT_SYMBOL_GPL(sbefifo_get_fsidev);
+
 static void sbefifo_free(struct device *dev)
 {
 	struct sbefifo *sbefifo = container_of(dev, struct sbefifo, dev);
