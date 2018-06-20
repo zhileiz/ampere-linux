@@ -695,9 +695,10 @@ static int fsi_i2c_probe(struct device *dev)
 static int fsi_i2c_remove(struct device *dev)
 {
 	struct fsi_i2c_master *i2c = dev_get_drvdata(dev);
-	struct fsi_i2c_port *port;
+	struct fsi_i2c_port *port, *tmp;
 
-	list_for_each_entry(port, &i2c->ports, list) {
+	list_for_each_entry_safe(port,tmp, &i2c->ports, list) {
+		list_del(&port->list);
 		i2c_del_adapter(&port->adapter);
 		kfree(port);
 	}
