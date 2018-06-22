@@ -139,15 +139,19 @@ static void aspeed_gfx_pipe_enable(struct drm_simple_display_pipe *pipe,
 			      struct drm_crtc_state *crtc_state)
 {
 	struct aspeed_gfx *priv = drm_pipe_to_aspeed_gfx(pipe);
+	struct drm_crtc *crtc = &pipe->crtc;
 
 	aspeed_gfx_crtc_mode_set_nofb(priv);
 	aspeed_gfx_enable_controller(priv);
+	drm_crtc_vblank_on(crtc);
 }
 
 static void aspeed_gfx_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct aspeed_gfx *priv = drm_pipe_to_aspeed_gfx(pipe);
+	struct drm_crtc *crtc = &pipe->crtc;
 
+	drm_crtc_vblank_off(crtc);
 	aspeed_gfx_disable_controller(priv);
 }
 
