@@ -193,6 +193,7 @@ static void __sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
 		}
 		dev_warn(dev, "+-------------------------------------------+\n");
 	}
+	mutex_unlock(&sbefifo_ffdc_mutex);
 }
 
 static void sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
