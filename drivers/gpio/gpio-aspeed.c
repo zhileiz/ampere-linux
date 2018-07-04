@@ -13,7 +13,6 @@
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/aspeed.h>
-#include <linux/gpio/consumer.h>
 #include <linux/hashtable.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -24,6 +23,13 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 
+/*
+ * These two headers aren't meant to be used by GPIO drivers. We need
+ * them in order to access gpio_chip_hwgpio() which we need to implement
+ * the aspeed specific API which allows the coprocessor to request
+ * access to some GPIOs and to arbitrate between coprocessor and ARM.
+ */
+#include <linux/gpio/consumer.h>
 #include "gpiolib.h"
 
 struct aspeed_bank_props {
@@ -1024,8 +1030,12 @@ EXPORT_SYMBOL_GPL(aspeed_gpio_copro_set_ops);
  *                               bank gets marked and any access from the ARM will
  *                               result in handshaking via callbacks.
  * @desc: The GPIO to be marked
+ * @vreg_offset: If non-NULL, returns the value register offset in the GPIO space
+ * @dreg_offset: If non-NULL, returns the data latch register offset in the GPIO space
+ * @bit: If non-NULL, returns the bit number of the GPIO in the registers
  */
-int aspeed_gpio_copro_grab_gpio(struct gpio_desc *desc)
+int aspeed_gpio_copro_grab_gpio(struct gpio_desc *desc,
+				u16 *vreg_offset, u16 *dreg_offset, u8 *bit)
 {
 	struct gpio_chip *chip = gpiod_to_chip(desc);
 	struct aspeed_gpio *gpio = gpiochip_get_data(chip);
@@ -1055,6 +1065,12 @@ int aspeed_gpio_copro_grab_gpio(struct gpio_desc *desc)
 		aspeed_gpio_change_cmd_source(gpio, bank, bindex,
 					      GPIO_CMDSRC_COLDFIRE);
 
+	if (vreg_offset)
+		*vreg_offset = bank->val_regs;
+	if (dreg_offset)
+		*dreg_offset = bank->rdata_reg;
+	if (bit)
+		*bit = GPIO_OFFSET(offset);
  bail:
 	spin_unlock_irqrestore(&gpio->lock, flags);
 	return rc;
@@ -1184,8 +1200,8 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 
 	/* Allocate a cache of the output registers */
 	banks = gpio->config->nr_gpios >> 5;
-	gpio->dcache = devm_kzalloc(&pdev->dev,
-				    sizeof(u32) * banks, GFP_KERNEL);
+	gpio->dcache = devm_kcalloc(&pdev->dev,
+				    banks, sizeof(u32), GFP_KERNEL);
 	if (!gpio->dcache)
 		return -ENOMEM;
 
