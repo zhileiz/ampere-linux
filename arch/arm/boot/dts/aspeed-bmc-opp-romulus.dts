@@ -303,3 +303,8 @@
      status = "okay";
      memory-region = <&gfx_memory>;
 };
+
+&vhub {
+	status = "okay";
+};
+
