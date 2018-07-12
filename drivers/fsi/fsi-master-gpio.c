@@ -763,7 +763,7 @@ static void fsi_master_gpio_release(struct device *dev)
 
 	of_node_put(dev_of_node(master->dev));
 
-	kfree(dev);
+	kfree(master);
 }
 
 static int fsi_master_gpio_probe(struct platform_device *pdev)
@@ -772,7 +772,7 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	struct gpio_desc *gpio;
 	int rc;
 
-	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
+	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return -ENOMEM;
 
@@ -785,14 +785,16 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	gpio = devm_gpiod_get(&pdev->dev, "clock", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get clock gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_clk = gpio;
 
 	gpio = devm_gpiod_get(&pdev->dev, "data", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get data gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_data = gpio;
 
@@ -800,21 +802,24 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	gpio = devm_gpiod_get_optional(&pdev->dev, "trans", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get trans gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_trans = gpio;
 
 	gpio = devm_gpiod_get_optional(&pdev->dev, "enable", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get enable gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_enable = gpio;
 
 	gpio = devm_gpiod_get_optional(&pdev->dev, "mux", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get mux gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_mux = gpio;
 
@@ -844,11 +849,17 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 
 	rc = device_create_file(&pdev->dev, &dev_attr_external_mode);
 	if (rc)
-		return rc;
+		goto err_free;
 
 	rc = fsi_master_register(&master->master);
-	if (rc)
+	if (rc) {
 		device_remove_file(&pdev->dev, &dev_attr_external_mode);
+		put_device(&master->master.dev);
+		return rc;
+	}
+	return 0;
+ err_free:
+	kfree(master);
 	return rc;
 }
 
