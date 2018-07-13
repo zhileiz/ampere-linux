@@ -150,6 +150,7 @@ static void sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
 		u32 w0, w1, w2, i;
 		if (ffdc_sz < 3) {
 			dev_err(dev, "SBE invalid FFDC package size %zd\n", ffdc_sz);
+			mutex_unlock(&sbefifo_ffdc_mutex);
 			return;
 		}
 		w0 = be32_to_cpu(*(ffdc++));
