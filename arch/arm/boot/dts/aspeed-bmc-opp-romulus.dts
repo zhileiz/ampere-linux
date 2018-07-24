@@ -314,3 +314,5 @@
      status = "okay";
      memory-region = <&gfx_memory>;
 };
+
+#include "ibm-power9-dual.dtsi"
