@@ -1364,9 +1364,9 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	/* Default FSI command delays */
 	master->t_send_delay = FSI_SEND_DELAY_CLOCKS;
 	master->t_echo_delay = FSI_ECHO_DELAY_CLOCKS;
-
 	master->master.n_links = 1;
-	master->master.flags = FSI_MASTER_FLAG_SWCLOCK;
+	if (master->is_ast2500)
+		master->master.flags = FSI_MASTER_FLAG_SWCLOCK;
 	master->master.read = fsi_master_acf_read;
 	master->master.write = fsi_master_acf_write;
 	master->master.term = fsi_master_acf_term;
