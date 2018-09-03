@@ -21,6 +21,15 @@
 };
 #undef CFAM_CHIP_ID
 
+/* Legacy OCC numbering (to get rid of when userspace is fixed) */
+&fsi_occ0 {
+	reg = <1>;
+};
+
+&fsi_occ1 {
+	reg = <2>;
+};
+
 / {
 	aliases {
 		i2c100 = &cfam0_i2c0;
