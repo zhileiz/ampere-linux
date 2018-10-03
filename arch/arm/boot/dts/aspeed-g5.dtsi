@@ -267,6 +267,12 @@
 				interrupt-controller;
 			};
 
+			rtc: rtc@1e781000 {
+				compatible = "aspeed,ast2500-rtc";
+				reg = <0x1e781000 0x18>;
+				status = "disabled";
+			};
+
 			timer: timer@1e782000 {
 				/* This timer is a Faraday FTTMR010 derivative */
 				compatible = "aspeed,ast2400-timer";
