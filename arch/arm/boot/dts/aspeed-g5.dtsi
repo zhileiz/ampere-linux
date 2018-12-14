@@ -266,6 +266,7 @@
 				gpio-ranges = <&pinctrl 0 0 220>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			rtc: rtc@1e781000 {
