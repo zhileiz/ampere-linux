@@ -57,6 +57,14 @@ config SPI_MTK_QUADSPI
 	  This controller does not support generic SPI. It only supports
 	  SPI NOR.
 
+config SPI_NPCM_FIU
+	tristate "NPCM FLASH Interface unit(FIU) controller "
+	depends on ARCH_NPCM || COMPILE_TEST
+	help
+	  This enables support for the FLASH Interface unit(FIU) controller.
+	  This driver does not support generic SPI. The implementation only
+	  supports SPI NOR.
+
 config SPI_NXP_SPIFI
 	tristate "NXP SPI Flash Interface (SPIFI)"
 	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
