@@ -1,15 +1,5 @@
-/*
- * DTSi file for the NPCM750 pin controller
- *
- * Copyright (c) 2014-2017 Nuvoton Technology corporation.
- *
- * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
-
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2018 Nuvoton Technology tomer.maimon@nuvoton.com
 
 / {
 	pinctrl: pinctrl@f0800000 {
@@ -1107,10 +1097,10 @@
 			bias-disable;
 			input-enable;
 		};
-		gpio132o_pins: gpio132o-pins {
+		gpio132_pins: gpio132-pins {
 			pins = "GPIO132/SMB10SCL";
 			bias-disable;
-			output-high;
+			input-enable;
 		};
 		gpio133_pins: gpio133-pins {
 			pins = "GPIO133/SMB10SDA";

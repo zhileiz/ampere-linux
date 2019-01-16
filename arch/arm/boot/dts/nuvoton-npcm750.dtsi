@@ -44,7 +44,6 @@
 		};
 	};
 
-
 	ahb {
 		gmac1: eth@f0804000 {
 			device_type = "network";
@@ -56,8 +55,8 @@
 			clocks	= <&clk_rg2refck>, <&clk NPCM7XX_CLK_AHB>;
 			clock-names = "stmmaceth", "clk_gmac";
 			pinctrl-names = "default";
-			/*pinctrl-0 = <&rg2_pins
-			             &rg2mdio_pins>;*/
+			pinctrl-0 = <&rg2_pins
+					&rg2mdio_pins>;
 			status = "disabled";
 		};
 
@@ -71,8 +70,9 @@
 			clock-names = "clk_emc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&r2_pins
-			             &r2err_pins
-				     &r2md_pins>;
+					&r2err_pins
+					&r2md_pins>;
+			status = "disabled";
 		};
 
 		udc0:udc@f0830000 {
