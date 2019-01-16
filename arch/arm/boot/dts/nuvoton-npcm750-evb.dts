@@ -46,6 +46,11 @@
 		i2c13 = &i2c13;
 		i2c14 = &i2c14;
 		i2c15 = &i2c15;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		fiu0 = &fiu0;
+		fiu1 = &fiu3;
+		fiu2 = &fiux;
 	};
 
 	chosen {
@@ -56,8 +61,29 @@
 		reg = <0 0x40000000>;
 	};
 
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_vref1_2: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vref_1_2v";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+		};
+		reg_vref3_3: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vref_3_3v";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
+
 	ahb {
-	        gmac0: eth@f0802000 {
+		gmac0: eth@f0802000 {
 			phy-mode = "rgmii-id";
 			status = "okay";
 		};
@@ -135,8 +161,14 @@
 			status = "okay";
 		};
 
-		spi0: spi@fb000000 {
+		fiu0: fiu@fb000000 {
+			status = "okay";
 			spi-nor@0 {
+				compatible = "jedec,spi-nor";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				spi-rx-bus-width = <2>;
+				reg = <0>;
 				partitions@80000000 {
 					compatible = "fixed-partitions";
 					#address-cells = <1>;
@@ -188,22 +220,29 @@
 			};
 		};
 
-		spi3: spi@c0000000 {
-				spi-nor@0 {
+		fiu3: fiu@c0000000 {
+			pinctrl-0 = <&spi3_pins>, <&spi3quad_pins>;
+			status = "okay";
+			spi-nor@0 {
+				compatible = "jedec,spi-nor";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				spi-rx-bus-width = <2>;
+				reg = <0>;
 				partitions@A0000000 {
 					compatible = "fixed-partitions";
 					#address-cells = <1>;
 					#size-cells = <1>;
 					system1@0 {
 						label = "spi3-system1";
-						reg = <0x0 0x800000>;
-					};
-					system2@800000 {
-						label = "spi3-system2";
-						reg = <0x800000 0x0>;
+						reg = <0x0 0x0>;
 					};
 				};
 			};
+		};
+
+		fiux: fiu@fb001000 {
+			spix-mode;
 		};
 
 		sdhci0: sdhci@f0842000 {
@@ -252,6 +291,12 @@
 				status = "okay";
 			};
 
+			adc: adc@c000 {
+				/* enable external vref */
+				/*vref-supply = <&reg_vref1_2>;*/
+				status = "okay";
+			};
+
 			otp:otp@189000 {
 				status = "okay";
 			};
@@ -278,7 +323,7 @@
 			};
 
 			/* lm75 on SVB */
-			i2c0: i2c-bus@80000 {
+			i2c0: i2c@80000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
@@ -292,7 +337,7 @@
 			};
 
 			/* lm75 on EB */
-			i2c1: i2c-bus@81000 {
+			i2c1: i2c@81000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
@@ -306,7 +351,7 @@
 			};
 
 			/* tmp100 on EB */
-			i2c2: i2c-bus@82000 {
+			i2c2: i2c@82000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
@@ -320,7 +365,7 @@
 			};
 
 			/* tmp100 on SVB */
-			i2c6: i2c-bus@86000 {
+			i2c6: i2c@86000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
@@ -332,74 +377,75 @@
 					status = "okay";
 				};
 			};
-			i2c3: i2c-bus@83000 {
+			i2c3: i2c@83000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
 				status = "okay";
 			};
 
-			i2c4: i2c-bus@84000 {
+			i2c4: i2c@84000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
 				status = "disabled";
 			};
 
-			i2c5: i2c-bus@85000 {
+			i2c5: i2c@85000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
-				status = "disabled";
+				status = "okay";
 			};
 
-			i2c7: i2c-bus@87000 {
+			i2c7: i2c@87000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
-				status = "disabled";
+				status = "okay";
 			};
 
-			i2c8: i2c-bus@88000 {
+			i2c8: i2c@88000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
-				status = "disabled";
+				status = "okay";
 			};
 
-			i2c9: i2c-bus@89000 {
+			i2c9: i2c@89000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
-				status = "disabled";
+				status = "okay";
 			};
 
-			i2c10: i2c-bus@8a000 {
+			i2c10: i2c@8a000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
-				status = "disabled";
+				status = "okay";
 			};
 
-			i2c11: i2c-bus@8b000 {
+			i2c11: i2c@8b000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
-				status = "disabled";
+				status = "okay";
 			};
 
-			i2c14: i2c-bus@8e000 {
+			i2c14: i2c@8e000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
-				status = "disabled";
+				status = "okay";
 			};
 
-			i2c15: i2c-bus@8f000 {
+			i2c15: i2c@8f000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				bus-frequency = <100000>;
-				status = "disabled";               /* SVB conflict with pspi2 cs gpio20o_pins */
+				/* SVB conflict with pspi2 cs gpio20o_pins */
+				status = "disabled";
 			};
 
 			pwm_fan:pwm-fan-controller@103000 {
@@ -446,16 +492,47 @@
 				};
 			};
 
-			/* example for future pspi binding */
-			/*
-			pspi: pspi@0 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pspi1_pins &pspi2_pins 
-					&gpio20o_pins &gpio203o_pins>;
-				cs-gpios = <&gpio 20 1>, <&gpio 203 1>;
+			spi0: spi@200000 {
+				cs-gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
 				status = "okay";
+				Flash@0 {
+					compatible = "winbond,w25q128",
+					"jedec,spi-nor";
+					reg = <0x0>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					spi-max-frequency = <5000000>;
+					partition@0 {
+						label = "spi_spare1";
+						reg = <0x0000000 0x800000>;
+					};
+					partition@1 {
+						label = "spi_spare2";
+						reg = <0x800000 0x0>;
+					};
+				};
 			};
-			*/
+
+			spi1: spi@201000 {
+				cs-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+				status = "okay";
+				Flash@0 {
+					compatible = "winbond,w25q128fw",
+					"jedec,spi-nor";
+					reg = <0x0>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					spi-max-frequency = <5000000>;
+					partition@0 {
+						label = "spi_spare1";
+						reg = <0x0000000 0x800000>;
+					};
+					partition@1 {
+						label = "spi_spare2";
+						reg = <0x800000 0x0>;
+					};
+				};
+			};
 		};
 	};
 
@@ -480,7 +557,7 @@
 				&gpio82_pins
 				&gpio83_pins
 				&lpc_pins
-				&gpio132o_pins
+				&gpio132_pins
 				&gpio133_pins
 				&gpio134_pins
 				&gpio135_pins
@@ -514,10 +591,10 @@
 
 &gcr {
 	serial_port_mux: mux-controller {
-	compatible = "mmio-mux";
-	#mux-control-cells = <1>;
+		compatible = "mmio-mux";
+		#mux-control-cells = <1>;
 
-	mux-reg-masks = <0x38 0x07>;
-	idle-states = <2>; /* Serial port mode 3 (takeover) */
+		mux-reg-masks = <0x38 0x07>;
+		idle-states = <2>; /* Serial port mode 3 (takeover) */
 	};
 };
