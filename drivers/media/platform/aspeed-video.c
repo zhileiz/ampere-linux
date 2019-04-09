@@ -187,6 +187,7 @@ enum {
 	VIDEO_STREAMING,
 	VIDEO_FRAME_INPRG,
 	VIDEO_STOPPED,
+	VIDEO_CLOCKS_ON,
 };
 
 struct aspeed_video_addr {
@@ -483,19 +484,29 @@ static void aspeed_video_enable_mode_detect(struct aspeed_video *video)
 
 static void aspeed_video_off(struct aspeed_video *video)
 {
+	if (!test_bit(VIDEO_CLOCKS_ON, &video->flags))
+		return;
+
 	/* Disable interrupts */
 	aspeed_video_write(video, VE_INTERRUPT_CTRL, 0);
 
 	/* Turn off the relevant clocks */
 	clk_disable_unprepare(video->vclk);
 	clk_disable_unprepare(video->eclk);
+
+	clear_bit(VIDEO_CLOCKS_ON, &video->flags);
 }
 
 static void aspeed_video_on(struct aspeed_video *video)
 {
+	if (test_bit(VIDEO_CLOCKS_ON, &video->flags))
+		return;
+
 	/* Turn on the relevant clocks */
 	clk_prepare_enable(video->eclk);
 	clk_prepare_enable(video->vclk);
+
+	set_bit(VIDEO_CLOCKS_ON, &video->flags);
 }
 
 static void aspeed_video_bufs_done(struct aspeed_video *video,
@@ -513,12 +524,14 @@ static void aspeed_video_bufs_done(struct aspeed_video *video,
 
 static void aspeed_video_irq_res_change(struct aspeed_video *video)
 {
+	spin_lock(&video->lock);
 	dev_dbg(video->dev, "Resolution changed; resetting\n");
 
 	set_bit(VIDEO_RES_CHANGE, &video->flags);
 	clear_bit(VIDEO_FRAME_INPRG, &video->flags);
 
 	aspeed_video_off(video);
+	spin_unlock(&video->lock);
 	aspeed_video_bufs_done(video, VB2_BUF_STATE_ERROR);
 
 	schedule_delayed_work(&video->res_work, RESOLUTION_CHANGE_DELAY);
@@ -938,9 +951,13 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 
 static void aspeed_video_start(struct aspeed_video *video)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&video->lock, flags);
 	aspeed_video_on(video);
 
 	aspeed_video_init_regs(video);
+	spin_unlock_irqrestore(&video->lock, flags);
 
 	/* Resolution set to 640x480 if no signal found */
 	aspeed_video_get_resolution(video);
@@ -956,6 +973,9 @@ static void aspeed_video_start(struct aspeed_video *video)
 
 static void aspeed_video_stop(struct aspeed_video *video)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&video->lock, flags);
 	set_bit(VIDEO_STOPPED, &video->flags);
 	cancel_delayed_work_sync(&video->res_work);
 
@@ -969,6 +989,7 @@ static void aspeed_video_stop(struct aspeed_video *video)
 
 	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
 	video->flags = 0;
+	spin_unlock_irqrestore(&video->lock, flags);
 }
 
 static int aspeed_video_querycap(struct file *file, void *fh,
@@ -1306,16 +1327,21 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct aspeed_video *video = container_of(dwork, struct aspeed_video,
 						  res_work);
-	u32 input_status = video->v4l2_input_status;
+	unsigned long flags;
+	u32 input_status;
 
+	spin_lock_irqsave(&video->lock, flags);
+	input_status = video->v4l2_input_status;
 	aspeed_video_on(video);
 
 	/* Exit early in case no clients remain */
-	if (test_bit(VIDEO_STOPPED, &video->flags))
+	if (test_bit(VIDEO_STOPPED, &video->flags)) {
+		spin_unlock_irqrestore(&video->lock, flags);
 		goto done;
+	}
 
 	aspeed_video_init_regs(video);
-
+	spin_unlock_irqrestore(&video->lock, flags);
 	aspeed_video_get_resolution(video);
 
 	if (video->detected_timings.width != video->active_timings.width ||
