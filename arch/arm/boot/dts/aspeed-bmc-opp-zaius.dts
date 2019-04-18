@@ -305,17 +305,17 @@
 	};
 
 	vrm@64 {
-		compatible = "intersil,isl68137";
+		compatible = "isil,isl68137";
 		reg = <0x64>;
 	};
 
 	vrm@40 {
-		compatible = "intersil,isl68137";
+		compatible = "isil,isl68137";
 		reg = <0x40>;
 	};
 
 	vrm@60 {
-		compatible = "intersil,isl68137";
+		compatible = "isil,isl68137";
 		reg = <0x60>;
 	};
 
@@ -325,7 +325,7 @@
 	};
 
 	vrm@41 {
-		compatible = "intersil,isl68137";
+		compatible = "isil,isl68137";
 		reg = <0x41>;
 	};
 
@@ -354,17 +354,17 @@
 	status = "okay";
 
 	vrm@64 {
-		compatible = "intersil,isl68137";
+		compatible = "isil,isl68137";
 		reg = <0x64>;
 	};
 
 	vrm@40 {
-		compatible = "intersil,isl68137";
+		compatible = "isil,isl68137";
 		reg = <0x40>;
 	};
 
 	vrm@41 {
-		compatible = "intersil,isl68137";
+		compatible = "isil,isl68137";
 		reg = <0x41>;
 	};
 
@@ -374,7 +374,7 @@
 	};
 
 	vrm@60 {
-		compatible = "intersil,isl68137";
+		compatible = "isil,isl68137";
 		reg = <0x60>;
 	};
 
