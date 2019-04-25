@@ -231,6 +231,11 @@
 				vga_scratch: scratch {
 					compatible = "aspeed,bmc-misc";
 				};
+
+				p2a: p2a-control {
+					compatible = "aspeed,ast2500-p2a-ctrl";
+					status = "disabled";
+				};
 			};
 
 			rng: hwrng@1e6e2078 {
