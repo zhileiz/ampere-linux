@@ -2,7 +2,6 @@
 // Copyright (c) 2018 Nuvoton Technology tomer.maimon@nuvoton.com
 // Copyright 2018 Google, Inc.
 
-#include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/nuvoton,npcm7xx-clock.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -11,6 +10,11 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
+
+	memory {
+		device_type = "memory";
+		reg = <0 0>;
+	};
 
 	/* external reference clock */
 	clk_refclk: clk-refclk {
