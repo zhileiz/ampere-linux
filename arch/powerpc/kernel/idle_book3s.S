@@ -1,11 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  This file contains idle entry/exit functions for POWER7,
  *  POWER8 and POWER9 CPUs.
  *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
+ *  This file contains general idle entry/exit functions to save
+ *  and restore stack and NVGPRs which allows C code to call idle
+ *  states that lose GPRs, and it will return transparently with
+ *  SRR1 wakeup reason return value.
+ *
+ *  The platform / CPU caller must ensure SPRs and any other non-GPR
+ *  state is saved and restored correctly, handle KVM, interrupts, etc.
  */
 
 #include <linux/threads.h>
