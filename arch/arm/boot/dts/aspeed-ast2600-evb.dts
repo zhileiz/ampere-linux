@@ -78,3 +78,7 @@
 &rtc {
 	status = "okay";
 };
+
+&fsim0 {
+	status = "okay";
+};
