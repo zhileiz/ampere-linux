@@ -344,7 +344,9 @@ static int aspeed_master_link_enable(struct fsi_master *master, int link)
 
 	reg = cpu_to_be32(0x80000000 >> bit);
 
-	result = opb_writel(aspeed, ctrl_base + FSI_MSENP0 + (4 * idx), reg);
+	ret = opb_writel(aspeed, ctrl_base + FSI_MSENP0 + (4 * idx), reg);
+	if (ret)
+		return ret;
 
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
 
