@@ -256,8 +256,8 @@ static int check_errors(struct fsi_master_aspeed *aspeed, int err)
 		/* Check MAEB (0x70) ? */
 
 		/* Then clear errors in master */
-		ret = opb_writel(aspeed, ctrl_base + 0xd0,
-				cpu_to_be32(0x20000000));
+		ret = opb_writel(aspeed, ctrl_base + FSI_MRESP0,
+				cpu_to_be32(FSI_MRESP_RST_ALL_MASTER));
 		if (ret) {
 			/* TODO: log? return different code? */
 			return ret;
