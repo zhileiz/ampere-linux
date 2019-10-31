@@ -239,18 +239,18 @@ static int check_errors(struct fsi_master_aspeed *aspeed, int err)
 {
 	int ret;
 
-	 if (trace_fsi_master_aspeed_opb_error_enabled()) {
-		 __be32 mresp0, mstap0, mesrb0;
+	if (trace_fsi_master_aspeed_opb_error_enabled()) {
+		__be32 mresp0, mstap0, mesrb0;
 
-		 opb_readl(aspeed, ctrl_base + FSI_MRESP0, &mresp0);
-		 opb_readl(aspeed, ctrl_base + FSI_MSTAP0, &mstap0);
-		 opb_readl(aspeed, ctrl_base + FSI_MESRB0, &mesrb0);
+		opb_readl(aspeed, ctrl_base + FSI_MRESP0, &mresp0);
+		opb_readl(aspeed, ctrl_base + FSI_MSTAP0, &mstap0);
+		opb_readl(aspeed, ctrl_base + FSI_MESRB0, &mesrb0);
 
-		 trace_fsi_master_aspeed_opb_error(
-				 be32_to_cpu(mresp0),
-				 be32_to_cpu(mstap0),
-				 be32_to_cpu(mesrb0));
-	 };
+		trace_fsi_master_aspeed_opb_error(
+				be32_to_cpu(mresp0),
+				be32_to_cpu(mstap0),
+				be32_to_cpu(mesrb0));
+	};
 
 	if (err == -EIO) {
 		/* Check MAEB (0x70) ? */
