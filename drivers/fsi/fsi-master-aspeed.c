@@ -222,18 +222,15 @@ static int opb_writel(struct fsi_master_aspeed *aspeed, u32 addr, __be32 val)
 	return __opb_write(aspeed, addr, (__force u32)val, XFER_WORD);
 }
 
-static int opb_read(struct fsi_master_aspeed *aspeed, uint32_t addr,
-		    size_t size, u32 *out)
+static int __opb_read(struct fsi_master_aspeed *aspeed, uint32_t addr,
+		      u32 transfer_size, void *out)
 {
 	void __iomem *base = aspeed->base;
 	u32 result, reg;
 	int status, ret;
 
-	/* TODO: implement other sizes, see 0x18 */
-	WARN_ON(size != 4);
-
 	writel(CMD_READ, base + OPB0_RW);
-	writel(XFER_WORD, base + OPB0_XFER_SIZE);
+	writel(transfer_size, base + OPB0_XFER_SIZE);
 	writel(addr, base + OPB0_FSI_ADDR);
 	writel(0x1, base + OPB_IRQ_CLEAR);
 	writel(0x1, base + OPB_TRIGGER);
@@ -246,7 +243,7 @@ static int opb_read(struct fsi_master_aspeed *aspeed, uint32_t addr,
 
 	result = readl(base + OPB0_FSI_DATA_R);
 
-	trace_fsi_master_aspeed_opb_read(addr, size, result,
+	trace_fsi_master_aspeed_opb_read(addr, transfer_size, result,
 			readl(base + OPB0_STATUS),
 			reg);
 
@@ -258,10 +255,39 @@ static int opb_read(struct fsi_master_aspeed *aspeed, uint32_t addr,
 	if (status & STATUS_ERR_ACK)
 		return -EIO;
 
-	if (out)
-		*out = result;
+	if (out) {
+		switch (transfer_size) {
+		case XFER_BYTE:
+			*(u8 *)out = result;
+			break;
+		case XFER_HALFWORD:
+			*(u16 *)out = result;
+			break;
+		case XFER_WORD:
+			*(u32 *)out = result;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+	}
 
 	return 0;
+}
+
+static int opb_readl(struct fsi_master_aspeed *aspeed, uint32_t addr, __be32 *out)
+{
+	return __opb_read(aspeed, addr, XFER_WORD, out);
+}
+
+static int opb_readw(struct fsi_master_aspeed *aspeed, uint32_t addr, __be16 *out)
+{
+	return __opb_read(aspeed, addr, XFER_HALFWORD, (void *)out);
+}
+
+static int opb_readb(struct fsi_master_aspeed *aspeed, uint32_t addr, u8 *out)
+{
+	return __opb_read(aspeed, addr, XFER_BYTE, (void *)out);
 }
 
 static int check_errors(struct fsi_master_aspeed *aspeed, int err)
@@ -271,9 +297,9 @@ static int check_errors(struct fsi_master_aspeed *aspeed, int err)
 	 if (trace_fsi_master_aspeed_opb_error_enabled()) {
 		 __be32 mresp0, mstap0, mesrb0;
 
-		 opb_read(aspeed, ctrl_base + FSI_MRESP0, 4, &mresp0);
-		 opb_read(aspeed, ctrl_base + FSI_MSTAP0, 4, &mstap0);
-		 opb_read(aspeed, ctrl_base + FSI_MESRB0, 4, &mesrb0);
+		 opb_readl(aspeed, ctrl_base + FSI_MRESP0, &mresp0);
+		 opb_readl(aspeed, ctrl_base + FSI_MSTAP0, &mstap0);
+		 opb_readl(aspeed, ctrl_base + FSI_MESRB0, &mesrb0);
 
 		 trace_fsi_master_aspeed_opb_error(
 				 be32_to_cpu(mresp0),
@@ -308,7 +334,20 @@ static int aspeed_master_read(struct fsi_master *master, int link,
 		return -EINVAL;
 
 	addr += link * FSI_HUB_LINK_SIZE;
-	ret = opb_read(aspeed, fsi_base + addr, size, val);
+
+	switch (size) {
+	case 1:
+		ret = opb_readb(aspeed, fsi_base + addr, val);
+		break;
+	case 2:
+		ret = opb_readw(aspeed, fsi_base + addr, val);
+		break;
+	case 4:
+		ret = opb_readl(aspeed, fsi_base + addr, val);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ret = check_errors(aspeed, ret);
 	if (ret)
@@ -364,8 +403,7 @@ static int aspeed_master_link_enable(struct fsi_master *master, int link)
 
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
 
-	ret = opb_read(aspeed, ctrl_base + FSI_MENP0 + (4 * idx),
-			4, &result);
+	ret = opb_readl(aspeed, ctrl_base + FSI_MENP0 + (4 * idx), &result);
 	if (ret)
 		return ret;
 
@@ -467,12 +505,12 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 
 	opb_writel(aspeed, ctrl_base + FSI_MCENP0, reg);
 
-	opb_read(aspeed, ctrl_base + FSI_MAEB, 4, NULL);
+	opb_readl(aspeed, ctrl_base + FSI_MAEB, NULL);
 
 	reg = cpu_to_be32(FSI_MRESP_RST_ALL_MASTER | FSI_MRESP_RST_ALL_LINK);
 	opb_writel(aspeed, ctrl_base + FSI_MRESP0, reg);
 
-	opb_read(aspeed, ctrl_base + FSI_MLEVP0, 4, NULL);
+	opb_readl(aspeed, ctrl_base + FSI_MLEVP0, NULL);
 
 	/* Reset the master bridge */
 	reg = cpu_to_be32(FSI_MRESB_RST_GEN);
@@ -490,7 +528,7 @@ static int fsi_master_aspeed_debugfs_get(void *data, u64 *val)
 	u32 out;
 	struct fsi_master_aspeed_debugfs_entry *entry = data;
 
-	rc = opb_read(entry->aspeed, ctrl_base + entry->addr, 4, &out);
+	rc = opb_readl(entry->aspeed, ctrl_base + entry->addr, &out);
 	if (rc)
 		return rc;
 
@@ -519,7 +557,7 @@ static int fsi_master_aspeed_clock_debugfs_get(void *data, u64 *val)
 	u32 out;
 	int rc;
 
-	rc = opb_read(aspeed, ctrl_base, 4, &out);
+	rc = opb_readl(aspeed, ctrl_base, &out);
 	if (rc)
 		return rc;
 
@@ -537,7 +575,7 @@ static int fsi_master_aspeed_clock_debugfs_set(void *data, u64 val)
 	if (val > 0x3ff)
 		return -EINVAL;
 
-	rc = opb_read(aspeed, ctrl_base, 4, &raw);
+	rc = opb_readl(aspeed, ctrl_base, &raw);
 	if (rc)
 		return rc;
 
@@ -610,7 +648,7 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 	 */
 	writel(0x1, aspeed->base + OPB0_SELECT);
 
-	rc = opb_read(aspeed, ctrl_base + FSI_MVER, 4, &raw);
+	rc = opb_readl(aspeed, ctrl_base + FSI_MVER, &raw);
 	if (rc) {
 		dev_err(&pdev->dev, "failed to read hub version\n");
 		return rc;
