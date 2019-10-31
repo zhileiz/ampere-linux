@@ -168,23 +168,21 @@ static const u32 fsi_base = 0xa0000000;
 
 /* OPBx_XFER_SIZE */
 #define XFER_WORD	(BIT(1) | BIT(0))
-#define XFER_NIBBLE	(BIT(0))
+#define XFER_HALFWORD	(BIT(0))
 #define XFER_BYTE	(0)
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/fsi_master_aspeed.h>
 
-static u32 opb_write(struct fsi_master_aspeed *aspeed, uint32_t addr,
-		     uint32_t val, size_t size)
+static int __opb_write(struct fsi_master_aspeed *aspeed, u32 addr,
+		       u32 val, u32 transfer_size)
 {
 	void __iomem *base = aspeed->base;
-	u32 reg, ret, status;
-
-	/* TODO: implement other sizes, see 0x18 */
-	WARN_ON(size != 4);
+	u32 reg, status;
+	int ret;
 
 	writel(CMD_WRITE, base + OPB0_RW);
-	writel(XFER_WORD, base + OPB0_XFER_SIZE);
+	writel(transfer_size, base + OPB0_XFER_SIZE);
 	writel(addr, base + OPB0_FSI_ADDR);
 	writel(val, base + OPB0_FSI_DATA_W);
 	writel(0x1, base + OPB_IRQ_CLEAR);
@@ -196,7 +194,7 @@ static u32 opb_write(struct fsi_master_aspeed *aspeed, uint32_t addr,
 
 	status = readl(base + OPB0_STATUS);
 
-	trace_fsi_master_aspeed_opb_write(addr, val, size, status, reg);
+	trace_fsi_master_aspeed_opb_write(addr, val, transfer_size, status, reg);
 
 	/* Return error when poll timed out */
 	if (ret)
@@ -207,6 +205,21 @@ static u32 opb_write(struct fsi_master_aspeed *aspeed, uint32_t addr,
 		return -EIO;
 
 	return 0;
+}
+
+static int opb_writeb(struct fsi_master_aspeed *aspeed, u32 addr, u8 val)
+{
+	return __opb_write(aspeed, addr, val, XFER_BYTE);
+}
+
+static int opb_writew(struct fsi_master_aspeed *aspeed, u32 addr, __be16 val)
+{
+	return __opb_write(aspeed, addr, (__force u16)val, XFER_HALFWORD);
+}
+
+static int opb_writel(struct fsi_master_aspeed *aspeed, u32 addr, __be32 val)
+{
+	return __opb_write(aspeed, addr, (__force u32)val, XFER_WORD);
 }
 
 static int opb_read(struct fsi_master_aspeed *aspeed, uint32_t addr,
@@ -272,8 +285,8 @@ static int check_errors(struct fsi_master_aspeed *aspeed, int err)
 		/* Check MAEB (0x70) ? */
 
 		/* Then clear errors in master */
-		ret = opb_write(aspeed, ctrl_base + 0xd0,
-				cpu_to_be32(0x20000000), 4);
+		ret = opb_writel(aspeed, ctrl_base + 0xd0,
+				cpu_to_be32(0x20000000));
 		if (ret) {
 			/* TODO: log? return different code? */
 			return ret;
@@ -314,7 +327,20 @@ static int aspeed_master_write(struct fsi_master *master, int link,
 		return -EINVAL;
 
 	addr += link * FSI_HUB_LINK_SIZE;
-	ret = opb_write(aspeed, fsi_base + addr, *(uint32_t *)val, size);
+
+	switch (size) {
+	case 1:
+		ret = opb_writeb(aspeed, fsi_base + addr, *(u8 *)val);
+		break;
+	case 2:
+		ret = opb_writew(aspeed, fsi_base + addr, *(__be16 *)val);
+		break;
+	case 4:
+		ret = opb_writel(aspeed, fsi_base + addr, *(__be32 *)val);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ret = check_errors(aspeed, ret);
 	if (ret)
@@ -334,8 +360,7 @@ static int aspeed_master_link_enable(struct fsi_master *master, int link)
 
 	reg = cpu_to_be32(0x80000000 >> bit);
 
-	result = opb_write(aspeed, ctrl_base + FSI_MSENP0 + (4 * idx),
-			reg, 4);
+	result = opb_writel(aspeed, ctrl_base + FSI_MSENP0 + (4 * idx), reg);
 
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
 
@@ -415,46 +440,46 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 
 	reg = cpu_to_be32(FSI_MRESP_RST_ALL_MASTER | FSI_MRESP_RST_ALL_LINK
 			| FSI_MRESP_RST_MCR | FSI_MRESP_RST_PYE);
-	opb_write(aspeed, ctrl_base + FSI_MRESP0, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MRESP0, reg);
 
 	/* Initialize the MFSI (hub master) engine */
 	reg = cpu_to_be32(FSI_MRESP_RST_ALL_MASTER | FSI_MRESP_RST_ALL_LINK
 			| FSI_MRESP_RST_MCR | FSI_MRESP_RST_PYE);
-	opb_write(aspeed, ctrl_base + FSI_MRESP0, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MRESP0, reg);
 
 	reg = cpu_to_be32(FSI_MECTRL_EOAE | FSI_MECTRL_P8_AUTO_TERM);
-	opb_write(aspeed, ctrl_base + FSI_MECTRL, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MECTRL, reg);
 
 	reg = cpu_to_be32(FSI_MMODE_ECRC | FSI_MMODE_EPC | FSI_MMODE_RELA
 			| fsi_mmode_crs0(DEFAULT_DIVISOR)
 			| fsi_mmode_crs1(DEFAULT_DIVISOR)
 			| FSI_MMODE_P8_TO_LSB);
-	opb_write(aspeed, ctrl_base + FSI_MMODE, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MMODE, reg);
 
 	reg = cpu_to_be32(0xffff0000);
-	opb_write(aspeed, ctrl_base + FSI_MDLYR, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MDLYR, reg);
 
 	reg = cpu_to_be32(~0);
-	opb_write(aspeed, ctrl_base + FSI_MSENP0, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MSENP0, reg);
 
 	/* Leave enabled long enough for master logic to set up */
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
 
-	opb_write(aspeed, ctrl_base + FSI_MCENP0, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MCENP0, reg);
 
 	opb_read(aspeed, ctrl_base + FSI_MAEB, 4, NULL);
 
 	reg = cpu_to_be32(FSI_MRESP_RST_ALL_MASTER | FSI_MRESP_RST_ALL_LINK);
-	opb_write(aspeed, ctrl_base + FSI_MRESP0, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MRESP0, reg);
 
 	opb_read(aspeed, ctrl_base + FSI_MLEVP0, 4, NULL);
 
 	/* Reset the master bridge */
 	reg = cpu_to_be32(FSI_MRESB_RST_GEN);
-	opb_write(aspeed, ctrl_base + FSI_MRESB0, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MRESB0, reg);
 
 	reg = cpu_to_be32(FSI_MRESB_RST_ERR);
-	opb_write(aspeed, ctrl_base + FSI_MRESB0, reg, 4);
+	opb_writel(aspeed, ctrl_base + FSI_MRESB0, reg);
 
 	return 0;
 }
@@ -478,7 +503,7 @@ static int fsi_master_aspeed_debugfs_set(void *data, u64 val)
 	u32 in = cpu_to_be32((u32)(val & 0xFFFFFFFFULL));
 	struct fsi_master_aspeed_debugfs_entry *entry = data;
 
-	rc = opb_write(entry->aspeed, ctrl_base + entry->addr, in, 4);
+	rc = opb_writel(entry->aspeed, ctrl_base + entry->addr, in);
 	if (rc)
 		return rc;
 
@@ -521,7 +546,7 @@ static int fsi_master_aspeed_clock_debugfs_set(void *data, u64 val)
 	reg &= ~(0x3ff << 18);
 	reg |= (val & 0x3ff) << 18;
 
-	rc = opb_write(aspeed, ctrl_base, cpu_to_be32(reg), 4);
+	rc = opb_writel(aspeed, ctrl_base, cpu_to_be32(reg));
 	if (rc)
 		return rc;
 
