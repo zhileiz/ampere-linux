@@ -469,9 +469,9 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 
 static int fsi_master_aspeed_debugfs_get(void *data, u64 *val)
 {
-	int rc;
-	u32 out;
 	struct fsi_master_aspeed_debugfs_entry *entry = data;
+	__be32 out;
+	int rc;
 
 	rc = opb_readl(entry->aspeed, ctrl_base + entry->addr, &out);
 	if (rc)
@@ -482,11 +482,11 @@ static int fsi_master_aspeed_debugfs_get(void *data, u64 *val)
 }
 static int fsi_master_aspeed_debugfs_set(void *data, u64 val)
 {
-	u32 rc;
-	u32 in = cpu_to_be32((u32)(val & 0xFFFFFFFFULL));
 	struct fsi_master_aspeed_debugfs_entry *entry = data;
+	int rc;
 
-	rc = opb_writel(entry->aspeed, ctrl_base + entry->addr, in);
+	rc = opb_writel(entry->aspeed, ctrl_base + entry->addr,
+			cpu_to_be32(val));
 	if (rc)
 		return rc;
 
@@ -499,14 +499,14 @@ DEFINE_DEBUGFS_ATTRIBUTE(fsi_master_aspeed_debugfs_ops,
 static int fsi_master_aspeed_clock_debugfs_get(void *data, u64 *val)
 {
 	struct fsi_master_aspeed *aspeed = data;
-	u32 out;
+	__be32 out;
 	int rc;
 
 	rc = opb_readl(aspeed, ctrl_base, &out);
 	if (rc)
 		return rc;
 
-	*val = (u64)((be32_to_cpu(out) >> 18) & 0x3ff);
+	*val = (be32_to_cpu(out) >> FSI_MMODE_CRS0SHFT) & FSI_MMODE_CRS0MASK;
 
 	return 0;
 }
@@ -526,8 +526,9 @@ static int fsi_master_aspeed_clock_debugfs_set(void *data, u64 val)
 
 	reg = be32_to_cpu(raw);
 
-	reg &= ~(0x3ff << 18);
-	reg |= (val & 0x3ff) << 18;
+
+	reg &= ~(FSI_MMODE_CRS0MASK << FSI_MMODE_CRS0SHFT);
+	reg |= fsi_mmode_crs0(val);
 
 	rc = opb_writel(aspeed, ctrl_base, cpu_to_be32(reg));
 	if (rc)
