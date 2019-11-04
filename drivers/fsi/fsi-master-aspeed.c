@@ -63,15 +63,23 @@ static const u32 fsi_base = 0xa0000000;
 #define OPB0_FSI_ADDR	0x1c
 #define OPB0_FSI_DATA_W	0x20
 #define OPB0_STATUS	0x80
-/* half world */
-#define  STATUS_HW_ACK	BIT(0)
-/* full word */
-#define  STATUS_FW_ACK	BIT(1)
-#define  STATUS_ERR_ACK	BIT(2)
 #define OPB0_FSI_DATA_R	0x84
 
-#define OPB0_W_ENDIAN	0x4c
-#define OPB0_R_ENDIAN	0x5c
+#define OPB0_WRITE_ORDER1	0x4c
+#define OPB0_WRITE_ORDER2	0x50
+#define OPB1_WRITE_ORDER1	0x54
+#define OPB1_WRITE_ORDER2	0x58
+#define OPB0_READ_ORDER1	0x5c
+#define OPB1_READ_ORDER2	0x60
+
+#define OPB_RETRY_COUNTER	0x64
+
+/* OPBn_STATUS */
+#define  STATUS_HALFWORD_ACK	BIT(0)
+#define  STATUS_FULLWORD_ACK	BIT(1)
+#define  STATUS_ERR_ACK		BIT(2)
+#define  STATUS_RETRY		BIT(3)
+#define  STATUS_TIMEOUT		BIT(4)
 
 /* OPB_IRQ_MASK */
 #define OPB1_XFER_ACK_EN BIT(17)
@@ -575,19 +583,19 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 	writel(0x1, aspeed->base + OPB_CLK_SYNC);
 	writel(OPB1_XFER_ACK_EN | OPB0_XFER_ACK_EN,
 			aspeed->base + OPB_IRQ_MASK);
-	/* TODO: Try without this */
-	writel(0x10, aspeed->base + 0x64); // Retry counter number ???
-	writel(0x0f, aspeed->base + 0xe4); // DMA Enable
+
+	/* TODO: determine an appropriate value */
+	writel(0x10, aspeed->base + OPB_RETRY_COUNTER);
 
 	writel(ctrl_base, aspeed->base + OPB_CTRL_BASE);
 	writel(fsi_base, aspeed->base + OPB_FSI_BASE);
 
 	/* Set read data order */
-	writel(0x00030b1b, aspeed->base + OPB0_R_ENDIAN);
+	writel(0x00030b1b, aspeed->base + OPB0_READ_ORDER1);
 
 	/* Set write data order */
-	writel(0x0011101b, aspeed->base + OPB0_W_ENDIAN);
-	writel(0x0c330f3f, aspeed->base + 0x50);
+	writel(0x0011101b, aspeed->base + OPB0_WRITE_ORDER1);
+	writel(0x0c330f3f, aspeed->base + OPB0_WRITE_ORDER2);
 
 	/*
 	 * Select OPB0 for all operations.
