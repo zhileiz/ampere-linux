@@ -1703,7 +1703,7 @@ static void peci_of_register_devices(struct peci_adapter *adapter) { }
 #endif /* CONFIG_OF */
 
 #if IS_ENABLED(CONFIG_OF_DYNAMIC)
-static int peci_of_match_node(struct device *dev, void *data)
+static int peci_of_match_node(struct device *dev, const void *data)
 {
 	return dev->of_node == data;
 }
