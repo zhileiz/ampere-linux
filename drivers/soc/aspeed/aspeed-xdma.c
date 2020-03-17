@@ -30,6 +30,12 @@
 
 #define DEVICE_NAME				"aspeed-xdma"
 
+#define SCU_AST2600_MISC_CTRL			0x0c0
+#define  SCU_AST2600_MISC_CTRL_DISABLE_PCI	 BIT(8)
+
+#define SCU_AST2600_DBG_CTRL			0x0c8
+#define  SCU_AST2600_DBG_CTRL_DISABLE_PCI	 BIT(0)
+
 #define SCU_AST2500_PCIE_CONF			0x180
 #define SCU_AST2600_PCIE_CONF			0xc20
 #define  SCU_PCIE_CONF_VGA_EN			 BIT(0)
@@ -188,6 +194,8 @@ struct aspeed_xdma;
 struct aspeed_xdma_chip {
 	u32 control;
 	u32 scu_bmc_class;
+	u32 scu_dbg_ctrl;
+	u32 scu_misc_ctrl;
 	u32 scu_pcie_conf;
 	u32 sdmc_remap;
 	unsigned int queue_entry_size;
@@ -798,6 +806,16 @@ static int aspeed_xdma_init_scu(struct aspeed_xdma *ctx, struct device *dev)
 
 		regmap_update_bits(scu, ctx->chip->scu_pcie_conf, bmc | vga,
 				   selection);
+
+		if (ctx->chip->scu_dbg_ctrl)
+			regmap_update_bits(scu, ctx->chip->scu_dbg_ctrl,
+					   SCU_AST2600_DBG_CTRL_DISABLE_PCI,
+					   SCU_AST2600_DBG_CTRL_DISABLE_PCI);
+
+		if (ctx->chip->scu_misc_ctrl)
+			regmap_update_bits(scu, ctx->chip->scu_misc_ctrl,
+					   SCU_AST2600_MISC_CTRL_DISABLE_PCI,
+					   SCU_AST2600_MISC_CTRL_DISABLE_PCI);
 	} else {
 		dev_warn(dev, "Unable to configure PCIe: %ld; continuing.\n",
 			 PTR_ERR(scu));
@@ -1000,6 +1018,8 @@ static const struct aspeed_xdma_chip aspeed_ast2500_xdma_chip = {
 		XDMA_AST2500_CTRL_DS_DIRTY | XDMA_AST2500_CTRL_DS_SIZE_256 |
 		XDMA_AST2500_CTRL_DS_TIMEOUT | XDMA_AST2500_CTRL_DS_CHECK_ID,
 	.scu_bmc_class = SCU_AST2500_BMC_CLASS_REV,
+	.scu_dbg_ctrl = 0,
+	.scu_misc_ctrl = 0,
 	.scu_pcie_conf = SCU_AST2500_PCIE_CONF,
 	.sdmc_remap = SDMC_AST2500_REMAP_PCIE | SDMC_AST2500_REMAP_XDMA,
 	.queue_entry_size = XDMA_AST2500_QUEUE_ENTRY_SIZE,
@@ -1023,6 +1043,8 @@ static const struct aspeed_xdma_chip aspeed_ast2600_xdma_chip = {
 	.control = XDMA_AST2600_CTRL_US_COMP | XDMA_AST2600_CTRL_DS_COMP |
 		XDMA_AST2600_CTRL_DS_DIRTY | XDMA_AST2600_CTRL_DS_SIZE_256,
 	.scu_bmc_class = SCU_AST2600_BMC_CLASS_REV,
+	.scu_dbg_ctrl = SCU_AST2600_DBG_CTRL,
+	.scu_misc_ctrl = SCU_AST2600_MISC_CTRL,
 	.scu_pcie_conf = SCU_AST2600_PCIE_CONF,
 	.sdmc_remap = SDMC_AST2600_REMAP_XDMA,
 	.queue_entry_size = XDMA_AST2600_QUEUE_ENTRY_SIZE,
