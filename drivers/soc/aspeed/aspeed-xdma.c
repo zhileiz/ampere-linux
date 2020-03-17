@@ -207,6 +207,7 @@ struct aspeed_xdma {
 	void __iomem *base;
 	struct clk *clock;
 	struct reset_control *reset;
+	struct reset_control *reset_rc;
 
 	/* file_lock serializes reads of current_client */
 	struct mutex file_lock;
@@ -863,6 +864,12 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 		return PTR_ERR(ctx->reset);
 	}
 
+	ctx->reset_rc = devm_reset_control_get_exclusive(dev, "rc");
+	if (IS_ERR(ctx->reset_rc)) {
+		dev_dbg(dev, "Failed to request reset RC control.\n");
+		ctx->reset_rc = NULL;
+	}
+
 	ctx->pool = devm_gen_pool_create(dev, ilog2(PAGE_SIZE), -1, NULL);
 	if (!ctx->pool) {
 		dev_err(dev, "Failed to setup genalloc pool.\n");
@@ -901,6 +908,15 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 	rc = aspeed_xdma_init_scu(ctx, dev);
 	if (rc)
 		return rc;
+
+	if (ctx->reset_rc) {
+		rc = reset_control_deassert(ctx->reset_rc);
+		if (rc) {
+			dev_err(dev, "Failed to clear the RC reset.\n");
+			return rc;
+		}
+		msleep(XDMA_RESET_TIME_MS);
+	}
 
 	rc = clk_prepare_enable(ctx->clock);
 	if (rc) {
@@ -972,6 +988,9 @@ static int aspeed_xdma_remove(struct platform_device *pdev)
 
 	reset_control_assert(ctx->reset);
 	clk_disable_unprepare(ctx->clock);
+
+	if (ctx->reset_rc)
+		reset_control_assert(ctx->reset_rc);
 
 	return 0;
 }
