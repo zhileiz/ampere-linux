@@ -30,6 +30,9 @@
 
 #define DEVICE_NAME				"aspeed-xdma"
 
+#define SCU_SILICON_REV_ID			0x004
+#define  SCU_SILICON_REV_ID_AST2600_A0		 0x05000303
+
 #define SCU_AST2600_MISC_CTRL			0x0c0
 #define  SCU_AST2600_MISC_CTRL_DISABLE_PCI	 BIT(8)
 
@@ -53,7 +56,8 @@
 #define  SCU_PCIE_CONF_BMC_EN_DMA		 BIT(14)
 
 #define SCU_AST2500_BMC_CLASS_REV		0x19c
-#define SCU_AST2600_BMC_CLASS_REV		0xc4c
+#define SCU_AST2600_A0_BMC_CLASS_REV		0xc4c
+#define SCU_AST2600_A1_BMC_CLASS_REV		0xc68
 #define  SCU_BMC_CLASS_REV_XDMA			 0xff000001
 
 #define SDMC_REMAP                             0x008
@@ -797,9 +801,21 @@ static int aspeed_xdma_init_scu(struct aspeed_xdma *ctx, struct device *dev)
 		}
 
 		if (pcie_device_bmc) {
+			u32 addr = ctx->chip->scu_bmc_class;
+
+			if (addr == SCU_AST2600_A0_BMC_CLASS_REV) {
+				u32 silicon_rev_id;
+
+				regmap_read(scu, SCU_SILICON_REV_ID,
+					    &silicon_rev_id);
+
+				if (silicon_rev_id !=
+				    SCU_SILICON_REV_ID_AST2600_A0)
+					addr = SCU_AST2600_A1_BMC_CLASS_REV;
+			}
+
 			selection = bmc;
-			regmap_write(scu, ctx->chip->scu_bmc_class,
-				     SCU_BMC_CLASS_REV_XDMA);
+			regmap_write(scu, addr, SCU_BMC_CLASS_REV_XDMA);
 		} else {
 			selection = vga;
 		}
@@ -1042,7 +1058,7 @@ static const struct aspeed_xdma_chip aspeed_ast2500_xdma_chip = {
 static const struct aspeed_xdma_chip aspeed_ast2600_xdma_chip = {
 	.control = XDMA_AST2600_CTRL_US_COMP | XDMA_AST2600_CTRL_DS_COMP |
 		XDMA_AST2600_CTRL_DS_DIRTY | XDMA_AST2600_CTRL_DS_SIZE_256,
-	.scu_bmc_class = SCU_AST2600_BMC_CLASS_REV,
+	.scu_bmc_class = SCU_AST2600_A0_BMC_CLASS_REV,
 	.scu_dbg_ctrl = SCU_AST2600_DBG_CTRL,
 	.scu_misc_ctrl = SCU_AST2600_MISC_CTRL,
 	.scu_pcie_conf = SCU_AST2600_PCIE_CONF,
