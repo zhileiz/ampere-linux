@@ -50,6 +50,11 @@
 #define SCU_AST2600_BMC_CLASS_REV		0xc4c
 #define  SCU_BMC_CLASS_REV_XDMA			 0xff000001
 
+#define SDMC_REMAP                             0x008
+#define  SDMC_AST2500_REMAP_PCIE                BIT(16)
+#define  SDMC_AST2500_REMAP_XDMA                BIT(17)
+#define  SDMC_AST2600_REMAP_XDMA                BIT(18)
+
 #define XDMA_CMDQ_SIZE				PAGE_SIZE
 #define XDMA_NUM_CMDS				\
 	(XDMA_CMDQ_SIZE / sizeof(struct aspeed_xdma_cmd))
@@ -184,6 +189,7 @@ struct aspeed_xdma_chip {
 	u32 control;
 	u32 scu_bmc_class;
 	u32 scu_pcie_conf;
+	u32 sdmc_remap;
 	unsigned int queue_entry_size;
 	struct aspeed_xdma_regs regs;
 	struct aspeed_xdma_status_bits status_bits;
@@ -805,6 +811,7 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 	int irq;
 	int pcie_irq;
 	u32 memory[2];
+	struct regmap *sdmc;
 	struct aspeed_xdma *ctx;
 	struct device *dev = &pdev->dev;
 	const void *md = of_device_get_match_data(dev);
@@ -883,6 +890,13 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 		dev_err(ctx->dev, "Failed to add memory to genalloc pool.\n");
 		return rc;
 	}
+
+	sdmc = syscon_regmap_lookup_by_phandle(dev->of_node, "sdmc");
+	if (!IS_ERR(sdmc))
+		regmap_update_bits(sdmc, SDMC_REMAP, ctx->chip->sdmc_remap,
+				   ctx->chip->sdmc_remap);
+	else
+		dev_err(dev, "Unable to configure memory controller.\n");
 
 	rc = aspeed_xdma_init_scu(ctx, dev);
 	if (rc)
@@ -968,6 +982,7 @@ static const struct aspeed_xdma_chip aspeed_ast2500_xdma_chip = {
 		XDMA_AST2500_CTRL_DS_TIMEOUT | XDMA_AST2500_CTRL_DS_CHECK_ID,
 	.scu_bmc_class = SCU_AST2500_BMC_CLASS_REV,
 	.scu_pcie_conf = SCU_AST2500_PCIE_CONF,
+	.sdmc_remap = SDMC_AST2500_REMAP_PCIE | SDMC_AST2500_REMAP_XDMA,
 	.queue_entry_size = XDMA_AST2500_QUEUE_ENTRY_SIZE,
 	.regs = {
 		.bmc_cmdq_addr = XDMA_AST2500_BMC_CMDQ_ADDR,
@@ -990,6 +1005,7 @@ static const struct aspeed_xdma_chip aspeed_ast2600_xdma_chip = {
 		XDMA_AST2600_CTRL_DS_DIRTY | XDMA_AST2600_CTRL_DS_SIZE_256,
 	.scu_bmc_class = SCU_AST2600_BMC_CLASS_REV,
 	.scu_pcie_conf = SCU_AST2600_PCIE_CONF,
+	.sdmc_remap = SDMC_AST2600_REMAP_XDMA,
 	.queue_entry_size = XDMA_AST2600_QUEUE_ENTRY_SIZE,
 	.regs = {
 		.bmc_cmdq_addr = XDMA_AST2600_BMC_CMDQ_ADDR,

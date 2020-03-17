@@ -289,6 +289,11 @@
 			status = "disabled";
 		};
 
+		sdmc: sdram@1e6e0000 {
+			compatible = "syscon";
+			reg = <0x1e6e0000 0xb8>;
+		};
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -344,6 +349,7 @@
 						      <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
 				pcie-device = "bmc";
 				aspeed,scu = <&syscon>;
+				sdmc = <&sdmc>;
 				status = "disabled";
 			};
 

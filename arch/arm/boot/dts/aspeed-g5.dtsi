@@ -49,7 +49,7 @@
 	};
 
 	edac: sdram@1e6e0000 {
-		compatible = "aspeed,ast2500-sdram-edac";
+		compatible = "aspeed,ast2500-sdram-edac", "syscon";
 		reg = <0x1e6e0000 0x174>;
 		interrupts = <0>;
 		status = "disabled";
@@ -270,6 +270,7 @@
 				interrupts-extended = <&vic 6>, <&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>;
 				pcie-device = "bmc";
 				aspeed,scu = <&syscon>;
+				sdmc = <&edac>;
 				status = "disabled";
 			};
 
