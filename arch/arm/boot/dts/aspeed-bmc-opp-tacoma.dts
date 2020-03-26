@@ -29,6 +29,11 @@
 			no-map;
 			reg = <0xb8000000 0x4000000>; /* 64M */
 		};
+
+		vga_memory: region@bf000000 {
+			no-map;
+			reg = <0xbf000000 0x01000000>;	/* 16M */
+		};
 	};
 
 	gpio-keys {
@@ -804,8 +809,7 @@
 
 &xdma {
 	status = "okay";
-	/* 1G DRAM with 8M VRAM which is reserved at the top. */
-	memory = <0xbf800000 0x00800000>;
+	memory-region = <&vga_memory>;
 };
 
 &lpc_host {
