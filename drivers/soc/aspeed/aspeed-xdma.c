@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/regmap.h>
@@ -845,10 +846,11 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 	int rc;
 	int irq;
 	int pcie_irq;
-	u32 memory[2];
 	struct regmap *sdmc;
 	struct aspeed_xdma *ctx;
+	struct reserved_mem *mem;
 	struct device *dev = &pdev->dev;
+	struct device_node *memory_region;
 	const void *md = of_device_get_match_data(dev);
 
 	if (!md)
@@ -910,19 +912,25 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	rc = of_property_read_u32_array(dev->of_node, "memory", memory, 2);
-	if (rc) {
-		dev_err(dev, "Unable to get memory space.\n");
-		return rc;
+	memory_region = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!memory_region) {
+		dev_err(dev, "Unable to get memory-region.\n");
+		return -ENOMEM;
 	}
 
-	ctx->mem_phys = memory[0];
-	ctx->mem_size = memory[1];
+	mem = of_reserved_mem_lookup(memory_region);
+	if (!mem) {
+		dev_err(dev, "Unable to find reserved memory.\n");
+		return -ENOMEM;
+	}
+
+	ctx->mem_phys = mem->base;
+	ctx->mem_size = mem->size;
 
 	ctx->mem_virt = devm_ioremap(dev, ctx->mem_phys, ctx->mem_size);
-	if (IS_ERR(ctx->mem_virt)) {
+	if (!ctx->mem_virt) {
 		dev_err(dev, "Failed to map memory space.\n");
-		return PTR_ERR(ctx->mem_virt);
+		return -ENOMEM;
 	}
 
 	rc = gen_pool_add_virt(ctx->pool, (unsigned long)ctx->mem_virt,
