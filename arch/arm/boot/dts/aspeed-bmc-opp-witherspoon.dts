@@ -27,6 +27,11 @@
 			reg = <0x98000000 0x04000000>; /* 64M */
 		};
 
+		vga_memory: region@9f000000 {
+			no-map;
+			reg = <0x9f000000 0x01000000>; /* 16M */
+		};
+
 		gfx_memory: framebuffer {
 			size = <0x01000000>;
 			alignment = <0x01000000>;
@@ -754,8 +759,7 @@
 
 &xdma {
 	status = "okay";
-	/* 512M DRAM with 16M VRAM which is reserved at the top. */
-	memory = <0x9f000000 0x01000000>;
+	memory-region = <&vga_memory>;
 };
 
 #include "ibm-power9-dual.dtsi"
