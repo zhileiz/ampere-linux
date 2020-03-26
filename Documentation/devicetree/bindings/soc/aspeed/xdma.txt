@@ -17,8 +17,8 @@ Required properties:
 			  specifies the PCI-E reset or PERST interrupt.
  - aspeed,scu		: a phandle to the syscon node for the system control
 			  unit of the SOC
- - memory		: contains the address and size of the memory area to
-			  be used by the XDMA engine for DMA operations
+ - memory-region	: a phandle to the reserved memory region to be used by
+			  the XDMA engine for DMA operations
 
 Optional properties:
  - pcie-device		: should be either "bmc" or "vga", corresponding to
@@ -36,5 +36,5 @@ Example:
         interrupts-extended = <&vic 6>, <&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>;
         aspeed,scu = <&syscon>;
         pcie-device = "bmc";
-        memory = <0x9f000000 0x01000000>;
+        memory-region = <&vga_memory>;
     };
