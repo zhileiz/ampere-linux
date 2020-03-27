@@ -912,3 +912,8 @@
 	pinctrl-0 = <&pinctrl_lpc_default>,
 		    <&pinctrl_lsirq_default>;
 };
+
+&kcs4 {
+	compatible = "openbmc,mctp-lpc";
+	status = "okay";
+};
