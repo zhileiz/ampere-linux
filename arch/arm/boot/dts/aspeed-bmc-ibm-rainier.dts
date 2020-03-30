@@ -651,3 +651,8 @@
 		spi-max-frequency = <100000000>;
 	};
 };
+
+&xdma {
+        status = "okay";
+        memory-region = <&vga_memory>;
+};
