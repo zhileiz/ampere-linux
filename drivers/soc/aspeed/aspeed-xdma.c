@@ -431,15 +431,19 @@ static void aspeed_xdma_start(struct aspeed_xdma *ctx,
 			      struct aspeed_xdma_op *op, u32 bmc_addr,
 			      struct aspeed_xdma_client *client)
 {
+	unsigned int i;
 	unsigned long flags;
 	struct aspeed_xdma_cmd cmds[2];
 	unsigned int rc = ctx->chip->set_cmd(ctx, cmds, op, bmc_addr);
 
 	mutex_lock(&ctx->start_lock);
 
-	memcpy(&ctx->cmdq[ctx->cmd_idx], cmds,
-	       rc * sizeof(struct aspeed_xdma_cmd));
-	ctx->cmd_idx = (ctx->cmd_idx + rc) % XDMA_NUM_CMDS;
+	for (i = 0; i < rc; ++i) {
+		memcpy(&ctx->cmdq[ctx->cmd_idx], &cmds[i],
+		       sizeof(struct aspeed_xdma_cmd));
+		ctx->cmd_idx = (ctx->cmd_idx + 1) % XDMA_NUM_CMDS;
+	}
+
 	ctx->upstream = !!op->direction;
 
 	spin_lock_irqsave(&ctx->client_lock, flags);
