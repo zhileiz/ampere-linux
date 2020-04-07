@@ -4,6 +4,12 @@
 
 #include "aspeed-bmc-opp-witherspoon.dts"
 
+/ {
+	gpio-keys {
+		/delete-node/ checkstop;
+	};
+};
+
 &fmc {
 	status = "okay";
 
