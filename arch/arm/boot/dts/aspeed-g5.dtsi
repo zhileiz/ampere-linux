@@ -268,7 +268,7 @@
 				clocks = <&syscon ASPEED_CLK_GATE_BCLK>;
 				resets = <&syscon ASPEED_RESET_XDMA>;
 				interrupts-extended = <&vic 6>, <&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>;
-				pcie-device = "bmc";
+				aspeed,pcie-device = "bmc";
 				aspeed,scu = <&syscon>;
 				sdmc = <&edac>;
 				status = "disabled";

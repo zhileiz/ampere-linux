@@ -29,6 +29,7 @@
 
 		vga_memory: region@9f000000 {
 			no-map;
+			compatible = "shared-dma-pool";
 			reg = <0x9f000000 0x01000000>; /* 16M */
 		};
 
