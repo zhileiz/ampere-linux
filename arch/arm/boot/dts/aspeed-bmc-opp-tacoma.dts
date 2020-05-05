@@ -29,6 +29,12 @@
 			no-map;
 			reg = <0xb8000000 0x4000000>; /* 64M */
 		};
+
+		vga_memory: region@bf000000 {
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;	/* 16M */
+		};
 	};
 
 	gpio-keys {
@@ -910,4 +916,9 @@
 &kcs4 {
 	compatible = "openbmc,mctp-lpc";
 	status = "okay";
+};
+
+&xdma {
+	status = "okay";
+	memory-region = <&vga_memory>;
 };
