@@ -32,7 +32,7 @@ struct peci_dimmtemp {
 	char				**dimmtemp_label;
 };
 
-static const u8 support_model[] = {
+static const u8 support_model[4] = {
 	INTEL_FAM6_HASWELL_X,
 	INTEL_FAM6_BROADWELL_X,
 	INTEL_FAM6_SKYLAKE_X,
