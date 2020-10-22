@@ -55,7 +55,7 @@
 		vga_memory: region@bf000000 {
 			no-map;
 			compatible = "shared-dma-pool";
-			reg = <0xbf000000 0x01000000>;  /* 16M */
+			reg = <0xbf000000 0x01000000>; /* 16M */
 		};
 	};
 
