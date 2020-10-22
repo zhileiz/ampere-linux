@@ -26,11 +26,15 @@
 		#size-cells = <1>;
 		ranges;
 
+		/* LPC FW cycle bridge region requires natural alignment */
 		flash_memory: region@b8000000 {
 			no-map;
 			reg = <0xb8000000 0x04000000>; /* 64M */
 		};
 
+		/* 48MB region from the end of flash to start of vga memory */
+
+		/* VGA region is dictated by hardware strapping */
 		vga_memory: region@bf000000 {
 			no-map;
 			compatible = "shared-dma-pool";
