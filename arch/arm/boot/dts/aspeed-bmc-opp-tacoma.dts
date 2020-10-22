@@ -28,7 +28,7 @@
 
 		flash_memory: region@b8000000 {
 			no-map;
-			reg = <0xb8000000 0x4000000>; /* 64M */
+			reg = <0xb8000000 0x04000000>; /* 64M */
 		};
 
 		vga_memory: region@bf000000 {
