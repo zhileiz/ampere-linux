@@ -153,7 +153,7 @@
 #define BOOT_STAGE_SELECT_REG		0xB0
 #define BOOT_STAGE_STATUS_LO_REG	0xB1
 #define BOOT_STAGE_CUR_STAGE_REG	0xB2
-#define BOOT_STAGE_STATUS_HI_REG	0xB2
+#define BOOT_STAGE_STATUS_HI_REG	0xB3
 
 /* PCIE Error Registers */
 #define PCIE_CE_ERR_CNT_REG		0xC0
@@ -176,6 +176,26 @@
 #define ACPI_CPPC_CLUSTER_SEL_REG	0xE3
 #define ACPI_CPPC_CLUSTER_DATA_REG	0xE4
 #define ACPI_POWER_LIMIT_REG		0xE5
+
+/* Boot stages */
+#define BOOT_STAGE_SMPRO		0
+#define BOOT_STAGE_PMPRO		1
+#define BOOT_STAGE_ATF_BL1		2
+#define BOOT_STAGE_DDR_INIT		3
+#define BOOT_STAGE_DDR_INIT_PROGRESS	4
+#define BOOT_STAGE_ATF_BL2		5
+#define BOOT_STAGE_ATF_BL31		6
+#define BOOT_STAGE_ATF_BL32		7
+#define BOOT_STAGE_UEFI			8
+#define BOOT_STAGE_OS			9
+
+/* Boot status */
+#define BOOT_STATUS_NOT_STARTED		0
+#define BOOT_STATUS_STARTED		1
+#define BOOT_STATUS_DONE		2
+#define BOOT_STATUS_FAILURE		3
+#define BOOT_STATUS_UNDEFINED		0xff
+
 
 /* I2C read block data constant */
 #define MAX_READ_BLOCK_LENGTH		48
@@ -485,7 +505,7 @@ done:
 	return strlen(buf);
 }
 
-static s32 smpro_err_int_get_info(struct i2c_client *client, u8 addr,
+static s32 smpro_internal_err_get_info(struct i2c_client *client, u8 addr,
 	u8 addr1, u8 addr2, u8 addr3, u8 subtype, char *buf)
 {
 	s32 retHi = 0, retLo = 0, dataLo = 0, dataHi = 0;
@@ -531,7 +551,7 @@ static s32 smpro_err_int_get_info(struct i2c_client *client, u8 addr,
 	return strlen(buf);
 }
 
-static ssize_t smpro_err_internal_read(struct device *dev,
+static ssize_t smpro_internal_err_read(struct device *dev,
 				struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -542,56 +562,60 @@ static ssize_t smpro_err_internal_read(struct device *dev,
 	unsigned char msg[MAX_MSG_LEN] = {'\0'};
 	s32 ret = 0, curType = 0, ret1 = 0;
 
+	*buf = 0;
 	if (!(channel == RAS_SMPRO_ERRS || channel == RAS_PMPRO_ERRS))
-		return scnprintf(buf, PAGE_SIZE, "0\n");
+		goto done;
 
 	/* read error status */
 	ret = i2c_smbus_read_word_swapped(client, GPI_RAS_ERR_REG);
 	if (ret < 0)
-		return scnprintf(buf, PAGE_SIZE, "0\n");
+		goto done;
 
 	if (!((channel == RAS_SMPRO_ERRS && (ret & BIT_0)) ||
 		(channel == RAS_PMPRO_ERRS && (ret & BIT_1))))
-		return scnprintf(buf, PAGE_SIZE, "0\n");
+		goto done;
 
 	err_info = list_smpro_int_error_hdr[channel];
 	ret = i2c_smbus_read_word_swapped(client, err_info.err_type);
 	curType = ret;
 	if (ret < 0)
-		return scnprintf(buf, PAGE_SIZE, "0\n");
+		goto done;
 
 	/* Warning type */
 	if (ret & BIT_0) {
-		ret1 = smpro_err_int_get_info(client, err_info.warn_info_low,
-					      err_info.warn_info_high,
-					      0xff, 0xff, 1, msg);
+		ret1 = smpro_internal_err_get_info(client,
+						err_info.warn_info_low,
+						err_info.warn_info_high,
+						0xff, 0xff, 1, msg);
 		if (ret1 < 0)
-			return scnprintf(buf, PAGE_SIZE, "0\n");
-		strncat(buf, msg, strlen(msg));
-	}
-	/* Error type */
-	if (ret & BIT_1) {
-		ret1 = smpro_err_int_get_info(client, err_info.err_info_low,
-					      err_info.err_info_high,
-					      0xff, 0xff, 2, msg);
-		if (ret1 < 0)
-			return scnprintf(buf, PAGE_SIZE, "0\n");
+			goto done;
 		strncat(buf, msg, strlen(msg));
 	}
 	/* Error with data type */
 	if (ret & BIT_2) {
-		ret1 = smpro_err_int_get_info(client,
+		ret1 = smpro_internal_err_get_info(client,
 					      err_info.err_info_low,
 					      err_info.err_info_high,
 					      err_info.err_data_low,
 					      err_info.err_data_high, 4, msg);
 		if (ret1 < 0)
-			return scnprintf(buf, PAGE_SIZE, "0\n");
+			goto done;
+		strncat(buf, msg, strlen(msg));
+	}
+	/* Error type */
+	else if (ret & BIT_1) {
+		ret1 = smpro_internal_err_get_info(client,
+						err_info.err_info_low,
+						err_info.err_info_high,
+						0xff, 0xff, 2, msg);
+		if (ret1 < 0)
+			goto done;
 		strncat(buf, msg, strlen(msg));
 	}
 	/* clear the read errors */
 	ret = i2c_smbus_write_word_swapped(client, err_info.err_type, curType);
 
+done:
 	return strlen(buf);
 }
 
@@ -672,7 +696,7 @@ static int smpro_read_temp(struct device *dev, u32 attr, int channel,
 	return 0;
 }
 
-static int smpro_read_in(struct device *dev, u32 attr, int channel,
+static int smpro_read_volt(struct device *dev, u32 attr, int channel,
 			 long *val)
 {
 	struct smpro_data *data = dev_get_drvdata(dev);
@@ -794,7 +818,7 @@ static int smpro_read_power(struct device *dev, u32 attr, int channel,
 	}
 }
 
-static ssize_t smpro_read_generic(struct device *dev,
+static ssize_t smpro_read_register(struct device *dev,
 			  struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -817,7 +841,7 @@ static int smpro_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return smpro_read_temp(dev, attr, channel, val);
 	case hwmon_in:
-		return smpro_read_in(dev, attr, channel, val);
+		return smpro_read_volt(dev, attr, channel, val);
 	case hwmon_power:
 		return smpro_read_power(dev, attr, channel, val);
 	case hwmon_curr:
@@ -827,7 +851,7 @@ static int smpro_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static ssize_t smpro_write_generic(struct device *dev,
+static ssize_t smpro_write_register(struct device *dev,
 			   struct device_attribute *da,
 			   const char *buf, size_t count)
 {
@@ -992,14 +1016,81 @@ static SENSOR_DEVICE_ATTR(power6_label, 0444, show_label, NULL, 2);
 static SENSOR_DEVICE_ATTR(power7_label, 0444, show_label, NULL, 17);
 static SENSOR_DEVICE_ATTR(power8_label, 0444, show_label, NULL, 18);
 
-static SENSOR_DEVICE_ATTR(gpi_boot_stage_select, 0644,
-	smpro_read_generic, smpro_write_generic, BOOT_STAGE_SELECT_REG);
-static SENSOR_DEVICE_ATTR(gpi_boot_stage_status_lo, 0444,
-	smpro_read_generic, NULL, BOOT_STAGE_STATUS_LO_REG);
-static SENSOR_DEVICE_ATTR(gpi_boot_stage_cur_stage, 0444,
-	smpro_read_generic, NULL, BOOT_STAGE_CUR_STAGE_REG);
-static SENSOR_DEVICE_ATTR(acpi_power_limit, 0644,
-	smpro_read_generic, smpro_write_generic, ACPI_POWER_LIMIT_REG);
+static ssize_t smpro_read_boot_progress(struct device *dev,
+		struct device_attribute *da, char *buf)
+{
+	struct smpro_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	int counter = 10;
+
+	u16 boot_stage_reg, boot_stage_low_reg, boot_stage_high_reg;
+	u16 current_boot_stage;
+	u32 boot_progress = 0xffffffff;
+	u8 boot_stage = 0xff;
+	u8 boot_status = 0xff;
+
+	/*
+	 * Read the current boot stage
+	 */
+	current_boot_stage = i2c_smbus_read_word_swapped(client,
+				BOOT_STAGE_CUR_STAGE_REG) & 0x00ff;
+
+	/*
+	 * Read the boot progress
+	 */
+	boot_stage_reg = i2c_smbus_read_word_swapped(client,
+				BOOT_STAGE_SELECT_REG);
+	/* separate the bytes: stage = bytes[0], status = bytes[1] */
+	boot_stage = (boot_stage_reg & 0xff00) >> 8;
+	boot_status = boot_stage_reg & 0xff;
+
+	while ((boot_stage < current_boot_stage) && (counter >= 0)) {
+		/* don't read a stage more than 10 times */
+		counter--;
+		i2c_smbus_write_word_swapped(client,
+			BOOT_STAGE_SELECT_REG, (boot_stage_reg & 0xff00) | 0x1);
+
+		/* read the boot progress */
+		boot_stage_reg = i2c_smbus_read_word_swapped(client,
+					BOOT_STAGE_SELECT_REG);
+
+		/* separate the bytes */
+		boot_stage = (boot_stage_reg & 0xff00) >> 8;
+		boot_status = boot_stage_reg & 0xff;
+	}
+
+	if (boot_stage != current_boot_stage)
+		goto error;
+
+	switch (boot_stage) {
+	case BOOT_STAGE_UEFI:
+	case BOOT_STAGE_OS:
+		/* the progress is 32 bits */
+		boot_stage_low_reg =
+			i2c_smbus_read_word_data(client,
+				BOOT_STAGE_STATUS_LO_REG);
+		boot_stage_high_reg =
+			i2c_smbus_read_word_data(client,
+				BOOT_STAGE_STATUS_HI_REG);
+		boot_progress = (boot_stage_low_reg
+				| boot_stage_high_reg << 16);
+		goto done;
+	default:
+		goto done;
+	}
+
+error:
+	boot_stage = 0xff;
+	boot_status = 0xff;
+	boot_progress = 0xffffffff;
+
+done:
+	return snprintf(buf, PAGE_SIZE, "%02x %02x %08X\n",
+			boot_stage, boot_status, boot_progress);
+}
+
+static SENSOR_DEVICE_ATTR(boot_progress, 0444,
+	smpro_read_boot_progress, NULL, BOOT_STAGE_STATUS_HI_REG);
 
 static SENSOR_DEVICE_ATTR(curr1_label, 0444, show_label, NULL, 5);
 static SENSOR_DEVICE_ATTR(curr2_label, 0444, show_label, NULL, 1);
@@ -1023,16 +1114,15 @@ static SENSOR_DEVICE_ATTR(errors_other_ce, 0444, smpro_error_data_read, NULL,
 			OTHER_CE_ERRS);
 static SENSOR_DEVICE_ATTR(errors_other_ue, 0444, smpro_error_data_read, NULL,
 			OTHER_UE_ERRS);
-static SENSOR_DEVICE_ATTR(errors_smpro, 0444, smpro_err_internal_read, NULL,
+static SENSOR_DEVICE_ATTR(errors_smpro, 0444, smpro_internal_err_read, NULL,
 			RAS_SMPRO_ERRS);
-static SENSOR_DEVICE_ATTR(errors_pmpro, 0444, smpro_err_internal_read, NULL,
+static SENSOR_DEVICE_ATTR(errors_pmpro, 0444, smpro_internal_err_read, NULL,
 			RAS_PMPRO_ERRS);
+static SENSOR_DEVICE_ATTR(acpi_power_limit, 0644, smpro_read_register,
+			smpro_write_register, ACPI_POWER_LIMIT_REG);
 
 static struct attribute *smpro_attrs[] = {
-	&sensor_dev_attr_gpi_boot_stage_select.dev_attr.attr,
-	&sensor_dev_attr_gpi_boot_stage_status_lo.dev_attr.attr,
-	&sensor_dev_attr_gpi_boot_stage_cur_stage.dev_attr.attr,
-	&sensor_dev_attr_acpi_power_limit.dev_attr.attr,
+	&sensor_dev_attr_boot_progress.dev_attr.attr,
 	&sensor_dev_attr_errors_core_ce.dev_attr.attr,
 	&sensor_dev_attr_errors_core_ue.dev_attr.attr,
 	&sensor_dev_attr_errors_mem_ce.dev_attr.attr,
@@ -1043,6 +1133,7 @@ static struct attribute *smpro_attrs[] = {
 	&sensor_dev_attr_errors_other_ue.dev_attr.attr,
 	&sensor_dev_attr_errors_smpro.dev_attr.attr,
 	&sensor_dev_attr_errors_pmpro.dev_attr.attr,
+	&sensor_dev_attr_acpi_power_limit.dev_attr.attr,
 
 	&sensor_dev_attr_temp1_label.dev_attr.attr,
 	&sensor_dev_attr_temp2_label.dev_attr.attr,
@@ -1139,6 +1230,7 @@ static struct i2c_driver smpro_driver = {
 
 module_i2c_driver(smpro_driver);
 
+MODULE_AUTHOR("Tung Nguyen <tung.nguyen@amperecomputing.com>");
 MODULE_AUTHOR("Thinh Pham <thinh.pham@amperecomputing.com>");
 MODULE_AUTHOR("Hoang Nguyen <hnguyen@amperecomputing.com>");
 MODULE_AUTHOR("Thu Nguyen <tbnguyen@amperecomputing.com>");
