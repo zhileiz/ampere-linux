@@ -157,7 +157,9 @@ static int soc_power_limit_store(struct device *dev,
 	unsigned long val;
 	s32 ret;
 
-	ret = kstrtoul(buf, 16, &val);
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	ret = regmap_write(misc->regmap, SOC_POWER_LIMIT_REG,
 			(unsigned int)val);
