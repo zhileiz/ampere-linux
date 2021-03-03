@@ -1,21 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Ampere Computing SoC's SMpro Hardware Monitoring Driver
- *
- * Copyright (c) 2019-2020, Ampere Computing LLC
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/bitfield.h>
 #include <linux/hwmon.h>
@@ -28,48 +13,48 @@
 #include <linux/regmap.h>
 
 /* Identification Registers */
-#define MANUFACTURER_ID_REG             0x02
+#define MANUFACTURER_ID_REG		0x02
 #define AMPERE_MANUFACTURER_ID		0xCD3A
 
 /* Logical Power Sensor Registers */
-#define SOC_TEMP_REG                    0x10
-#define SOC_VRD_TEMP_REG                0x11
-#define DIMM_VRD_TEMP_REG               0x12
-#define CORE_VRD_TEMP_REG               0x13
-#define CH0_DIMM_TEMP_REG               0x14
-#define CH1_DIMM_TEMP_REG               0x15
-#define CH2_DIMM_TEMP_REG               0x16
-#define CH3_DIMM_TEMP_REG               0x17
-#define CH4_DIMM_TEMP_REG               0x18
-#define CH5_DIMM_TEMP_REG               0x19
-#define CH6_DIMM_TEMP_REG               0x1A
-#define CH7_DIMM_TEMP_REG               0x1B
-#define RCA_VRD_TEMP_REG                0x1C
+#define SOC_TEMP_REG			0x10
+#define SOC_VRD_TEMP_REG		0x11
+#define DIMM_VRD_TEMP_REG		0x12
+#define CORE_VRD_TEMP_REG		0x13
+#define CH0_DIMM_TEMP_REG		0x14
+#define CH1_DIMM_TEMP_REG		0x15
+#define CH2_DIMM_TEMP_REG		0x16
+#define CH3_DIMM_TEMP_REG		0x17
+#define CH4_DIMM_TEMP_REG		0x18
+#define CH5_DIMM_TEMP_REG		0x19
+#define CH6_DIMM_TEMP_REG		0x1A
+#define CH7_DIMM_TEMP_REG		0x1B
+#define RCA_VRD_TEMP_REG		0x1C
 
-#define CORE_VRD_PWR_REG                0x20
-#define SOC_PWR_REG                 0x21
-#define DIMM_VRD1_PWR_REG               0x22
-#define DIMM_VRD2_PWR_REG               0x23
-#define CORE_VRD_PWR_MW_REG             0x26
-#define SOC_PWR_MW_REG              0x27
-#define DIMM_VRD1_PWR_MW_REG            0x28
-#define DIMM_VRD2_PWR_MW_REG            0x29
-#define RCA_VRD_PWR_REG                 0x2A
-#define RCA_VRD_PWR_MW_REG              0x2B
+#define CORE_VRD_PWR_REG		0x20
+#define SOC_PWR_REG			0x21
+#define DIMM_VRD1_PWR_REG		0x22
+#define DIMM_VRD2_PWR_REG		0x23
+#define CORE_VRD_PWR_MW_REG		0x26
+#define SOC_PWR_MW_REG			0x27
+#define DIMM_VRD1_PWR_MW_REG		0x28
+#define DIMM_VRD2_PWR_MW_REG		0x29
+#define RCA_VRD_PWR_REG			0x2A
+#define RCA_VRD_PWR_MW_REG		0x2B
 
-#define MEM_HOT_THRESHOLD_REG           0x32
-#define SOC_VR_HOT_THRESHOLD_REG        0x33
-#define CORE_VRD_VOLT_REG               0x34
-#define SOC_VRD_VOLT_REG                0x35
-#define DIMM_VRD1_VOLT_REG              0x36
-#define DIMM_VRD2_VOLT_REG              0x37
-#define RCA_VRD_VOLT_REG                0x38
+#define MEM_HOT_THRESHOLD_REG		0x32
+#define SOC_VR_HOT_THRESHOLD_REG	0x33
+#define CORE_VRD_VOLT_REG		0x34
+#define SOC_VRD_VOLT_REG		0x35
+#define DIMM_VRD1_VOLT_REG		0x36
+#define DIMM_VRD2_VOLT_REG		0x37
+#define RCA_VRD_VOLT_REG		0x38
 
-#define CORE_VRD_CURR_REG               0x39
-#define SOC_VRD_CURR_REG                0x3A
-#define DIMM_VRD1_CURR_REG              0x3B
-#define DIMM_VRD2_CURR_REG              0x3C
-#define RCA_VRD_CURR_REG                0x3D
+#define CORE_VRD_CURR_REG		0x39
+#define SOC_VRD_CURR_REG		0x3A
+#define DIMM_VRD1_CURR_REG		0x3B
+#define DIMM_VRD2_CURR_REG		0x3C
+#define RCA_VRD_CURR_REG		0x3D
 
 struct smpro_hwmon {
 	struct regmap *regmap;
@@ -214,12 +199,12 @@ static int smpro_read_temp(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct smpro_hwmon *hwmon = dev_get_drvdata(dev);
 	unsigned int value;
-	int ret = -1;
+	int ret;
 
 	switch (attr) {
 	case hwmon_temp_input:
 		ret = regmap_read(hwmon->regmap,
-				temperature[channel].reg, &value);
+				  temperature[channel].reg, &value);
 		if (ret)
 			return ret;
 		*val = (value & 0x1ff) * 1000;
@@ -300,13 +285,14 @@ static int smpro_read_power(struct device *dev, u32 attr, int channel, long *val
 
 		*val_pwr = val * 1000000 + val_mw * 1000;
 		return 0;
+
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
 static int smpro_read(struct device *dev, enum hwmon_sensor_types type,
-				u32 attr, int channel, long *val)
+		      u32 attr, int channel, long *val)
 {
 	switch (type) {
 	case hwmon_temp:
@@ -323,13 +309,13 @@ static int smpro_read(struct device *dev, enum hwmon_sensor_types type,
 }
 
 static int smpro_write(struct device *dev, enum hwmon_sensor_types type,
-				u32 attr, int channel, long val)
+		       u32 attr, int channel, long val)
 {
 	return -EOPNOTSUPP;
 }
 
 static int smpro_read_string(struct device *dev, enum hwmon_sensor_types type,
-				u32 attr, int channel, const char **str)
+			     u32 attr, int channel, const char **str)
 {
 	switch (type) {
 	case hwmon_temp:
@@ -406,38 +392,37 @@ static umode_t smpro_is_visible(const void *data, enum hwmon_sensor_types type,
 
 static const struct hwmon_channel_info *smpro_info[] = {
 	HWMON_CHANNEL_INFO(temp,
-			HWMON_T_INPUT | HWMON_T_LABEL,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL,
-			HWMON_T_INPUT | HWMON_T_LABEL,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
-			HWMON_T_INPUT | HWMON_T_LABEL),
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL),
 	HWMON_CHANNEL_INFO(in,
-			HWMON_I_INPUT | HWMON_I_LABEL,
-			HWMON_I_INPUT | HWMON_I_LABEL,
-			HWMON_I_INPUT | HWMON_I_LABEL,
-			HWMON_I_INPUT | HWMON_I_LABEL,
-			HWMON_I_INPUT | HWMON_I_LABEL),
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL),
 	HWMON_CHANNEL_INFO(power,
-			HWMON_P_INPUT | HWMON_P_LABEL,
-			HWMON_P_INPUT | HWMON_P_LABEL,
-			HWMON_P_INPUT | HWMON_P_LABEL,
-			HWMON_P_INPUT | HWMON_P_LABEL,
-			HWMON_P_INPUT | HWMON_P_LABEL,
-			HWMON_P_INPUT | HWMON_P_LABEL),
+			   HWMON_P_INPUT | HWMON_P_LABEL,
+			   HWMON_P_INPUT | HWMON_P_LABEL,
+			   HWMON_P_INPUT | HWMON_P_LABEL,
+			   HWMON_P_INPUT | HWMON_P_LABEL,
+			   HWMON_P_INPUT | HWMON_P_LABEL),
 	HWMON_CHANNEL_INFO(curr,
-			HWMON_C_INPUT | HWMON_C_LABEL,
-			HWMON_C_INPUT | HWMON_C_LABEL,
-			HWMON_C_INPUT | HWMON_C_LABEL,
-			HWMON_C_INPUT | HWMON_C_LABEL,
-			HWMON_C_INPUT | HWMON_C_LABEL),
+			   HWMON_C_INPUT | HWMON_C_LABEL,
+			   HWMON_C_INPUT | HWMON_C_LABEL,
+			   HWMON_C_INPUT | HWMON_C_LABEL,
+			   HWMON_C_INPUT | HWMON_C_LABEL,
+			   HWMON_C_INPUT | HWMON_C_LABEL),
 	NULL
 };
 
@@ -453,23 +438,20 @@ static const struct hwmon_chip_info smpro_chip_info = {
 	.info = smpro_info,
 };
 
-static int check_valid_id (struct regmap *regmap)
+static bool is_valid_id(struct regmap *regmap)
 {
 	unsigned int val;
 	int ret;
 
 	ret = regmap_read(regmap, MANUFACTURER_ID_REG, &val);
-	if (ret)
-		return ret;
 
-	return  (val == AMPERE_MANUFACTURER_ID) ? 0 : 1;
+	return  (ret || (val != AMPERE_MANUFACTURER_ID)) ? false : true;
 }
 
 static int smpro_hwmon_probe(struct platform_device *pdev)
 {
 	struct smpro_hwmon *hwmon;
 	struct device *hwmon_dev;
-	int ret;
 
 	hwmon = devm_kzalloc(&pdev->dev, sizeof(struct smpro_hwmon), GFP_KERNEL);
 	if (!hwmon)
@@ -480,14 +462,11 @@ static int smpro_hwmon_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* Check for valid ID */
-	ret = check_valid_id(hwmon->regmap);
-	if (ret)
+	if (!is_valid_id(hwmon->regmap))
 		return -EPROBE_DEFER;
 
-	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev,
-			"smpro_hwmon", hwmon, &smpro_chip_info, NULL);
-	if (IS_ERR(hwmon_dev))
-		dev_err(&pdev->dev, "failed to register as hwmon device");
+	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev, "smpro_hwmon",
+							 hwmon, &smpro_chip_info, NULL);
 
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
