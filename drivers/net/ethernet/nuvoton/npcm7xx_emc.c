@@ -1689,7 +1689,6 @@ static int npcm7xx_get_settings(struct net_device *dev,
 	if (!phydev)
 		return -ENODEV;
 
-	dev_info(&ether->pdev->dev, "\n\nnpcm7xx_get_settings\n");
 	phy_ethtool_ksettings_get(phydev, cmd);
 
 	return 0;
@@ -1705,7 +1704,6 @@ static int npcm7xx_set_settings(struct net_device *dev,
 	if (!phydev)
 		return -ENODEV;
 
-	dev_info(&ether->pdev->dev, "\n\nnpcm7xx_set_settings\n");
 	ret =  phy_ethtool_ksettings_set(phydev, cmd);
 
 	return ret;
