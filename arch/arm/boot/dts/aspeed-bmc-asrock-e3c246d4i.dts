@@ -7,7 +7,7 @@
 
 /{
 	model = "ASRock E3C246D4I BMC";
-	compatible = "asrock,e3c246d4Ii-bmc", "aspeed,ast2500";
+	compatible = "asrock,e3c246d4i-bmc", "aspeed,ast2500";
 
 	aliases {
 		serial4 = &uart5;
@@ -180,6 +180,20 @@
 
 &adc {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0_default
+			&pinctrl_adc1_default
+			&pinctrl_adc2_default
+			&pinctrl_adc3_default
+			&pinctrl_adc4_default
+			&pinctrl_adc5_default
+			&pinctrl_adc6_default
+			&pinctrl_adc7_default
+			&pinctrl_adc8_default
+			&pinctrl_adc9_default
+			&pinctrl_adc10_default
+			&pinctrl_adc11_default
+			&pinctrl_adc12_default>;
 };
 
 &kcs3 {
