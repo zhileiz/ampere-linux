@@ -309,7 +309,7 @@
 		m25p,fast-read;
 		label = "bmc";
 		/* spi-max-frequency = <50000000>; */
-#include "openbmc-flash-layout.dtsi"
+#include "openbmc-flash-layout-64.dtsi"
 	};
 
 	flash@1 {
@@ -333,17 +333,17 @@
 			};
 
 			kernel@80000 {
-				reg = <0x80000 0x440000>;
+				reg = <0x80000 0x500000>;
 				label = "alt-kernel";
 			};
 
-			rofs@c0000 {
-				reg = <0x4c0000 0x1740000>;
+			rofs@580000 {
+				reg = <0x580000 0x2a80000>;
 				label = "alt-rofs";
 			};
 
-			rwfs@1c00000 {
-				reg = <0x1c00000 0x400000>;
+			rwfs@3000000 {
+				reg = <0x3000000 0x1000000>;
 				label = "alt-rwfs";
 			};
 		};
