@@ -524,6 +524,26 @@ static void complete_write_received(struct ssif_bmc_ctx *ssif_bmc)
 		handle_request(ssif_bmc);
 }
 
+static void initialize_transfer(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+{
+	/* SMBUS command can vary (single or multi-part) */
+	ssif_bmc->smbus_cmd = *val;
+	ssif_bmc->msg_idx++;
+
+	if((ssif_bmc->smbus_cmd == SSIF_IPMI_SINGLEPART_WRITE) ||
+	   (ssif_bmc->smbus_cmd == SSIF_IPMI_MULTIPART_WRITE_START)) {
+		/*
+		* The response can be delayed in BMC causing host SSIF driver
+		* to timeout and send a new request once BMC slave is ready.
+		* In that case check for pending response and clear it
+		*/
+		if(ssif_bmc->response_in_progress) {
+			pr_err("Warn: SSIF new request with pending response");
+			complete_response(ssif_bmc);
+		}
+	}
+}
+
 /*
  * Callback function to handle I2C slave events
  */
@@ -564,9 +584,7 @@ static int ssif_bmc_cb(struct i2c_client *client, enum i2c_slave_event event, u8
 		 *  buffer byte.
 		 */
 		if (ssif_bmc->msg_idx == 0) {
-			/* SMBUS command can vary (single or multi-part) */
-			ssif_bmc->smbus_cmd = *val;
-			ssif_bmc->msg_idx++;
+			initialize_transfer(ssif_bmc, val);
 		} else {
 			handle_write_received(ssif_bmc, val);
 		}
