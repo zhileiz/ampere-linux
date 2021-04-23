@@ -7,6 +7,55 @@
 	model = "Ampere Mt. Jade BMC";
 	compatible = "ampere,mtjade-bmc", "aspeed,ast2500";
 
+	aliases {
+
+		/*
+		*  i2c switch 5-0070 channel 3-0075, 8 child channels assigned
+		*  with bus number from 50 to 57
+		*/
+		i2c50 = &bus70_mux3_chn0;
+		i2c51 = &bus70_mux3_chn1;
+		i2c52 = &bus70_mux3_chn2;
+		i2c53 = &bus70_mux3_chn3;
+		i2c54 = &bus70_mux3_chn4;
+		i2c55 = &bus70_mux3_chn5;
+		i2c56 = &bus70_mux3_chn6;
+		i2c57 = &bus70_mux3_chn7;
+
+		/*
+		*  i2c switch 5-0071 channel 4-0075, 8 child channels assigned
+		*  with bus number from 60 to 67
+		*/
+		i2c60 = &bus71_mux4_chn0;
+		i2c61 = &bus71_mux4_chn1;
+		i2c62 = &bus71_mux4_chn2;
+		i2c63 = &bus71_mux4_chn3;
+		i2c64 = &bus71_mux4_chn4;
+		i2c65 = &bus71_mux4_chn5;
+		i2c66 = &bus71_mux4_chn6;
+		i2c67 = &bus71_mux4_chn7;
+
+		/*
+		*  i2c switch 5-0071 channel 3-0075, 8 child channels assigned
+		*  with bus number from 70 to 77
+		*/
+		i2c70 = &bus71_mux3_chn0;
+		i2c71 = &bus71_mux3_chn1;
+		i2c72 = &bus71_mux3_chn2;
+		i2c73 = &bus71_mux3_chn3;
+		i2c74 = &bus71_mux3_chn4;
+		i2c75 = &bus71_mux3_chn5;
+		i2c76 = &bus71_mux3_chn6;
+		i2c77 = &bus71_mux3_chn7;
+
+		/*
+		*  i2c switch 5-0072, 2 child channels assigned
+		*  with bus number from 80 to 81
+		*/
+		i2c80 = &bus72_mux_chn0;
+		i2c81 = &bus72_mux_chn1;
+	};
+
 	chosen {
 		stdout-path = &uart5;
 		bootargs = "console=ttyS4,115200 earlycon";
@@ -459,6 +508,218 @@
 
 &i2c5 {
 	status = "okay";
+	i2c-switch@70 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+		i2c-mux-idle-disconnect;
+
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3>;
+
+			/*
+			*  NVMe CPLD mux, re-use PCA9548 driver.
+			*/
+			i2c-switch@75 {
+				compatible = "nxp,pca9548";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x75>;
+				i2c-mux-idle-disconnect;
+
+				bus70_mux3_chn0: i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+				};
+				bus70_mux3_chn1: i2c@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x1>;
+				};
+				bus70_mux3_chn2: i2c@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x2>;
+				};
+				bus70_mux3_chn3: i2c@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x3>;
+				};
+				bus70_mux3_chn4: i2c@4 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x4>;
+				};
+				bus70_mux3_chn5: i2c@5 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x5>;
+				};
+				bus70_mux3_chn6: i2c@6 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x6>;
+				};
+				bus70_mux3_chn7: i2c@7 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x7>;
+				};
+
+			};
+		};
+	};
+
+	i2c-switch@71 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x71>;
+		i2c-mux-idle-disconnect;
+
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3>;
+
+			/*
+			*  NVMe CPLD mux, re-use PCA9548 driver.
+			*/
+			i2c-switch@75 {
+				compatible = "nxp,pca9548";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x75>;
+				i2c-mux-idle-disconnect;
+
+				bus71_mux3_chn0: i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+				};
+				bus71_mux3_chn1: i2c@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x1>;
+				};
+				bus71_mux3_chn2: i2c@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x2>;
+				};
+				bus71_mux3_chn3: i2c@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x3>;
+				};
+				bus71_mux3_chn4: i2c@4 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x4>;
+				};
+				bus71_mux3_chn5: i2c@5 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x5>;
+				};
+				bus71_mux3_chn6: i2c@6 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x6>;
+				};
+				bus71_mux3_chn7: i2c@7 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x7>;
+				};
+			};
+
+		};
+
+		i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x4>;
+
+			/*
+			*  NVMe CPLD mux, re-use PCA9548 driver.
+			*/
+			i2c-switch@75 {
+				compatible = "nxp,pca9548";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x75>;
+				i2c-mux-idle-disconnect;
+
+				bus71_mux4_chn0: i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+				};
+				bus71_mux4_chn1: i2c@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x1>;
+				};
+				bus71_mux4_chn2: i2c@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x2>;
+				};
+				bus71_mux4_chn3: i2c@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x3>;
+				};
+				bus71_mux4_chn4: i2c@4 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x4>;
+				};
+				bus71_mux4_chn5: i2c@5 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x5>;
+				};
+				bus71_mux4_chn6: i2c@6 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x6>;
+				};
+				bus71_mux4_chn7: i2c@7 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x7>;
+				};
+			};
+
+		};
+	};
+
+	i2c-switch@72 {
+		compatible = "nxp,pca9545";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x72>;
+		i2c-mux-idle-disconnect;
+
+		bus72_mux_chn0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+		};
+
+		bus72_mux_chn1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+		};
+	};
 };
 
 &i2c6 {
