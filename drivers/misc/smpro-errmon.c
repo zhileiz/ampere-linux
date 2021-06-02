@@ -325,6 +325,9 @@ static ssize_t smpro_event_data_read(struct device *dev,
 
 	snprintf(msg, MAX_MSG_LEN, "%02x %04x\n", channel, event_data);
 	strncat(buf, msg, strlen(msg));
+	/* Clear event after read */
+	if (event_data != 0)
+		regmap_write(errmon->regmap, event_info.event_data, event_data);
 done:
 	return strlen(buf);
 }
