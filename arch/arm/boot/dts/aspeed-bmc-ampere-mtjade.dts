@@ -135,6 +135,18 @@
 			linux,code = <ASPEED_GPIO(J, 1)>;
 		};
 
+		S0_scp_auth_fail {
+			label = "S0_SCP_AUTH_FAIL";
+			gpios = <&gpio ASPEED_GPIO(J, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(J, 2)>;
+		};
+
+                S1_scp_auth_fail {
+                        label = "S1_SCP_AUTH_FAIL";
+                        gpios = <&gpio ASPEED_GPIO(Z, 5) GPIO_ACTIVE_LOW>;
+                        linux,code = <ASPEED_GPIO(Z, 5)>;
+                };
+
 		S1_overtemp {
 			label = "S1_OVERTEMP";
 			gpios = <&gpio ASPEED_GPIO(Z, 6) GPIO_ACTIVE_LOW>;
