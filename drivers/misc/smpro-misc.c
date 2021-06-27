@@ -50,6 +50,57 @@ enum {
 	BOOT_STAGE_MAX
 };
 
+struct reg_addr {
+	char devName[128];
+	s16 addr;
+};
+
+struct reg_addr reg_addrs[2] = {
+	{ "", -1 },
+	{ "", -1 }
+};
+
+s16 get_addr(char *devName)
+{
+	if (strcmp(reg_addrs[0].devName, devName) == 0)
+		return reg_addrs[0].addr;
+	else if (strcmp(reg_addrs[1].devName, devName) == 0)
+		return reg_addrs[1].addr;
+
+	return -1;
+}
+
+int find_dev(char *devName)
+{
+	if (strcmp(reg_addrs[0].devName, devName) == 0 ||
+		strcmp(reg_addrs[1].devName, devName) == 0)
+		return 1;
+	return 0;
+}
+
+int init_addr(char *devName)
+{
+	if (strcmp(reg_addrs[0].devName, "") == 0) {
+		snprintf(reg_addrs[0].devName, 128, "%s", devName);
+		return 1;
+	} else if (strcmp(reg_addrs[1].devName, "") == 0) {
+		snprintf(reg_addrs[1].devName, 128, "%s", devName);
+		return 1;
+	}
+
+	return 0;
+}
+
+void set_addr(char *devName, s16 value)
+{
+	if (strcmp(reg_addrs[0].devName, devName) == 0)
+		reg_addrs[0].addr = value;
+	else if (strcmp(reg_addrs[1].devName, devName) == 0)
+		reg_addrs[1].addr = value;
+	else
+		pr_warn("Invalid deviceName %s\n", devName);
+}
+
 struct smpro_misc {
 	struct regmap *regmap;
 };
@@ -169,11 +220,101 @@ static int soc_power_limit_store(struct device *dev,
 	return count;
 }
 
+static int reg_rw_show(struct device *dev,
+				struct device_attribute *da, char *buf)
+{
+	struct smpro_misc *misc = dev_get_drvdata(dev);
+	int ret;
+	unsigned int value;
+	s16 addr = get_addr(dev->kobj.name);
+
+	if (addr == -1) {
+		pr_err("Register address is not set!\n");
+		return -ENODATA;
+	}
+
+	ret = regmap_read(misc->regmap, (unsigned int)addr, &value);
+
+	set_addr(dev->kobj.name, -1);
+	if (ret)
+		return ret;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
+static int reg_rw_store(struct device *dev,
+				struct device_attribute *da,
+				const char *buf, size_t count)
+{
+	struct smpro_misc *misc = dev_get_drvdata(dev);
+	unsigned long val;
+	s32 ret;
+	s16 addr = get_addr(dev->kobj.name);
+
+	if (addr == -1) {
+		pr_err("Register address is not set!\n");
+		return -ENODATA;
+	}
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(misc->regmap, (unsigned int)addr, (unsigned int)val);
+
+	if (ret)
+		return -EPROTO;
+
+	set_addr(dev->kobj.name, -1);
+
+	return count;
+}
+static DEVICE_ATTR_RW(reg_rw);
+
+static int reg_addr_show(struct device *dev,
+				struct device_attribute *da, char *buf)
+{
+	struct smpro_misc *misc = dev_get_drvdata(dev);
+	s16 addr = get_addr(dev->kobj.name);
+
+	if (addr == -1) {
+		pr_err("Register address is not set!\n");
+		return -ENODATA;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", addr);
+}
+
+static int reg_addr_store(struct device *dev,
+				struct device_attribute *da,
+				const char *buf, size_t count)
+{
+	struct smpro_misc *misc = dev_get_drvdata(dev);
+	s32 ret;
+	s16 addr;
+
+	ret = kstrtos16(buf, 0, &addr);
+	if (ret)
+		return ret;
+
+	if ( addr < 0x00 || addr > 0xff) {
+		pr_err("Invalid address. Range is 0 to 0xff!\n");
+		return -EINVAL;
+	}
+
+	set_addr(dev->kobj.name, addr);
+
+	return count;
+}
+static DEVICE_ATTR_RW(reg_addr);
+
 static DEVICE_ATTR_RW(soc_power_limit);
 
 static struct attribute *smpro_misc_attrs[] = {
 	&dev_attr_boot_progress.attr,
 	&dev_attr_soc_power_limit.attr,
+	&dev_attr_reg_addr.attr,
+	&dev_attr_reg_rw.attr,
 	NULL
 };
 
@@ -217,6 +358,9 @@ static int smpro_misc_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "SMPro misc sysfs registration failed\n");
 
+	if (!find_dev(pdev->dev.kobj.name))
+		init_addr(pdev->dev.kobj.name);
+
 	return 0;
 }
 
@@ -245,6 +389,7 @@ static struct platform_driver smpro_misc_driver = {
 
 module_platform_driver(smpro_misc_driver);
 
+MODULE_AUTHOR("Thu Ba Nguyen <thu@os.amperecomputing.com>");
 MODULE_AUTHOR("Tung Nguyen <tung.nguyen@amperecomputing.com>");
 MODULE_AUTHOR("Quan Nguyen <quan@os.amperecomputing.com>");
 MODULE_DESCRIPTION("Ampere Altra SMpro Misc driver");
