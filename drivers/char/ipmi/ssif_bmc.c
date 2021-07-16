@@ -27,8 +27,42 @@
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/timer.h>
+#include <linux/jiffies.h>
 
 #include "ssif_bmc.h"
+
+static void response_timeout(struct timer_list * t)
+{
+	struct ssif_bmc_ctx *ssif_bmc = from_timer(ssif_bmc, t, response_timer);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ssif_bmc->lock, flags);
+
+	ssif_bmc->rsp_timer_expired = true;
+	ssif_bmc->request_retry++;
+	/* Send keep-alive response */
+	ssif_bmc->response.len = 1;
+	if (ssif_bmc->request_retry < NUMBER_REQUEST_RETRY)
+		mod_timer(&ssif_bmc->response_timer, jiffies + RESPONSE_TIMEOUT);
+	else {
+		/*
+		 * If response data is still not ready after 15 second, stop
+		 * sending keep-alive response and expect the command failed. */
+		del_timer(&ssif_bmc->response_timer);
+		ssif_bmc->rsp_timer_expired = false;
+		ssif_bmc->request_retry = 0;
+		/* Response master with Completion code=0xCE */
+		ssif_bmc->response.len = 3;
+		ssif_bmc->response.netfn_lun = ssif_bmc->request.netfn_lun | 4;
+		ssif_bmc->response.cmd = ssif_bmc->request.cmd;
+		ssif_bmc->response.payload[0] = 0xCE;
+	}
+	if (ssif_bmc->set_ssif_bmc_status)
+		ssif_bmc->set_ssif_bmc_status(ssif_bmc, SSIF_BMC_READY);
+
+	spin_unlock_irqrestore(&ssif_bmc->lock, flags);
+}
 
 /*
  * Call in WRITE context
@@ -63,6 +97,10 @@ retry:
 		(ssif_msg_len(&ssif_bmc->response) <= (MAX_PAYLOAD_PER_TRANSACTION + 1)) ?
 		true : false; /* 1: byte of length */
 
+	/* Stop keep-alive response timer when data is received */
+	del_timer(&ssif_bmc->response_timer);
+	ssif_bmc->rsp_timer_expired = false;
+	ssif_bmc->request_retry = 0;
 	ssif_bmc->response_in_progress = true;
 	spin_unlock_irqrestore(&ssif_bmc->lock, flags);
 
@@ -210,6 +248,12 @@ static int handle_request(struct ssif_bmc_ctx *ssif_bmc)
 	 */
 	memset(&ssif_bmc->response, 0, sizeof(struct ssif_msg));
 	wake_up_all(&ssif_bmc->wait_queue);
+
+	/* Start response timer */
+	timer_setup(&ssif_bmc->response_timer, response_timeout, 0);
+	mod_timer(&ssif_bmc->response_timer, jiffies + RESPONSE_TIMEOUT);
+	ssif_bmc->rsp_timer_expired = 0;
+
 	return 0;
 }
 
@@ -335,6 +379,12 @@ static void handle_read_processed(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
 	/* PEC - Restart Write Address */
 	addr = addr | 0x01;
 	pec = i2c_smbus_pec(pec, &addr, 1);
+
+	if (ssif_bmc->rsp_timer_expired) {
+		*val = 0;
+		complete_response(ssif_bmc);
+		return;
+	}
 
 	if (ssif_bmc->is_singlepart_read) {
 		/* Single-part Read processing */
@@ -599,6 +649,17 @@ static int ssif_bmc_cb(struct i2c_client *client, enum i2c_slave_event event, u8
 		 */
 		if (ssif_bmc->last_event == I2C_SLAVE_WRITE_RECEIVED)
 			complete_write_received(ssif_bmc);
+		/*
+		 * After sending keep-alive response, stop slave until next
+		 * response timer expired
+		 */
+		if ((ssif_bmc->last_event == I2C_SLAVE_READ_PROCESSED) &&
+		    ssif_bmc->rsp_timer_expired) {
+			ssif_bmc->rsp_timer_expired = false;
+			if (ssif_bmc->set_ssif_bmc_status)
+				ssif_bmc->set_ssif_bmc_status(ssif_bmc, SSIF_BMC_BUSY);
+		}
+
 		/* Reset message index */
 		ssif_bmc->msg_idx = 0;
 		break;

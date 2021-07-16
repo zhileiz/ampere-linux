@@ -40,6 +40,14 @@
 #define SSIF_IPMI_MULTIPART_READ_START		0x3
 #define SSIF_IPMI_MULTIPART_READ_MIDDLE		0x9
 
+/*
+ * From IPMI 2.0 Spec, section 12.7 SSIF Timing,
+ * Request-to-Response Time is T6max(250ms) - T1max(20ms) - 3ms = 227ms */
+#define RESPONSE_TIMEOUT			msecs_to_jiffies(227)
+/* Number of Request retries is 65 -> Total timeout waiting for response
+ * is 227ms*66 ~= 15 seconds */
+#define NUMBER_REQUEST_RETRY			66
+
 struct ssif_msg {
 	u8 len;
 	u8 netfn_lun;
@@ -63,6 +71,10 @@ struct ssif_bmc_ctx {
 	bool			request_available;
 	struct ssif_msg		response;
 	bool			response_in_progress;
+	/* Timeout waiting for response */
+	struct timer_list	response_timer;
+	bool			rsp_timer_expired;
+	u8			request_retry;
 	/* Response buffer for Multi-part Read Transaction */
 	u8			response_buf[MAX_PAYLOAD_PER_TRANSACTION];
 	/* Flag to identify a Multi-part Read Transaction */
