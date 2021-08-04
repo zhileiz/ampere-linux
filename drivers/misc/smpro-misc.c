@@ -116,7 +116,6 @@ static int boot_progress_show(struct device *dev,
 	u32 boot_progress;
 	u8 boot_status;
 	u8 boot_stage;
-	int stage_cnt;
 	int ret;
 
 
@@ -127,29 +126,23 @@ static int boot_progress_show(struct device *dev,
 		return ret;
 
 	current_boot_stage &= 0xff;
-	stage_cnt = 0;
-	do {
-		/* Read the boot progress */
-		ret = regmap_read(misc->regmap,
-				BOOT_STAGE_SELECT_REG, &boot_stage_reg);
-		if (ret)
-			return ret;
+	/* Read the boot progress */
+	ret = regmap_read(misc->regmap,
+			BOOT_STAGE_SELECT_REG, &boot_stage_reg);
+	if (ret)
+		return ret;
 
-		boot_stage = (boot_stage_reg & 0xff00) >> 8;
-		boot_status = boot_stage_reg & 0xff;
+	boot_stage = (boot_stage_reg & 0xff00) >> 8;
+	boot_status = boot_stage_reg & 0xff;
 
-		if (boot_stage == current_boot_stage)
-			break;
-
-		stage_cnt++;
+	if (boot_stage < current_boot_stage) {
 		ret = regmap_write(misc->regmap, BOOT_STAGE_SELECT_REG,
 				((boot_stage_reg & 0xff00) | 0x1));
 		if (ret)
 			return ret;
-	/* Never exceeded max number of stages */
-	} while (stage_cnt < BOOT_STAGE_MAX);
+	}
 
-	if (boot_stage != current_boot_stage)
+	if (boot_stage > current_boot_stage)
 		goto error;
 
 	switch (boot_stage) {
@@ -172,6 +165,7 @@ static int boot_progress_show(struct device *dev,
 			swab16(boot_stage_high_reg) << 16;
 		goto done;
 	default:
+		boot_progress = 0x0;
 		goto done;
 	}
 
