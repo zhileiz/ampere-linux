@@ -63,6 +63,11 @@
 #define WARN_PMPRO_INFO_LO_REG	0xAC
 #define WARN_PMPRO_INFO_HI_REG	0xAD
 
+/* Boot Stage Register */
+#define BOOT_STAGE_SELECT_REG		0xB0
+#define BOOT_STAGE_DIMM_SYSDROME_SEL	0xB5
+#define BOOT_STAGE_DIMM_SYSDROME_ERR	0xB6
+
 /* PCIE Error Registers */
 #define PCIE_CE_ERR_CNT_REG	0xC0
 #define PCIE_CE_ERR_LEN_REG	0xC1
@@ -103,6 +108,9 @@
 #define BIT_1			0x0002
 #define BIT_2			0x0004
 #define BIT_8			0x0100
+
+/* Boot stages */
+#define BOOT_STAGE_DDR_INIT_PROGRESS	4
 
 enum RAS_48BYTES_ERR_TYPES {
 	CORE_CE_ERRS,
@@ -190,6 +198,7 @@ enum EVENT_TYPES {
 	VRD_HOT_EVENTS,
 	DIMM_HOT_EVENTS,
 	DIMM_2X_EVENTS,
+	DIMM_SYSDROME_ERR,
 	NUM_EVENTS_TYPE,
 };
 
@@ -204,6 +213,7 @@ struct smpro_event_hdr smpro_event_table[NUM_EVENTS_TYPE] = {
 	{EVENT_SRC1_REG, VRD_HOT_EVENT_DATA_REG},
 	{EVENT_SRC2_REG, DIMM_HOT_EVENT_DATA_REG},
 	{EVENT_SRC2_REG, DIMM_2X_REFRESH_EVENT_DATA_REG},
+	{EVENT_SRC2_REG, BOOT_STAGE_DIMM_SYSDROME_ERR},
 };
 
 static int read_i2c_block_data(struct i2c_client *client,
@@ -330,6 +340,46 @@ static ssize_t smpro_event_data_read(struct device *dev,
 	/* Clear event after read */
 	if (event_data != 0)
 		regmap_write(errmon->regmap, event_info.event_data, event_data);
+done:
+	return strlen(buf);
+}
+
+static ssize_t smpro_event_dimm_syndrome_read(struct device *dev,
+				     struct device_attribute *da, char *buf,
+					 int channel)
+{
+	struct smpro_errmon *errmon = dev_get_drvdata(dev);
+	unsigned char msg[MAX_MSG_LEN] = {'\0'};
+	s32 event_data = 0;
+	s32 id = 0;
+	u8 boot_stage;
+	int ret;
+
+	/* check if boot stage is DDR_INIT_PROGRESS */
+	ret = regmap_read(errmon->regmap, BOOT_STAGE_SELECT_REG, &event_data);
+	if (ret)
+		goto done;
+
+	boot_stage = (event_data & 0xFF00) >> 8;
+	if (boot_stage != BOOT_STAGE_DDR_INIT_PROGRESS)
+		goto done;
+
+	*buf = 0;
+	for (id = 0; id < 16; id++) {
+		/* Write the slot ID to retrieve Error Syndrome in register 0xB5 */
+		ret = regmap_write(errmon->regmap, BOOT_STAGE_DIMM_SYSDROME_SEL, id);
+		if (ret)
+			continue;
+		/* Read the Syndrome error */
+		ret = regmap_read(errmon->regmap, BOOT_STAGE_DIMM_SYSDROME_ERR,
+						  &event_data);
+		if (ret || event_data == 0)
+			continue;
+
+		snprintf(msg, MAX_MSG_LEN, "%02x %02x %04x\n", channel, id, event_data);
+		strncat(buf, msg, strlen(msg));
+	}
+
 done:
 	return strlen(buf);
 }
@@ -621,6 +671,13 @@ static int event_dimm_2x_refresh_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(event_dimm_2x_refresh);
 
+static int event_dimm_syndrome_show(struct device *dev,
+		struct device_attribute *da, char *buf)
+{
+	return smpro_event_dimm_syndrome_read(dev, da, buf, DIMM_SYSDROME_ERR);
+}
+static DEVICE_ATTR_RO(event_dimm_syndrome);
+
 static struct attribute *smpro_errmon_attrs[] = {
 	&dev_attr_errors_core_ce.attr,
 	&dev_attr_errors_core_ue.attr,
@@ -636,6 +693,7 @@ static struct attribute *smpro_errmon_attrs[] = {
 	&dev_attr_event_vrd_hot.attr,
 	&dev_attr_event_dimm_hot.attr,
 	&dev_attr_event_dimm_2x_refresh.attr,
+	&dev_attr_event_dimm_syndrome.attr,
 	NULL
 };
 
