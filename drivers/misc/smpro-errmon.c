@@ -189,6 +189,7 @@ enum EVENT_TYPES {
 	VRD_WARN_FAULT_EVENTS,
 	VRD_HOT_EVENTS,
 	DIMM_HOT_EVENTS,
+	DIMM_2X_EVENTS,
 	NUM_EVENTS_TYPE,
 };
 
@@ -201,7 +202,8 @@ struct smpro_event_hdr {
 struct smpro_event_hdr smpro_event_table[NUM_EVENTS_TYPE] = {
 	{EVENT_SRC1_REG, VRD_WARN_FAULT_EVENT_DATA_REG},
 	{EVENT_SRC1_REG, VRD_HOT_EVENT_DATA_REG},
-	{EVENT_SRC2_REG, DIMM_HOT_EVENT_DATA_REG}
+	{EVENT_SRC2_REG, DIMM_HOT_EVENT_DATA_REG},
+	{EVENT_SRC2_REG, DIMM_2X_REFRESH_EVENT_DATA_REG},
 };
 
 static int read_i2c_block_data(struct i2c_client *client,
@@ -612,6 +614,13 @@ static int event_dimm_hot_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(event_dimm_hot);
 
+static int event_dimm_2x_refresh_show(struct device *dev,
+		struct device_attribute *da, char *buf)
+{
+	return smpro_event_data_read(dev, da, buf, DIMM_2X_EVENTS);
+}
+static DEVICE_ATTR_RO(event_dimm_2x_refresh);
+
 static struct attribute *smpro_errmon_attrs[] = {
 	&dev_attr_errors_core_ce.attr,
 	&dev_attr_errors_core_ue.attr,
@@ -626,6 +635,7 @@ static struct attribute *smpro_errmon_attrs[] = {
 	&dev_attr_event_vrd_warn_fault.attr,
 	&dev_attr_event_vrd_hot.attr,
 	&dev_attr_event_dimm_hot.attr,
+	&dev_attr_event_dimm_2x_refresh.attr,
 	NULL
 };
 
