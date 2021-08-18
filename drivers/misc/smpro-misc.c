@@ -134,16 +134,13 @@ static int boot_progress_show(struct device *dev,
 
 	boot_stage = (boot_stage_reg & 0xff00) >> 8;
 	boot_status = boot_stage_reg & 0xff;
-
-	if (boot_stage < current_boot_stage) {
+	if ((boot_stage < current_boot_stage) ||
+		((boot_status == 3) && (boot_stage == 3))) {
 		ret = regmap_write(misc->regmap, BOOT_STAGE_SELECT_REG,
 				((boot_stage_reg & 0xff00) | 0x1));
 		if (ret)
 			return ret;
 	}
-
-	if (boot_stage > current_boot_stage)
-		goto error;
 
 	switch (boot_stage) {
 	case BOOT_STAGE_UEFI:
@@ -169,10 +166,6 @@ static int boot_progress_show(struct device *dev,
 		goto done;
 	}
 
-error:
-	boot_stage = 0xff;
-	boot_status = 0xff;
-	boot_progress = 0xffffffff;
 done:
 	return snprintf(buf, PAGE_SIZE, "0x%02x 0x%02x 0x%08X\n",
 			boot_stage, boot_status, boot_progress);
