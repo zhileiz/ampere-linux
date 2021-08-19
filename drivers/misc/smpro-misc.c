@@ -213,6 +213,7 @@ static int reg_rw_show(struct device *dev,
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	int ret;
 	unsigned int value;
+
 	s16 addr = get_addr(dev->kobj.name);
 
 	if (addr == -1) {
@@ -226,7 +227,8 @@ static int reg_rw_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return snprintf(buf, PAGE_SIZE, "%x\n",
+		((value & 0xff00) >> 8) | ((value & 0xff) << 8));
 }
 
 static int reg_rw_store(struct device *dev,
@@ -235,6 +237,7 @@ static int reg_rw_store(struct device *dev,
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	unsigned long val;
+	unsigned long swapval;
 	s32 ret;
 	s16 addr = get_addr(dev->kobj.name);
 
@@ -246,8 +249,9 @@ static int reg_rw_store(struct device *dev,
 	ret = kstrtoul(buf, 0, &val);
 	if (ret)
 		return ret;
+	swapval = ((val & 0xff00) >> 8) | ((val & 0xff) << 8);
 
-	ret = regmap_write(misc->regmap, (unsigned int)addr, (unsigned int)val);
+	ret = regmap_write(misc->regmap, (unsigned int)addr, (unsigned int)swapval);
 
 	if (ret)
 		return -EPROTO;
@@ -269,7 +273,7 @@ static int reg_addr_show(struct device *dev,
 		return -ENODATA;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", addr);
+	return snprintf(buf, PAGE_SIZE, "%x\n", addr);
 }
 
 static int reg_addr_store(struct device *dev,
