@@ -54,6 +54,7 @@ MODULE_DEVICE_TABLE(of, aspeed_wdt_of_table);
 #define   WDT_CTRL_ENABLE		BIT(0)
 #define WDT_TIMEOUT_STATUS	0x10
 #define   WDT_TIMEOUT_STATUS_BOOT_SECONDARY	BIT(1)
+#define   WDT_EVENT_COUNTER_MASK	(0xFF << 8)
 #define WDT_CLEAR_TIMEOUT_STATUS	0x14
 #define   WDT_CLEAR_TIMEOUT_AND_BOOT_CODE_SELECTION	BIT(0)
 
@@ -369,11 +370,17 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 
 	status = readl(wdt->base + WDT_TIMEOUT_STATUS);
 	if (status & WDT_TIMEOUT_STATUS_BOOT_SECONDARY) {
-		wdt->wdd.bootstatus = WDIOF_CARDRESET;
-
 		if (of_device_is_compatible(np, "aspeed,ast2400-wdt") ||
 		    of_device_is_compatible(np, "aspeed,ast2500-wdt"))
 			wdt->wdd.groups = bswitch_groups;
+	}
+
+	if(status & WDT_EVENT_COUNTER_MASK) {
+		// Reset cause by WatchDog
+		wdt->wdd.bootstatus |= WDIOF_EXTERN1;
+	} else {
+		// Reset cause by Power On Reset
+		wdt->wdd.bootstatus |= WDIOF_CARDRESET;
 	}
 
 	dev_set_drvdata(dev, wdt);
