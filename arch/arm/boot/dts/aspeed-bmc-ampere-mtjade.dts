@@ -929,9 +929,19 @@
 	/*AC0-AC7*/	"SYS_PWR_GD","","","","","BMC_READY","SLAVE_PRESENT_L",
 			"BMC_OCP_PG";
 
+	OCP_AUX_PWREN {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(R, 3) GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
 	BMC_I2C4_O_EN {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Y, 2) GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+	BMC_READY {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(AC, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
 };
