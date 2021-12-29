@@ -40,6 +40,11 @@
 #define SSIF_IPMI_MULTIPART_READ_START		0x3
 #define SSIF_IPMI_MULTIPART_READ_MIDDLE		0x9
 
+/*
+ * From IPMI 2.0 Spec, section 12.7 SSIF Timing,
+ * Request-to-Response Time is T6max(250ms) - T1max(20ms) - 3ms = 227ms */
+#define RESPONSE_TIMEOUT			msecs_to_jiffies(227)
+
 struct ssif_msg {
 	u8 len;
 	u8 netfn_lun;
@@ -79,7 +84,12 @@ struct ssif_bmc_ctx {
 	wait_queue_head_t	wait_queue;
 	struct mutex		file_mutex;
 	void (*set_ssif_bmc_status)(struct ssif_bmc_ctx *ssif_bmc, unsigned int flags);
+	void (*en_response_nack)(struct ssif_bmc_ctx *ssif_bmc);
 	void			*priv;
+	bool			nack_ready;
+  	/* Timeout waiting for response */
+	struct timer_list	response_timer;
+
 };
 
 static inline struct ssif_bmc_ctx *to_ssif_bmc(struct file *file)
