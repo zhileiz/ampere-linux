@@ -52,7 +52,6 @@ static void response_timeout(struct timer_list * t)
 		del_timer(&ssif_bmc->response_timer);
 		ssif_bmc->rsp_timer_expired = false;
 		ssif_bmc->request_retry = 0;
-		ssif_bmc->keep_alive_in_progress = false;
 		/* Response master with Completion code=0xCE */
 		ssif_bmc->response.len = 3;
 		ssif_bmc->response.netfn_lun = ssif_bmc->request.netfn_lun | 4;
@@ -101,7 +100,6 @@ retry:
 	/* Stop keep-alive response timer when data is received */
 	del_timer(&ssif_bmc->response_timer);
 	ssif_bmc->rsp_timer_expired = false;
-	ssif_bmc->keep_alive_in_progress = false;
 	ssif_bmc->request_retry = 0;
 	ssif_bmc->response_in_progress = true;
 	spin_unlock_irqrestore(&ssif_bmc->lock, flags);
@@ -255,7 +253,6 @@ static int handle_request(struct ssif_bmc_ctx *ssif_bmc)
 	timer_setup(&ssif_bmc->response_timer, response_timeout, 0);
 	mod_timer(&ssif_bmc->response_timer, jiffies + RESPONSE_TIMEOUT);
 	ssif_bmc->rsp_timer_expired = 0;
-	ssif_bmc->keep_alive_in_progress = true;
 
 	return 0;
 }
@@ -268,7 +265,6 @@ static int complete_response(struct ssif_bmc_ctx *ssif_bmc)
 	ssif_bmc->response_in_progress = false;
 	ssif_bmc->nbytes_processed = 0;
 	ssif_bmc->remain_len = 0;
-	ssif_bmc->is_singlepart_read = true;
 	memset(&ssif_bmc->response_buf, 0, MAX_PAYLOAD_PER_TRANSACTION);
 	wake_up_all(&ssif_bmc->wait_queue);
 	return 0;
@@ -650,12 +646,8 @@ static int ssif_bmc_cb(struct i2c_client *client, enum i2c_slave_event event, u8
 		 * PEC byte is appended at the end of each transaction.
 		 * Detect PEC is support or not after receiving write request
 		 * completely.
-		 *
-		 * Due to support long ipmi command, a new request will be
-		 * ignored if the current request is still in keep-alive progress.
 		 */
-		if ((ssif_bmc->last_event == I2C_SLAVE_WRITE_RECEIVED) &&
-		    (!ssif_bmc->keep_alive_in_progress))
+		if (ssif_bmc->last_event == I2C_SLAVE_WRITE_RECEIVED)
 			complete_write_received(ssif_bmc);
 		/*
 		 * After sending keep-alive response, stop slave until next

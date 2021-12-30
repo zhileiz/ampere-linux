@@ -74,7 +74,6 @@ struct ssif_bmc_ctx {
 	/* Timeout waiting for response */
 	struct timer_list	response_timer;
 	bool			rsp_timer_expired;
-	bool			keep_alive_in_progress;
 	u8			request_retry;
 	/* Response buffer for Multi-part Read Transaction */
 	u8			response_buf[MAX_PAYLOAD_PER_TRANSACTION];
