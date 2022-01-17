@@ -37,9 +37,9 @@ static void response_timeout(struct timer_list * t)
 
 	spin_lock_irqsave(&ssif_bmc->lock, flags);
 
-	ssif_bmc->nack_ready = true;
-	if (ssif_bmc->set_ssif_bmc_status)
-		ssif_bmc->set_ssif_bmc_status(ssif_bmc, SSIF_BMC_READY);
+	ssif_bmc->busy = false;
+	del_timer(&ssif_bmc->response_timer);
+	ssif_bmc->response_timer_inited = false;
 
 	spin_unlock_irqrestore(&ssif_bmc->lock, flags);
 }
@@ -78,9 +78,16 @@ retry:
 		true : false; /* 1: byte of length */
 
 	ssif_bmc->response_in_progress = true;
-	/* Stop response timer when data is received */
-	del_timer(&ssif_bmc->response_timer);
-	ssif_bmc->nack_ready = false;
+	if (ssif_bmc->response_timer_inited) {
+		/* Stop response timer when data is received */
+		del_timer(&ssif_bmc->response_timer);
+		ssif_bmc->response_timer_inited = false;
+	}
+	/*
+	 * Clear the request buffer of this transaction
+	 */
+	memset(&ssif_bmc->request, 0, sizeof(struct ssif_msg));
+
 	spin_unlock_irqrestore(&ssif_bmc->lock, flags);
 
 	return 0;
@@ -170,8 +177,8 @@ static ssize_t ssif_bmc_write(struct file *file, const char __user *buf, size_t 
 		goto out;
 
 	ret = send_ssif_bmc_response(ssif_bmc, file->f_flags & O_NONBLOCK);
-	if (!ret && ssif_bmc->set_ssif_bmc_status)
-		ssif_bmc->set_ssif_bmc_status(ssif_bmc, SSIF_BMC_READY);
+	if (!ret)
+		ssif_bmc->busy = false;
 out:
 	mutex_unlock(&ssif_bmc->file_mutex);
 
@@ -216,8 +223,7 @@ static const struct file_operations ssif_bmc_fops = {
 /* Called with ssif_bmc->lock held. */
 static int handle_request(struct ssif_bmc_ctx *ssif_bmc)
 {
-	if (ssif_bmc->set_ssif_bmc_status)
-		ssif_bmc->set_ssif_bmc_status(ssif_bmc, SSIF_BMC_BUSY);
+	ssif_bmc->busy = true;
 
 	/* Request message is available to process */
 	ssif_bmc->request_available = true;
@@ -229,8 +235,11 @@ static int handle_request(struct ssif_bmc_ctx *ssif_bmc)
 	wake_up_all(&ssif_bmc->wait_queue);
 
 	/* Start response timer */
-	timer_setup(&ssif_bmc->response_timer, response_timeout, 0);
-	mod_timer(&ssif_bmc->response_timer, jiffies + RESPONSE_TIMEOUT);
+	if (!ssif_bmc->response_timer_inited) {
+		timer_setup(&ssif_bmc->response_timer, response_timeout, 0);
+		ssif_bmc->response_timer_inited = true;
+	}
+	mod_timer(&ssif_bmc->response_timer, jiffies + msecs_to_jiffies(RESPONSE_TIMEOUT));
 
 	return 0;
 }
@@ -243,7 +252,7 @@ static int complete_response(struct ssif_bmc_ctx *ssif_bmc)
 	ssif_bmc->response_in_progress = false;
 	ssif_bmc->nbytes_processed = 0;
 	ssif_bmc->remain_len = 0;
-	ssif_bmc->nack_ready = false;
+	ssif_bmc->busy = false;
 	memset(&ssif_bmc->response_buf, 0, MAX_PAYLOAD_PER_TRANSACTION);
 	wake_up_all(&ssif_bmc->wait_queue);
 	return 0;
@@ -594,11 +603,8 @@ static int ssif_bmc_cb(struct i2c_client *client, enum i2c_slave_event event, u8
 
 	case I2C_SLAVE_WRITE_REQUESTED:
 		ssif_bmc->msg_idx = 0;
-		if(ssif_bmc->nack_ready) {
-			if(!ssif_bmc->response_in_progress) {
-				ssif_bmc->en_response_nack(ssif_bmc);
-			}
-		}
+		if (ssif_bmc->busy && !ssif_bmc->response_in_progress)
+			ssif_bmc->en_response_nack(ssif_bmc);
 		break;
 
 	case I2C_SLAVE_READ_PROCESSED:
@@ -654,6 +660,8 @@ struct ssif_bmc_ctx *ssif_bmc_alloc(struct i2c_client *client, int sizeof_priv)
 	init_waitqueue_head(&ssif_bmc->wait_queue);
 	ssif_bmc->request_available = false;
 	ssif_bmc->response_in_progress = false;
+	ssif_bmc->busy = false;
+	ssif_bmc->response_timer_inited = false;
 
 	mutex_init(&ssif_bmc->file_mutex);
 

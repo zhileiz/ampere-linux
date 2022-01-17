@@ -35,51 +35,8 @@ struct aspeed_i2c_bus {
 	spinlock_t                      lock;
 };
 
-#define ASPEED_I2C_INTR_CTRL_REG	0x0c
-#define ASPEED_I2CD_INTR_SLAVE_MATCH	BIT(7)
-#define ASPEED_I2CD_INTR_RX_DONE	BIT(2)
 #define ASPEED_I2C_CMD_REG		0x14
 #define ASPEED_I2CD_M_S_RX_CMD_LAST	BIT(4)
-
-static void aspeed_i2c_enable_interrupt(struct aspeed_i2c_bus *bus, unsigned long mask)
-{
-	unsigned long current_mask;
-
-	current_mask = readl(bus->base + ASPEED_I2C_INTR_CTRL_REG);
-	writel(current_mask | mask, bus->base + ASPEED_I2C_INTR_CTRL_REG);
-}
-
-static void aspeed_i2c_disable_interrupt(struct aspeed_i2c_bus *bus, unsigned long mask)
-{
-	unsigned long current_mask;
-
-	current_mask = readl(bus->base + ASPEED_I2C_INTR_CTRL_REG);
-	writel(current_mask & ~mask, bus->base + ASPEED_I2C_INTR_CTRL_REG);
-}
-
-static void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned int status)
-{
-	struct aspeed_i2c_bus *bus;
-	unsigned long flags;
-
-	bus = (struct aspeed_i2c_bus *)ssif_bmc->priv;
-	if (!bus)
-		return;
-
-	spin_lock_irqsave(&bus->lock, flags);
-
-	if (status & SSIF_BMC_BUSY) {
-		/* Ignore RX_DONE and SLAVE_MATCH when slave busy processing */
-		aspeed_i2c_disable_interrupt(bus, ASPEED_I2CD_INTR_RX_DONE);
-		aspeed_i2c_disable_interrupt(bus, ASPEED_I2CD_INTR_SLAVE_MATCH);
-	} else if (status & SSIF_BMC_READY) {
-		/* Enable RX_DONE and SLAVE_MATCH when slave ready */
-		aspeed_i2c_enable_interrupt(bus, ASPEED_I2CD_INTR_RX_DONE);
-		aspeed_i2c_enable_interrupt(bus, ASPEED_I2CD_INTR_SLAVE_MATCH);
-	}
-
-	spin_unlock_irqrestore(&bus->lock, flags);
-}
 
 static void aspeed_response_nack(struct ssif_bmc_ctx *ssif_bmc)
 {
@@ -100,7 +57,6 @@ static int ssif_bmc_probe(struct i2c_client *client, const struct i2c_device_id 
 		return PTR_ERR(ssif_bmc);
 
 	ssif_bmc->priv = i2c_get_adapdata(client->adapter);
-	ssif_bmc->set_ssif_bmc_status = aspeed_set_ssif_bmc_status;
  	ssif_bmc->en_response_nack = aspeed_response_nack;
 
 	return 0;
