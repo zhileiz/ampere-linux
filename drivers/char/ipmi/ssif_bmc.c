@@ -18,6 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -603,8 +604,10 @@ static int ssif_bmc_cb(struct i2c_client *client, enum i2c_slave_event event, u8
 
 	case I2C_SLAVE_WRITE_REQUESTED:
 		ssif_bmc->msg_idx = 0;
-		if (ssif_bmc->busy && !ssif_bmc->response_in_progress)
+		if (ssif_bmc->busy && !ssif_bmc->response_in_progress) {
+			mdelay(30);
 			ssif_bmc->en_response_nack(ssif_bmc);
+		}
 		break;
 
 	case I2C_SLAVE_READ_PROCESSED:
