@@ -5,6 +5,7 @@
  * Copyright (c) 2021, Ampere Computing LLC
  */
 #include <linux/bitfield.h>
+#include <linux/bitops.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/kernel.h>
@@ -71,6 +72,7 @@ static const struct smpro_sensor temperature[] = {
 	},
 	{
 		.reg = SOC_VRD_TEMP,
+		.reg_ext = SOC_VR_HOT_THRESHOLD,
 		.label = "temp2 SoC VRD"
 	},
 	{
@@ -83,34 +85,42 @@ static const struct smpro_sensor temperature[] = {
 	},
 	{
 		.reg = CH0_DIMM_TEMP,
+		.reg_ext = MEM_HOT_THRESHOLD,
 		.label = "temp5 CH0 DIMM"
 	},
 	{
 		.reg = CH1_DIMM_TEMP,
+		.reg_ext = MEM_HOT_THRESHOLD,
 		.label = "temp6 CH1 DIMM"
 	},
 	{
 		.reg = CH2_DIMM_TEMP,
+		.reg_ext = MEM_HOT_THRESHOLD,
 		.label = "temp7 CH2 DIMM"
 	},
 	{
 		.reg = CH3_DIMM_TEMP,
+		.reg_ext = MEM_HOT_THRESHOLD,
 		.label = "temp8 CH3 DIMM"
 	},
 	{
 		.reg = CH4_DIMM_TEMP,
+		.reg_ext = MEM_HOT_THRESHOLD,
 		.label = "temp9 CH4 DIMM"
 	},
 	{
 		.reg = CH5_DIMM_TEMP,
+		.reg_ext = MEM_HOT_THRESHOLD,
 		.label = "temp10 CH5 DIMM"
 	},
 	{
 		.reg = CH6_DIMM_TEMP,
+		.reg_ext = MEM_HOT_THRESHOLD,
 		.label = "temp11 CH6 DIMM"
 	},
 	{
 		.reg = CH7_DIMM_TEMP,
+		.reg_ext = MEM_HOT_THRESHOLD,
 		.label = "temp12 CH7 DIMM"
 	},
 	{
@@ -201,29 +211,20 @@ static int smpro_read_temp(struct device *dev, u32 attr, int channel, long *val)
 
 	switch (attr) {
 	case hwmon_temp_input:
-		ret = regmap_read(hwmon->regmap,
-				  temperature[channel].reg, &value);
+		ret = regmap_read(hwmon->regmap, temperature[channel].reg, &value);
 		if (ret)
 			return ret;
-		*val = (value & 0x1ff) * 1000;
 		break;
 	case hwmon_temp_crit:
-		if (temperature[channel].reg == SOC_VRD_TEMP) {
-			ret = regmap_read(hwmon->regmap, SOC_VR_HOT_THRESHOLD, &value);
-			if (ret)
-				return ret;
-			*val = (value & 0x1ff) * 1000;
-		} else {
-			/* Report same MEM HOT threshold across DIMM channels */
-			ret = regmap_read(hwmon->regmap, MEM_HOT_THRESHOLD, &value);
-			if (ret)
-				return ret;
-			*val = (value & 0x1ff) * 1000;
-		}
+		ret = regmap_read(hwmon->regmap, temperature[channel].reg_ext, &value);
+		if (ret)
+			return ret;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	*val = sign_extend32(value, 8) * 1000;
 	return 0;
 }
 
