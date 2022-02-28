@@ -113,22 +113,6 @@ enum RAS_48BYTES_ERR_TYPES {
 	NUM_48BYTES_ERR_TYPE,
 };
 
-/*
- * The output of Core/Memory/PCIe/Others UE/CE errors follows below format:
- * <Error Type>  <Error SubType>  <Instance>  <Error Status> \
- * <Error Address>  <Error Misc 0> <Error Misc 1> <Error Misc2> <Error Misc 3>
- * Where:
- *  + Error Type: The hardwares cause the errors. (1 byte)
- *  + SubType: Sub type of error in the specified hardware error. (1 byte)
- *  + Instance: Combination of the socket, channel,
- *    slot cause the error. (2 bytes)
- *  + Error Status: Encode of error status. (4 bytes)
- *  + Error Address: The address in device causes the errors. (8 bytes)
- *  + Error Misc 0/1/2/3: Addition info about the errors. (8 bytes for each)
- * Reference Altra SOC BMC Interface specification.
- */
-u_int8_t field_size[9] = {1, 1, 2, 4, 8, 8, 8, 8, 8};
-
 struct smpro_error_hdr {
 	u8 err_count;	/* Number of the RAS errors */
 	u8 err_len;	/* Number of data bytes */
@@ -206,54 +190,6 @@ struct smpro_event_hdr smpro_event_table[NUM_EVENTS_TYPE] = {
 	{EVENT_SRC2, BOOT_STAGE_DIMM_SYSDROME_ERR},
 };
 
-static int format_overflow_error_output(unsigned char datas[], size_t data_len,
-			       char *buf, size_t buf_len)
-{
-	unsigned char str[3] = {'\0'};
-	u8 x = 0, y = 0, cur_pos = 0;
-
-	if (data_len < MAX_READ_BLOCK_LENGTH + 2)
-		return 0;
-	if (buf_len < MAX_MSG_LEN)
-		return 0;
-
-	for (x = 0; x < sizeof(field_size); x++) {
-		for (y = 0; y < field_size[x]; y++) {
-			if (x == 0 || x == 1)
-				snprintf(str, 3, "ff");
-			else
-				snprintf(str, 3, "00");
-			strncat(buf, str, strlen(str));
-		}
-		strncat(buf, " ", strlen(" "));
-		cur_pos = cur_pos + field_size[x];
-	}
-	return 1;
-}
-
-static int format_error_output(unsigned char datas[], size_t data_len,
-			       char *buf, size_t buf_len)
-{
-	unsigned char str[3] = {'\0'};
-	u8 x = 0, y = 0, cur_pos = 0;
-
-	if (data_len < MAX_READ_BLOCK_LENGTH + 2)
-		return 0;
-	if (buf_len < MAX_MSG_LEN)
-		return 0;
-
-	for (x = 0; x < sizeof(field_size); x++) {
-		for (y = 0; y < field_size[x]; y++) {
-			snprintf(str, 3, "%02x",
-				datas[cur_pos + field_size[x] - y - 1]);
-			strncat(buf, str, strlen(str));
-		}
-		strncat(buf, " ", strlen(" "));
-		cur_pos = cur_pos + field_size[x];
-	}
-	return 1;
-}
-
 static ssize_t smpro_event_data_read(struct device *dev,
 				     struct device_attribute *da, char *buf,
 				     int channel)
@@ -273,8 +209,8 @@ static ssize_t smpro_event_data_read(struct device *dev,
 	if (ret)
 		goto done;
 
-	snprintf(msg, MAX_MSG_LEN, "%02x %04x\n", channel, event_data);
-	strncat(buf, msg, strlen(msg));
+	ret = scnprintf(msg, MAX_MSG_LEN, "%02x %04x\n", channel, event_data);
+	strncat(buf, msg, ret);
 	/* Clear event after read */
 	if (event_data != 0)
 		regmap_write(errmon->regmap, event_info.event_data, event_data);
@@ -293,6 +229,7 @@ static ssize_t smpro_event_dimm_syndrome_read(struct device *dev,
 	u8 boot_stage;
 	int ret;
 
+	*buf = 0;
 	/* check if boot stage is DDR_INIT_PROGRESS */
 	ret = regmap_read(errmon->regmap, BOOT_STAGE_SELECT, &event_data);
 	if (ret)
@@ -302,7 +239,6 @@ static ssize_t smpro_event_dimm_syndrome_read(struct device *dev,
 	if (boot_stage != BOOT_STAGE_DDR_INIT_PROGRESS)
 		goto done;
 
-	*buf = 0;
 	for (id = 0; id < 16; id++) {
 		/* Write the slot ID to retrieve Error Syndrome in register 0xB5 */
 		ret = regmap_write(errmon->regmap, BOOT_STAGE_DIMM_SYSDROME_SEL, id);
@@ -314,8 +250,8 @@ static ssize_t smpro_event_dimm_syndrome_read(struct device *dev,
 		if (ret || event_data == 0)
 			continue;
 
-		snprintf(msg, MAX_MSG_LEN, "%02x %02x %04x\n", channel, id, event_data);
-		strncat(buf, msg, strlen(msg));
+		ret = scnprintf(msg, MAX_MSG_LEN, "%02x %02x %04x\n", channel, id, event_data);
+		strncat(buf, msg, ret);
 	}
 
 done:
@@ -331,6 +267,7 @@ static ssize_t smpro_error_data_read(struct device *dev,
 	struct smpro_error_hdr err_info;
 	s32 err_count = 1, err_length = 0;
 	u8 i = 0;
+	int len;
 	int ret;
 
 	*buf = 0;
@@ -348,12 +285,11 @@ static ssize_t smpro_error_data_read(struct device *dev,
 		goto done;
 
 	/* Bit 8 indentifies the overflow status of one error type */
-	if (err_count & 0x100) {
-		snprintf(msg, MAX_MSG_LEN, "%s", "");
-		format_overflow_error_output(err_data,
-			MAX_READ_BLOCK_LENGTH + 2, msg, MAX_MSG_LEN);
-		strcat(msg, "\n");
-		strncat(buf, msg, strlen(msg));
+	if (err_count & BIT(8)) {
+		len = scnprintf(msg, MAX_MSG_LEN,
+				"%02x %02x %04x %08x %016llx %016llx %016llx %016llx %016llx\n",
+				0xFF, 0xFF, 0, 0, 0LL, 0LL, 0LL, 0LL, 0LL);
+		strncat(buf, msg, len);
 	}
 
 	for (i = 0; i < err_count; i++) {
@@ -368,10 +304,26 @@ static ssize_t smpro_error_data_read(struct device *dev,
 		if (ret < 0)
 			break;
 
-		snprintf(msg, MAX_MSG_LEN, "%s", "");
-		format_error_output(err_data, MAX_READ_BLOCK_LENGTH + 2,
-			msg, MAX_MSG_LEN);
-		strcat(msg, "\n");
+		/*
+		 * The output of Core/Memory/PCIe/Others UE/CE errors follows below format:
+		 * <Error Type>  <Error SubType>  <Instance>  <Error Status> \
+		 * <Error Address>  <Error Misc 0> <Error Misc 1> <Error Misc2> <Error Misc 3>
+		 * Where:
+		 *  + Error Type: The hardwares cause the errors. (1 byte)
+		 *  + SubType: Sub type of error in the specified hardware error. (1 byte)
+		 *  + Instance: Combination of the socket, channel,
+		 *    slot cause the error. (2 bytes)
+		 *  + Error Status: Encode of error status. (4 bytes)
+		 *  + Error Address: The address in device causes the errors. (8 bytes)
+		 *  + Error Misc 0/1/2/3: Addition info about the errors. (8 bytes for each)
+		 * Reference Altra SOC BMC Interface specification.
+		 */
+		len = scnprintf(msg, MAX_MSG_LEN,
+				"%02x %02x %04x %08x %016llx %016llx %016llx %016llx %016llx\n",
+				err_data[0], err_data[1], *(u16 *)&err_data[2],
+				*(u32 *)&err_data[4], *(u64 *)&err_data[8],
+				*(u64 *)&err_data[16], *(u64 *)&err_data[24],
+				*(u64 *)&err_data[32], *(u64 *)&err_data[40]);
 
 		/* go to next error */
 		ret = regmap_write(errmon->regmap, err_info.err_count, 0x100);
@@ -379,7 +331,7 @@ static ssize_t smpro_error_data_read(struct device *dev,
 			break;
 
 		/* add error message to buffer */
-		strncat(buf, msg, strlen(msg));
+		strncat(buf, msg, len);
 	}
 done:
 	return strlen(buf);
@@ -390,8 +342,6 @@ static s32 smpro_internal_err_get_info(struct regmap *regmap, u8 addr,
 {
 	unsigned int ret_hi = 0, ret_lo = 0, data_lo = 0, data_hi = 0;
 	int ret;
-
-	snprintf(buf, MAX_MSG_LEN, "%s", "");
 
 	ret = regmap_read(regmap, addr, &ret_lo);
 	if (ret)
@@ -426,12 +376,9 @@ static s32 smpro_internal_err_get_info(struct regmap *regmap, u8 addr,
 	 *   + data : Extensive data (32 bits)
 	 *      All bits are 0 when errType is warning or error.
 	 */
-	scnprintf(buf, MAX_MSG_LEN, "%01x %02x %01x %02x %04x %04x%04x\n",
-			subtype, (ret_hi & 0xf000) >> 12,
-			(ret_hi & 0x0800) >> 11, ret_hi & 0xff, ret_lo,
-			data_hi, data_lo);
-
-	return strlen(buf);
+	return scnprintf(buf, MAX_MSG_LEN, "%01x %02x %01x %02x %04x %04x%04x\n",
+			 subtype, (ret_hi & 0xf000) >> 12, (ret_hi & 0x0800) >> 11,
+			 ret_hi & 0xff, ret_lo, data_hi, data_lo);
 }
 
 static ssize_t smpro_internal_err_read(struct device *dev,
@@ -472,7 +419,7 @@ static ssize_t smpro_internal_err_read(struct device *dev,
 		if (ret < 0)
 			goto done;
 
-		strncat(buf, msg, strlen(msg));
+		strncat(buf, msg, ret);
 	}
 
 	/* Error with data type */
@@ -485,7 +432,7 @@ static ssize_t smpro_internal_err_read(struct device *dev,
 		if (ret < 0)
 			goto done;
 
-		strncat(buf, msg, strlen(msg));
+		strncat(buf, msg, ret);
 	}
 	/* Error type */
 	else if (err_type & BIT(1)) {
@@ -496,7 +443,7 @@ static ssize_t smpro_internal_err_read(struct device *dev,
 		if (ret < 0)
 			goto done;
 
-		strncat(buf, msg, strlen(msg));
+		strncat(buf, msg, ret);
 	}
 
 	/* clear the read errors */
