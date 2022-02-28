@@ -457,28 +457,10 @@
 	smpro@4f {
 		compatible = "ampere,smpro";
 		reg = <0x4f>;
-		hwmon {
-			compatible = "ampere,ac01-hwmon";
-		};
-		misc {
-			compatible = "ampere,ac01-misc";
-		};
-		errmon {
-			compatible = "ampere,ac01-errmon";
-		};
 	};
 	smpro@4e {
 		compatible = "ampere,smpro";
 		reg = <0x4e>;
-		hwmon {
-			compatible = "ampere,ac01-hwmon";
-		};
-		misc {
-			compatible = "ampere,ac01-misc";
-		};
-		errmon {
-			compatible = "ampere,ac01-errmon";
-		};
 	};
 };
 
