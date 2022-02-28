@@ -14,10 +14,6 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 
-/* Identification Registers */
-#define MANUFACTURER_ID_REG		0x02
-#define AMPERE_MANUFACTURER_ID		0xCD3A
-
 /* Logical Power Sensor Registers */
 #define SOC_TEMP_REG			0x10
 #define SOC_VRD_TEMP_REG		0x11
@@ -432,16 +428,6 @@ static const struct hwmon_chip_info smpro_chip_info = {
 	.info = smpro_info,
 };
 
-static bool is_valid_id(struct regmap *regmap)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(regmap, MANUFACTURER_ID_REG, &val);
-
-	return  (ret || (val != AMPERE_MANUFACTURER_ID)) ? false : true;
-}
-
 static int smpro_hwmon_probe(struct platform_device *pdev)
 {
 	struct smpro_hwmon *hwmon;
@@ -454,10 +440,6 @@ static int smpro_hwmon_probe(struct platform_device *pdev)
 	hwmon->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!hwmon->regmap)
 		return -ENODEV;
-
-	/* Check for valid ID */
-	if (!is_valid_id(hwmon->regmap))
-		return -EPROBE_DEFER;
 
 	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev, "smpro_hwmon",
 							 hwmon, &smpro_chip_info, NULL);
