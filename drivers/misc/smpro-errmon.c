@@ -25,70 +25,70 @@
 #include <linux/regmap.h>
 
 /* GPI RAS Error Registers */
-#define GPI_RAS_ERR_REG		0x7E
+#define GPI_RAS_ERR		0x7E
 
 /* Core and L2C Error Registers */
-#define CORE_CE_ERR_CNT_REG	0x80
-#define CORE_CE_ERR_LEN_REG	0x81
-#define CORE_CE_ERR_DATA_REG	0x82
-#define CORE_UE_ERR_CNT_REG	0x83
-#define CORE_UE_ERR_LEN_REG	0x84
-#define CORE_UE_ERR_DATA_REG	0x85
+#define CORE_CE_ERR_CNT		0x80
+#define CORE_CE_ERR_LEN		0x81
+#define CORE_CE_ERR_DATA	0x82
+#define CORE_UE_ERR_CNT		0x83
+#define CORE_UE_ERR_LEN		0x84
+#define CORE_UE_ERR_DATA	0x85
 
 /* Memory Error Registers */
-#define MEM_CE_ERR_CNT_REG	0x90
-#define MEM_CE_ERR_LEN_REG	0x91
-#define MEM_CE_ERR_DATA_REG	0x92
-#define MEM_UE_ERR_CNT_REG	0x93
-#define MEM_UE_ERR_LEN_REG	0x94
-#define MEM_UE_ERR_DATA_REG	0x95
+#define MEM_CE_ERR_CNT		0x90
+#define MEM_CE_ERR_LEN		0x91
+#define MEM_CE_ERR_DATA		0x92
+#define MEM_UE_ERR_CNT		0x93
+#define MEM_UE_ERR_LEN		0x94
+#define MEM_UE_ERR_DATA		0x95
 
 /* RAS Error/Warning Registers */
-#define ERR_SMPRO_TYPE_REG	0xA0
-#define ERR_PMPRO_TYPE_REG	0xA1
-#define ERR_SMPRO_INFO_LO_REG	0xA2
-#define ERR_SMPRO_INFO_HI_REG	0xA3
-#define ERR_SMPRO_DATA_LO_REG	0xA4
-#define ERR_SMPRO_DATA_HI_REG	0xA5
-#define WARN_SMPRO_INFO_LO_REG	0xAA
-#define WARN_SMPRO_INFO_HI_REG	0xAB
-#define ERR_PMPRO_INFO_LO_REG	0xA6
-#define ERR_PMPRO_INFO_HI_REG	0xA7
-#define ERR_PMPRO_DATA_LO_REG	0xA8
-#define ERR_PMPRO_DATA_HI_REG	0xA9
-#define WARN_PMPRO_INFO_LO_REG	0xAC
-#define WARN_PMPRO_INFO_HI_REG	0xAD
+#define ERR_SMPRO_TYPE		0xA0
+#define ERR_PMPRO_TYPE		0xA1
+#define ERR_SMPRO_INFO_LO	0xA2
+#define ERR_SMPRO_INFO_HI	0xA3
+#define ERR_SMPRO_DATA_LO	0xA4
+#define ERR_SMPRO_DATA_HI	0xA5
+#define WARN_SMPRO_INFO_LO	0xAA
+#define WARN_SMPRO_INFO_HI	0xAB
+#define ERR_PMPRO_INFO_LO	0xA6
+#define ERR_PMPRO_INFO_HI	0xA7
+#define ERR_PMPRO_DATA_LO	0xA8
+#define ERR_PMPRO_DATA_HI	0xA9
+#define WARN_PMPRO_INFO_LO	0xAC
+#define WARN_PMPRO_INFO_HI	0xAD
 
 /* Boot Stage Register */
-#define BOOT_STAGE_SELECT_REG		0xB0
+#define BOOT_STAGE_SELECT		0xB0
 #define BOOT_STAGE_DIMM_SYSDROME_SEL	0xB4
 #define BOOT_STAGE_DIMM_SYSDROME_ERR	0xB5
 
 /* PCIE Error Registers */
-#define PCIE_CE_ERR_CNT_REG	0xC0
-#define PCIE_CE_ERR_LEN_REG	0xC1
-#define PCIE_CE_ERR_DATA_REG	0xC2
-#define PCIE_UE_ERR_CNT_REG	0xC3
-#define PCIE_UE_ERR_LEN_REG	0xC4
-#define PCIE_UE_ERR_DATA_REG	0xC5
+#define PCIE_CE_ERR_CNT		0xC0
+#define PCIE_CE_ERR_LEN		0xC1
+#define PCIE_CE_ERR_DATA	0xC2
+#define PCIE_UE_ERR_CNT		0xC3
+#define PCIE_UE_ERR_LEN		0xC4
+#define PCIE_UE_ERR_DATA	0xC5
 
 /* Other Error Registers */
-#define OTHER_CE_ERR_CNT_REG	0xD0
-#define OTHER_CE_ERR_LEN_REG	0xD1
-#define OTHER_CE_ERR_DATA_REG	0xD2
-#define OTHER_UE_ERR_CNT_REG	0xD8
-#define OTHER_UE_ERR_LEN_REG	0xD9
-#define OTHER_UE_ERR_DATA_REG	0xDA
+#define OTHER_CE_ERR_CNT	0xD0
+#define OTHER_CE_ERR_LEN	0xD1
+#define OTHER_CE_ERR_DATA	0xD2
+#define OTHER_UE_ERR_CNT	0xD8
+#define OTHER_UE_ERR_LEN	0xD9
+#define OTHER_UE_ERR_DATA	0xDA
 
 /* Event Source Registers */
-#define EVENT_SRC1_REG		0x62
-#define EVENT_SRC2_REG		0x63
+#define EVENT_SRC1		0x62
+#define EVENT_SRC2		0x63
 
 /* Event Data Registers */
-#define VRD_WARN_FAULT_EVENT_DATA_REG	0x78
-#define VRD_HOT_EVENT_DATA_REG		0x79
-#define DIMM_HOT_EVENT_DATA_REG		0x7A
-#define DIMM_2X_REFRESH_EVENT_DATA_REG	0x96
+#define VRD_WARN_FAULT_EVENT_DATA	0x78
+#define VRD_HOT_EVENT_DATA		0x79
+#define DIMM_HOT_EVENT_DATA		0x7A
+#define DIMM_2X_REFRESH_EVENT_DATA	0x96
 
 /* I2C read block data constant */
 #define MAX_READ_BLOCK_LENGTH	48
@@ -146,14 +146,14 @@ struct smpro_error_hdr {
  * of the 48 bytes error data
  */
 struct smpro_error_hdr smpro_error_table[NUM_48BYTES_ERR_TYPE] = {
-	{CORE_CE_ERR_CNT_REG, CORE_CE_ERR_LEN_REG, CORE_CE_ERR_DATA_REG, 32},
-	{CORE_UE_ERR_CNT_REG, CORE_UE_ERR_LEN_REG, CORE_UE_ERR_DATA_REG, 32},
-	{MEM_CE_ERR_CNT_REG, MEM_CE_ERR_LEN_REG, MEM_CE_ERR_DATA_REG, 16},
-	{MEM_UE_ERR_CNT_REG, MEM_UE_ERR_LEN_REG, MEM_UE_ERR_DATA_REG, 16},
-	{PCIE_CE_ERR_CNT_REG, PCIE_CE_ERR_LEN_REG, PCIE_CE_ERR_DATA_REG, 96},
-	{PCIE_UE_ERR_CNT_REG, PCIE_UE_ERR_LEN_REG, PCIE_UE_ERR_DATA_REG, 96},
-	{OTHER_CE_ERR_CNT_REG, OTHER_CE_ERR_LEN_REG, OTHER_CE_ERR_DATA_REG, 8},
-	{OTHER_UE_ERR_CNT_REG, OTHER_UE_ERR_LEN_REG, OTHER_UE_ERR_DATA_REG, 8},
+	{CORE_CE_ERR_CNT, CORE_CE_ERR_LEN, CORE_CE_ERR_DATA, 32},
+	{CORE_UE_ERR_CNT, CORE_UE_ERR_LEN, CORE_UE_ERR_DATA, 32},
+	{MEM_CE_ERR_CNT, MEM_CE_ERR_LEN, MEM_CE_ERR_DATA, 16},
+	{MEM_UE_ERR_CNT, MEM_UE_ERR_LEN, MEM_UE_ERR_DATA, 16},
+	{PCIE_CE_ERR_CNT, PCIE_CE_ERR_LEN, PCIE_CE_ERR_DATA, 96},
+	{PCIE_UE_ERR_CNT, PCIE_UE_ERR_LEN, PCIE_UE_ERR_DATA, 96},
+	{OTHER_CE_ERR_CNT, OTHER_CE_ERR_LEN, OTHER_CE_ERR_DATA, 8},
+	{OTHER_UE_ERR_CNT, OTHER_UE_ERR_LEN, OTHER_UE_ERR_DATA, 8},
 };
 
 /*
@@ -172,16 +172,16 @@ struct smpro_int_error_hdr {
 
 struct smpro_int_error_hdr list_smpro_int_error_hdr[2] = {
 	{
-	 ERR_SMPRO_TYPE_REG,
-	 ERR_SMPRO_INFO_LO_REG, ERR_SMPRO_INFO_HI_REG,
-	 ERR_SMPRO_DATA_LO_REG, ERR_SMPRO_DATA_HI_REG,
-	 WARN_SMPRO_INFO_LO_REG, WARN_SMPRO_INFO_HI_REG
+	 ERR_SMPRO_TYPE,
+	 ERR_SMPRO_INFO_LO, ERR_SMPRO_INFO_HI,
+	 ERR_SMPRO_DATA_LO, ERR_SMPRO_DATA_HI,
+	 WARN_SMPRO_INFO_LO, WARN_SMPRO_INFO_HI
 	},
 	{
-	 ERR_PMPRO_TYPE_REG,
-	 ERR_PMPRO_INFO_LO_REG, ERR_PMPRO_INFO_HI_REG,
-	 ERR_PMPRO_DATA_LO_REG, ERR_PMPRO_DATA_HI_REG,
-	 WARN_PMPRO_INFO_LO_REG, WARN_PMPRO_INFO_HI_REG
+	 ERR_PMPRO_TYPE,
+	 ERR_PMPRO_INFO_LO, ERR_PMPRO_INFO_HI,
+	 ERR_PMPRO_DATA_LO, ERR_PMPRO_DATA_HI,
+	 WARN_PMPRO_INFO_LO, WARN_PMPRO_INFO_HI
 	},
 };
 
@@ -205,11 +205,11 @@ struct smpro_event_hdr {
 
 /* Included Address of event source and data registers */
 struct smpro_event_hdr smpro_event_table[NUM_EVENTS_TYPE] = {
-	{EVENT_SRC1_REG, VRD_WARN_FAULT_EVENT_DATA_REG},
-	{EVENT_SRC1_REG, VRD_HOT_EVENT_DATA_REG},
-	{EVENT_SRC2_REG, DIMM_HOT_EVENT_DATA_REG},
-	{EVENT_SRC2_REG, DIMM_2X_REFRESH_EVENT_DATA_REG},
-	{EVENT_SRC2_REG, BOOT_STAGE_DIMM_SYSDROME_ERR},
+	{EVENT_SRC1, VRD_WARN_FAULT_EVENT_DATA},
+	{EVENT_SRC1, VRD_HOT_EVENT_DATA},
+	{EVENT_SRC2, DIMM_HOT_EVENT_DATA},
+	{EVENT_SRC2, DIMM_2X_REFRESH_EVENT_DATA},
+	{EVENT_SRC2, BOOT_STAGE_DIMM_SYSDROME_ERR},
 };
 
 static int read_i2c_block_data(struct i2c_client *client,
@@ -352,7 +352,7 @@ static ssize_t smpro_event_dimm_syndrome_read(struct device *dev,
 	int ret;
 
 	/* check if boot stage is DDR_INIT_PROGRESS */
-	ret = regmap_read(errmon->regmap, BOOT_STAGE_SELECT_REG, &event_data);
+	ret = regmap_read(errmon->regmap, BOOT_STAGE_SELECT, &event_data);
 	if (ret)
 		goto done;
 
@@ -509,7 +509,7 @@ static ssize_t smpro_internal_err_read(struct device *dev,
 		goto done;
 
 	/* read error status */
-	ret = regmap_read(errmon->regmap, GPI_RAS_ERR_REG, &value);
+	ret = regmap_read(errmon->regmap, GPI_RAS_ERR, &value);
 	if (ret)
 		goto done;
 
