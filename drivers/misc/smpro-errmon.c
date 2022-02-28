@@ -24,10 +24,6 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-/* Identification Registers */
-#define MANUFACTURER_ID_REG	0x02
-#define AMPERE_MANUFACTURER_ID	0xCD3A
-
 /* GPI RAS Error Registers */
 #define GPI_RAS_ERR_REG		0x7E
 
@@ -697,17 +693,6 @@ static const struct attribute_group smpro_errmon_attr_group = {
 	.attrs = smpro_errmon_attrs
 };
 
-static int check_valid_id (struct regmap *regmap)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(regmap, MANUFACTURER_ID_REG, &val);
-	if (ret)
-		return ret;
-	return (val == AMPERE_MANUFACTURER_ID) ? 0 : 1;
-}
-
 static int smpro_errmon_probe(struct platform_device *pdev)
 {
 	struct smpro_errmon *errmon;
@@ -723,11 +708,6 @@ static int smpro_errmon_probe(struct platform_device *pdev)
 	errmon->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!errmon->regmap)
 		return -ENODEV;
-
-	/* Check for valid ID */
-	ret = check_valid_id(errmon->regmap);
-	if (ret)
-		dev_warn(&pdev->dev, "Hmmh, SMPro not ready yet\n");
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &smpro_errmon_attr_group);
 	if (ret)
