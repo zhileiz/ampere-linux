@@ -206,58 +206,6 @@ struct smpro_event_hdr smpro_event_table[NUM_EVENTS_TYPE] = {
 	{EVENT_SRC2, BOOT_STAGE_DIMM_SYSDROME_ERR},
 };
 
-static int read_i2c_block_data(struct i2c_client *client,
-				u16 address, u16 length, u8 *data)
-{
-	struct i2c_msg msgs[2];
-	unsigned char msgbuf0[2];
-	unsigned char msgbuf1[MAX_READ_BLOCK_LENGTH + 2];
-	ssize_t ret;
-	u8 i = 0;
-
-	if (length > MAX_READ_BLOCK_LENGTH)
-		return -EINVAL;
-
-	msgbuf0[0] = (address & 0xff);
-	msgbuf0[1] = length;
-
-	msgs[0].addr = client->addr;
-	msgs[0].flags = client->flags & I2C_M_TEN;
-	msgs[0].len = 2;
-	msgs[0].buf = msgbuf0;
-
-	msgs[1].addr = client->addr;
-	msgs[1].flags = (client->flags  & I2C_M_TEN) | I2C_M_RD;
-	msgs[1].len = length;
-	msgs[1].buf = msgbuf1;
-
-	ret = i2c_transfer(client->adapter, msgs, NUM_I2C_MESSAGES);
-	if (ret < 0)
-		return ret;
-
-	if (ret != NUM_I2C_MESSAGES)
-		return -EIO;
-
-	for (i = 0; i < length; i++)
-		data[i] = msgbuf1[i];
-
-	return length;
-}
-
-static int errmon_read_block(struct regmap *map, u16 address, u16 length, u8 *data)
-{
-	struct i2c_client *client = to_i2c_client(regmap_get_device(map));
-	int ret;
-
-	regmap_acquire_lock(map);
-
-	ret = read_i2c_block_data(client, address, length, data);
-
-	regmap_release_lock(map);
-
-	return ret;
-}
-
 static int format_overflow_error_output(unsigned char datas[], size_t data_len,
 			       char *buf, size_t buf_len)
 {
@@ -416,8 +364,7 @@ static ssize_t smpro_error_data_read(struct device *dev,
 		if (err_length > MAX_READ_BLOCK_LENGTH)
 			err_length = MAX_READ_BLOCK_LENGTH;
 
-		ret = errmon_read_block(errmon->regmap, err_info.err_data,
-			err_length, err_data);
+		ret = regmap_noinc_read(errmon->regmap, err_info.err_data, err_data, err_length);
 		if (ret < 0)
 			break;
 
