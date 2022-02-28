@@ -569,105 +569,105 @@ done:
 	return strlen(buf);
 }
 
-static int errors_core_ce_show(struct device *dev,
+static ssize_t errors_core_ce_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_error_data_read(dev, da, buf, CORE_CE_ERRS);
 }
 static DEVICE_ATTR_RO(errors_core_ce);
 
-static int errors_core_ue_show(struct device *dev,
+static ssize_t errors_core_ue_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_error_data_read(dev, da, buf, CORE_UE_ERRS);
 }
 static DEVICE_ATTR_RO(errors_core_ue);
 
-static int errors_mem_ce_show(struct device *dev,
+static ssize_t errors_mem_ce_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_error_data_read(dev, da, buf, MEM_CE_ERRS);
 }
 static DEVICE_ATTR_RO(errors_mem_ce);
 
-static int errors_mem_ue_show(struct device *dev,
+static ssize_t errors_mem_ue_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_error_data_read(dev, da, buf, MEM_UE_ERRS);
 }
 static DEVICE_ATTR_RO(errors_mem_ue);
 
-static int errors_pcie_ce_show(struct device *dev,
+static ssize_t errors_pcie_ce_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_error_data_read(dev, da, buf, PCIE_CE_ERRS);
 }
 static DEVICE_ATTR_RO(errors_pcie_ce);
 
-static int errors_pcie_ue_show(struct device *dev,
+static ssize_t errors_pcie_ue_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_error_data_read(dev, da, buf, PCIE_UE_ERRS);
 }
 static DEVICE_ATTR_RO(errors_pcie_ue);
 
-static int errors_other_ce_show(struct device *dev,
+static ssize_t errors_other_ce_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_error_data_read(dev, da, buf, OTHER_CE_ERRS);
 }
 static DEVICE_ATTR_RO(errors_other_ce);
 
-static int errors_other_ue_show(struct device *dev,
+static ssize_t errors_other_ue_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_error_data_read(dev, da, buf, OTHER_UE_ERRS);
 }
 static DEVICE_ATTR_RO(errors_other_ue);
 
-static int errors_smpro_show(struct device *dev,
+static ssize_t errors_smpro_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_internal_err_read(dev, da, buf, RAS_SMPRO_ERRS);
 }
 static DEVICE_ATTR_RO(errors_smpro);
 
-static int errors_pmpro_show(struct device *dev,
+static ssize_t errors_pmpro_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_internal_err_read(dev, da, buf, RAS_PMPRO_ERRS);
 }
 static DEVICE_ATTR_RO(errors_pmpro);
 
-static int event_vrd_warn_fault_show(struct device *dev,
+static ssize_t event_vrd_warn_fault_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_event_data_read(dev, da, buf, VRD_WARN_FAULT_EVENTS);
 }
 static DEVICE_ATTR_RO(event_vrd_warn_fault);
 
-static int event_vrd_hot_show(struct device *dev,
+static ssize_t event_vrd_hot_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_event_data_read(dev, da, buf, VRD_HOT_EVENTS);
 }
 static DEVICE_ATTR_RO(event_vrd_hot);
 
-static int event_dimm_hot_show(struct device *dev,
+static ssize_t event_dimm_hot_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_event_data_read(dev, da, buf, DIMM_HOT_EVENTS);
 }
 static DEVICE_ATTR_RO(event_dimm_hot);
 
-static int event_dimm_2x_refresh_show(struct device *dev,
+static ssize_t event_dimm_2x_refresh_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_event_data_read(dev, da, buf, DIMM_2X_EVENTS);
 }
 static DEVICE_ATTR_RO(event_dimm_2x_refresh);
 
-static int event_dimm_syndrome_show(struct device *dev,
+static ssize_t event_dimm_syndrome_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	return smpro_event_dimm_syndrome_read(dev, da, buf, DIMM_SYSDROME_ERR);
