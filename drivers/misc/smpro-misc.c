@@ -363,18 +363,11 @@ static int smpro_misc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id smpro_misc_of_match[] = {
-	{ .compatible = "ampere,ac01-misc" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, smpro_misc_of_match);
-
 static struct platform_driver smpro_misc_driver = {
 	.probe		= smpro_misc_probe,
 	.remove		= smpro_misc_remove,
 	.driver = {
 		.name	= "smpro-misc",
-		.of_match_table = smpro_misc_of_match,
 	},
 };
 
