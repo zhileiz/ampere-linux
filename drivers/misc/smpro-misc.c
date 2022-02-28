@@ -23,13 +23,13 @@
 #include <linux/regmap.h>
 
 /* Boot Stage/Progress Registers */
-#define BOOT_STAGE_SELECT_REG		0xB0
-#define BOOT_STAGE_STATUS_LO_REG	0xB1
-#define BOOT_STAGE_CUR_STAGE_REG	0xB2
-#define BOOT_STAGE_STATUS_HI_REG	0xB3
+#define BOOT_STAGE_SELECT	0xB0
+#define BOOT_STAGE_STATUS_LO	0xB1
+#define BOOT_STAGE_CUR_STAGE	0xB2
+#define BOOT_STAGE_STATUS_HI	0xB3
 
 /* SOC State Registers */
-#define SOC_POWER_LIMIT_REG	0xE5
+#define SOC_POWER_LIMIT		0xE5
 
 /* Boot stages */
 enum {
@@ -116,15 +116,13 @@ static ssize_t boot_progress_show(struct device *dev,
 
 
 	/* Read current boot stage */
-	ret = regmap_read(misc->regmap,
-			BOOT_STAGE_CUR_STAGE_REG, &current_boot_stage);
+	ret = regmap_read(misc->regmap, BOOT_STAGE_CUR_STAGE, &current_boot_stage);
 	if (ret)
 		return ret;
 
 	current_boot_stage &= 0xff;
 	/* Read the boot progress */
-	ret = regmap_read(misc->regmap,
-			BOOT_STAGE_SELECT_REG, &boot_stage_reg);
+	ret = regmap_read(misc->regmap, BOOT_STAGE_SELECT, &boot_stage_reg);
 	if (ret)
 		return ret;
 
@@ -132,7 +130,7 @@ static ssize_t boot_progress_show(struct device *dev,
 	boot_status = boot_stage_reg & 0xff;
 	if ((boot_stage < current_boot_stage) ||
 		((boot_status == 3) && (boot_stage == 3))) {
-		ret = regmap_write(misc->regmap, BOOT_STAGE_SELECT_REG,
+		ret = regmap_write(misc->regmap, BOOT_STAGE_SELECT,
 				((boot_stage_reg & 0xff00) | 0x1));
 		if (ret)
 			return ret;
@@ -145,17 +143,13 @@ static ssize_t boot_progress_show(struct device *dev,
 		 * The progress is 32 bits:
 		 * B3.byte[0] B3.byte[1] B1.byte[0] B1.byte[1]
 		 */
-		ret = regmap_read(misc->regmap,	BOOT_STAGE_STATUS_LO_REG,
-				&boot_stage_low_reg);
+		ret = regmap_read(misc->regmap,	BOOT_STAGE_STATUS_LO, &boot_stage_low_reg);
 		if (!ret)
-			ret = regmap_read(misc->regmap,
-					BOOT_STAGE_STATUS_HI_REG,
-					&boot_stage_high_reg);
+			ret = regmap_read(misc->regmap, BOOT_STAGE_STATUS_HI, &boot_stage_high_reg);
 		if (ret)
 			return ret;
 
-		boot_progress = swab16(boot_stage_low_reg) |
-			swab16(boot_stage_high_reg) << 16;
+		boot_progress = swab16(boot_stage_low_reg) | swab16(boot_stage_high_reg) << 16;
 		goto done;
 	default:
 		boot_progress = 0x0;
@@ -176,7 +170,7 @@ static ssize_t soc_power_limit_show(struct device *dev,
 	int ret;
 	unsigned int value;
 
-	ret = regmap_read(misc->regmap, SOC_POWER_LIMIT_REG, &value);
+	ret = regmap_read(misc->regmap, SOC_POWER_LIMIT, &value);
 	if (ret)
 		return ret;
 
@@ -195,8 +189,7 @@ static ssize_t soc_power_limit_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = regmap_write(misc->regmap, SOC_POWER_LIMIT_REG,
-			(unsigned int)val);
+	ret = regmap_write(misc->regmap, SOC_POWER_LIMIT, (unsigned int)val);
 	if (ret)
 		return -EPROTO;
 
