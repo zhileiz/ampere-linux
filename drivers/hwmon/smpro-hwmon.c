@@ -310,12 +310,6 @@ static int smpro_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static int smpro_write(struct device *dev, enum hwmon_sensor_types type,
-		       u32 attr, int channel, long val)
-{
-	return -EOPNOTSUPP;
-}
-
 static int smpro_read_string(struct device *dev, enum hwmon_sensor_types type,
 			     u32 attr, int channel, const char **str)
 {
@@ -430,7 +424,6 @@ static const struct hwmon_channel_info *smpro_info[] = {
 static const struct hwmon_ops smpro_hwmon_ops = {
 	.is_visible = smpro_is_visible,
 	.read = smpro_read,
-	.write = smpro_write,
 	.read_string = smpro_read_string,
 };
 
