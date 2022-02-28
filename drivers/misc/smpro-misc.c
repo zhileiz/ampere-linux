@@ -69,7 +69,7 @@ s16 get_addr(char *dev_name)
 int find_dev(char *dev_name)
 {
 	if (strcmp(reg_addrs[0].dev_name, dev_name) == 0 ||
-		strcmp(reg_addrs[1].dev_name, dev_name) == 0)
+	    strcmp(reg_addrs[1].dev_name, dev_name) == 0)
 		return 1;
 	return 0;
 }
@@ -101,8 +101,7 @@ struct smpro_misc {
 	struct regmap *regmap;
 };
 
-static ssize_t boot_progress_show(struct device *dev,
-		struct device_attribute *da, char *buf)
+static ssize_t boot_progress_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	u32 boot_stage_high_reg;
@@ -113,7 +112,6 @@ static ssize_t boot_progress_show(struct device *dev,
 	u8 boot_status;
 	u8 boot_stage;
 	int ret;
-
 
 	/* Read current boot stage */
 	ret = regmap_read(misc->regmap, BOOT_STAGE_CUR_STAGE, &current_boot_stage);
@@ -128,10 +126,10 @@ static ssize_t boot_progress_show(struct device *dev,
 
 	boot_stage = (boot_stage_reg & 0xff00) >> 8;
 	boot_status = boot_stage_reg & 0xff;
-	if ((boot_stage < current_boot_stage) ||
-		((boot_status == 3) && (boot_stage == 3))) {
+	if (boot_stage < current_boot_stage ||
+	    (boot_status == 3 && boot_stage == 3)) {
 		ret = regmap_write(misc->regmap, BOOT_STAGE_SELECT,
-				((boot_stage_reg & 0xff00) | 0x1));
+				   ((boot_stage_reg & 0xff00) | 0x1));
 		if (ret)
 			return ret;
 	}
@@ -163,8 +161,7 @@ done:
 
 static DEVICE_ATTR_RO(boot_progress);
 
-static ssize_t soc_power_limit_show(struct device *dev,
-				struct device_attribute *da, char *buf)
+static ssize_t soc_power_limit_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	int ret;
@@ -177,9 +174,8 @@ static ssize_t soc_power_limit_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
 }
 
-static ssize_t soc_power_limit_store(struct device *dev,
-				struct device_attribute *da,
-				const char *buf, size_t count)
+static ssize_t soc_power_limit_store(struct device *dev, struct device_attribute *da,
+				     const char *buf, size_t count)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	unsigned long val;
@@ -196,8 +192,7 @@ static ssize_t soc_power_limit_store(struct device *dev,
 	return count;
 }
 
-static ssize_t reg_rw_show(struct device *dev,
-				struct device_attribute *da, char *buf)
+static ssize_t reg_rw_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	int ret;
@@ -220,9 +215,8 @@ static ssize_t reg_rw_show(struct device *dev,
 		((value & 0xff00) >> 8) | ((value & 0xff) << 8));
 }
 
-static ssize_t reg_rw_store(struct device *dev,
-				struct device_attribute *da,
-				const char *buf, size_t count)
+static ssize_t reg_rw_store(struct device *dev, struct device_attribute *da,
+			    const char *buf, size_t count)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	unsigned long val;
@@ -251,8 +245,7 @@ static ssize_t reg_rw_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(reg_rw);
 
-static ssize_t reg_addr_show(struct device *dev,
-				struct device_attribute *da, char *buf)
+static ssize_t reg_addr_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	s16 addr = get_addr(dev->kobj.name);
@@ -265,9 +258,8 @@ static ssize_t reg_addr_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%x\n", addr);
 }
 
-static ssize_t reg_addr_store(struct device *dev,
-				struct device_attribute *da,
-				const char *buf, size_t count)
+static ssize_t reg_addr_store(struct device *dev, struct device_attribute *da,
+			      const char *buf, size_t count)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
 	s32 ret;
@@ -277,7 +269,7 @@ static ssize_t reg_addr_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if ( addr < 0x00 || addr > 0xff) {
+	if (addr < 0x00 || addr > 0xff) {
 		pr_err("Invalid address. Range is 0 to 0xff!\n");
 		return -EINVAL;
 	}
@@ -307,8 +299,7 @@ static int smpro_misc_probe(struct platform_device *pdev)
 	struct smpro_misc *misc;
 	int ret;
 
-	misc = devm_kzalloc(&pdev->dev, sizeof(struct smpro_misc),
-			GFP_KERNEL);
+	misc = devm_kzalloc(&pdev->dev, sizeof(struct smpro_misc), GFP_KERNEL);
 	if (!misc)
 		return -ENOMEM;
 
