@@ -262,7 +262,7 @@ static int format_overflow_error_output(unsigned char datas[], size_t data_len,
 			       char *buf, size_t buf_len)
 {
 	unsigned char str[3] = {'\0'};
-	u8 x = 0, y = 0, curPos = 0;
+	u8 x = 0, y = 0, cur_pos = 0;
 
 	if (data_len < MAX_READ_BLOCK_LENGTH + 2)
 		return 0;
@@ -278,7 +278,7 @@ static int format_overflow_error_output(unsigned char datas[], size_t data_len,
 			strncat(buf, str, strlen(str));
 		}
 		strncat(buf, " ", strlen(" "));
-		curPos = curPos + field_size[x];
+		cur_pos = cur_pos + field_size[x];
 	}
 	return 1;
 }
@@ -287,7 +287,7 @@ static int format_error_output(unsigned char datas[], size_t data_len,
 			       char *buf, size_t buf_len)
 {
 	unsigned char str[3] = {'\0'};
-	u8 x = 0, y = 0, curPos = 0;
+	u8 x = 0, y = 0, cur_pos = 0;
 
 	if (data_len < MAX_READ_BLOCK_LENGTH + 2)
 		return 0;
@@ -297,11 +297,11 @@ static int format_error_output(unsigned char datas[], size_t data_len,
 	for (x = 0; x < sizeof(field_size); x++) {
 		for (y = 0; y < field_size[x]; y++) {
 			snprintf(str, 3, "%02x",
-				datas[curPos + field_size[x] - y - 1]);
+				datas[cur_pos + field_size[x] - y - 1]);
 			strncat(buf, str, strlen(str));
 		}
 		strncat(buf, " ", strlen(" "));
-		curPos = curPos + field_size[x];
+		cur_pos = cur_pos + field_size[x];
 	}
 	return 1;
 }
@@ -441,24 +441,24 @@ done:
 static s32 smpro_internal_err_get_info(struct regmap *regmap, u8 addr,
 	u8 addr1, u8 addr2, u8 addr3, u8 subtype, char *buf)
 {
-	unsigned int retHi = 0, retLo = 0, dataLo = 0, dataHi = 0;
+	unsigned int ret_hi = 0, ret_lo = 0, data_lo = 0, data_hi = 0;
 	int ret;
 
 	snprintf(buf, MAX_MSG_LEN, "%s", "");
 
-	ret = regmap_read(regmap, addr, &retLo);
+	ret = regmap_read(regmap, addr, &ret_lo);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(regmap, addr1, &retHi);
+	ret = regmap_read(regmap, addr1, &ret_hi);
 	if (ret)
 		return ret;
 
 	if (addr2 != 0xff) {
-		ret = regmap_read(regmap, addr2, &dataLo);
+		ret = regmap_read(regmap, addr2, &data_lo);
 		if (ret)
 			return ret;
-		ret = regmap_read(regmap, addr3, &dataHi);
+		ret = regmap_read(regmap, addr3, &data_hi);
 		if (ret)
 			return ret;
 	}
@@ -480,9 +480,9 @@ static s32 smpro_internal_err_get_info(struct regmap *regmap, u8 addr,
 	 *      All bits are 0 when errType is warning or error.
 	 */
 	scnprintf(buf, MAX_MSG_LEN, "%01x %02x %01x %02x %04x %04x%04x\n",
-			subtype, (retHi & 0xf000) >> 12,
-			(retHi & 0x0800) >> 11, retHi & 0xff, retLo,
-			dataHi, dataLo);
+			subtype, (ret_hi & 0xf000) >> 12,
+			(ret_hi & 0x0800) >> 11, ret_hi & 0xff, ret_lo,
+			data_hi, data_lo);
 
 	return strlen(buf);
 }
