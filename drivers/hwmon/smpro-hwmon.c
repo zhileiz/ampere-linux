@@ -317,7 +317,7 @@ static int smpro_read_string(struct device *dev, enum hwmon_sensor_types type,
 			*str = temperature[channel].label;
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			break;
 		}
 		break;
 
@@ -327,7 +327,7 @@ static int smpro_read_string(struct device *dev, enum hwmon_sensor_types type,
 			*str = voltage[channel].label;
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			break;
 		}
 		break;
 
@@ -337,7 +337,7 @@ static int smpro_read_string(struct device *dev, enum hwmon_sensor_types type,
 			*str = curr_sensor[channel].label;
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			break;
 		}
 		break;
 
@@ -347,11 +347,11 @@ static int smpro_read_string(struct device *dev, enum hwmon_sensor_types type,
 			*str = power[channel].label;
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			break;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		break;
 	}
 
 	return -EOPNOTSUPP;
