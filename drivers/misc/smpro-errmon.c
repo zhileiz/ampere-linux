@@ -744,18 +744,11 @@ static int smpro_errmon_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id smpro_errmon_of_match[] = {
-	{ .compatible = "ampere,ac01-errmon" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, smpro_errmon_of_match);
-
 static struct platform_driver smpro_errmon_driver = {
 	.probe          = smpro_errmon_probe,
 	.remove         = smpro_errmon_remove,
 	.driver = {
 		.name   = "smpro-errmon",
-		.of_match_table = smpro_errmon_of_match,
 	},
 };
 
