@@ -465,17 +465,10 @@ static int smpro_hwmon_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static const struct of_device_id smpro_hwmon_of_match[] = {
-	{ .compatible = "ampere,ac01-hwmon" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, smpro_hwmon_of_match);
-
 static struct platform_driver smpro_hwmon_driver = {
 	.probe		= smpro_hwmon_probe,
 	.driver = {
 		.name	= "smpro-hwmon",
-		.of_match_table = smpro_hwmon_of_match,
 	},
 };
 
