@@ -98,12 +98,6 @@
 #define RAS_SMPRO_ERRS		0
 #define RAS_PMPRO_ERRS		1
 
-/* Bit masks */
-#define BIT_0			0x0001
-#define BIT_1			0x0002
-#define BIT_2			0x0004
-#define BIT_8			0x0100
-
 /* Boot stages */
 #define BOOT_STAGE_DDR_INIT_PROGRESS	4
 
@@ -513,8 +507,8 @@ static ssize_t smpro_internal_err_read(struct device *dev,
 	if (ret)
 		goto done;
 
-	if (!((channel == RAS_SMPRO_ERRS && (value & BIT_0)) ||
-		(channel == RAS_PMPRO_ERRS && (value & BIT_1))))
+	if (!((channel == RAS_SMPRO_ERRS && (value & BIT(0))) ||
+		(channel == RAS_PMPRO_ERRS && (value & BIT(1)))))
 		goto done;
 
 	err_info = list_smpro_int_error_hdr[channel];
@@ -523,7 +517,7 @@ static ssize_t smpro_internal_err_read(struct device *dev,
 		goto done;
 
 	/* Warning type */
-	if (err_type & BIT_0) {
+	if (err_type & BIT(0)) {
 		ret = smpro_internal_err_get_info(errmon->regmap,
 						err_info.warn_info_low,
 						err_info.warn_info_high,
@@ -535,7 +529,7 @@ static ssize_t smpro_internal_err_read(struct device *dev,
 	}
 
 	/* Error with data type */
-	if (err_type & BIT_2) {
+	if (err_type & BIT(2)) {
 		ret = smpro_internal_err_get_info(errmon->regmap,
 					      err_info.err_info_low,
 					      err_info.err_info_high,
@@ -547,7 +541,7 @@ static ssize_t smpro_internal_err_read(struct device *dev,
 		strncat(buf, msg, strlen(msg));
 	}
 	/* Error type */
-	else if (err_type & BIT_1) {
+	else if (err_type & BIT(1)) {
 		ret = smpro_internal_err_get_info(errmon->regmap,
 						err_info.err_info_low,
 						err_info.err_info_high,
