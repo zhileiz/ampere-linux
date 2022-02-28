@@ -22,10 +22,6 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-/* Identification Registers */
-#define MANUFACTURER_ID_REG	0x02
-#define AMPERE_MANUFACTURER_ID	0xCD3A
-
 /* Boot Stage/Progress Registers */
 #define BOOT_STAGE_SELECT_REG		0xB0
 #define BOOT_STAGE_STATUS_LO_REG	0xB1
@@ -313,17 +309,6 @@ static const struct attribute_group smpro_misc_attr_group = {
 	.attrs = smpro_misc_attrs
 };
 
-static int check_valid_id(struct regmap *regmap)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(regmap, MANUFACTURER_ID_REG, &val);
-	if (ret)
-		return ret;
-	return  (val == AMPERE_MANUFACTURER_ID) ? 0 : 1;
-}
-
 static int smpro_misc_probe(struct platform_device *pdev)
 {
 	struct smpro_misc *misc;
@@ -339,11 +324,6 @@ static int smpro_misc_probe(struct platform_device *pdev)
 	misc->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!misc->regmap)
 		return -ENODEV;
-
-	/* Check for valid ID */
-	ret = check_valid_id(misc->regmap);
-	if (ret)
-		dev_warn(&pdev->dev, "Hmmh, SMPro not ready yet\n");
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &smpro_misc_attr_group);
 	if (ret)
