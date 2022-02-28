@@ -105,7 +105,7 @@ struct smpro_misc {
 	struct regmap *regmap;
 };
 
-static int boot_progress_show(struct device *dev,
+static ssize_t boot_progress_show(struct device *dev,
 		struct device_attribute *da, char *buf)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
@@ -173,7 +173,7 @@ done:
 
 static DEVICE_ATTR_RO(boot_progress);
 
-static int soc_power_limit_show(struct device *dev,
+static ssize_t soc_power_limit_show(struct device *dev,
 				struct device_attribute *da, char *buf)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
@@ -187,7 +187,7 @@ static int soc_power_limit_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
 }
 
-static int soc_power_limit_store(struct device *dev,
+static ssize_t soc_power_limit_store(struct device *dev,
 				struct device_attribute *da,
 				const char *buf, size_t count)
 {
@@ -207,7 +207,7 @@ static int soc_power_limit_store(struct device *dev,
 	return count;
 }
 
-static int reg_rw_show(struct device *dev,
+static ssize_t reg_rw_show(struct device *dev,
 				struct device_attribute *da, char *buf)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
@@ -231,7 +231,7 @@ static int reg_rw_show(struct device *dev,
 		((value & 0xff00) >> 8) | ((value & 0xff) << 8));
 }
 
-static int reg_rw_store(struct device *dev,
+static ssize_t reg_rw_store(struct device *dev,
 				struct device_attribute *da,
 				const char *buf, size_t count)
 {
@@ -262,7 +262,7 @@ static int reg_rw_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(reg_rw);
 
-static int reg_addr_show(struct device *dev,
+static ssize_t reg_addr_show(struct device *dev,
 				struct device_attribute *da, char *buf)
 {
 	struct smpro_misc *misc = dev_get_drvdata(dev);
@@ -276,7 +276,7 @@ static int reg_addr_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%x\n", addr);
 }
 
-static int reg_addr_store(struct device *dev,
+static ssize_t reg_addr_store(struct device *dev,
 				struct device_attribute *da,
 				const char *buf, size_t count)
 {
