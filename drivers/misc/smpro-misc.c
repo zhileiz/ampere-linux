@@ -47,7 +47,7 @@ enum {
 };
 
 struct reg_addr {
-	char devName[128];
+	char dev_name[128];
 	s16 addr;
 };
 
@@ -56,45 +56,45 @@ struct reg_addr reg_addrs[2] = {
 	{ "", -1 }
 };
 
-s16 get_addr(char *devName)
+s16 get_addr(char *dev_name)
 {
-	if (strcmp(reg_addrs[0].devName, devName) == 0)
+	if (strcmp(reg_addrs[0].dev_name, dev_name) == 0)
 		return reg_addrs[0].addr;
-	else if (strcmp(reg_addrs[1].devName, devName) == 0)
+	else if (strcmp(reg_addrs[1].dev_name, dev_name) == 0)
 		return reg_addrs[1].addr;
 
 	return -1;
 }
 
-int find_dev(char *devName)
+int find_dev(char *dev_name)
 {
-	if (strcmp(reg_addrs[0].devName, devName) == 0 ||
-		strcmp(reg_addrs[1].devName, devName) == 0)
+	if (strcmp(reg_addrs[0].dev_name, dev_name) == 0 ||
+		strcmp(reg_addrs[1].dev_name, dev_name) == 0)
 		return 1;
 	return 0;
 }
 
-int init_addr(char *devName)
+int init_addr(char *dev_name)
 {
-	if (strcmp(reg_addrs[0].devName, "") == 0) {
-		snprintf(reg_addrs[0].devName, 128, "%s", devName);
+	if (strcmp(reg_addrs[0].dev_name, "") == 0) {
+		snprintf(reg_addrs[0].dev_name, 128, "%s", dev_name);
 		return 1;
-	} else if (strcmp(reg_addrs[1].devName, "") == 0) {
-		snprintf(reg_addrs[1].devName, 128, "%s", devName);
+	} else if (strcmp(reg_addrs[1].dev_name, "") == 0) {
+		snprintf(reg_addrs[1].dev_name, 128, "%s", dev_name);
 		return 1;
 	}
 
 	return 0;
 }
 
-void set_addr(char *devName, s16 value)
+void set_addr(char *dev_name, s16 value)
 {
-	if (strcmp(reg_addrs[0].devName, devName) == 0)
+	if (strcmp(reg_addrs[0].dev_name, dev_name) == 0)
 		reg_addrs[0].addr = value;
-	else if (strcmp(reg_addrs[1].devName, devName) == 0)
+	else if (strcmp(reg_addrs[1].dev_name, dev_name) == 0)
 		reg_addrs[1].addr = value;
 	else
-		pr_warn("Invalid deviceName %s\n", devName);
+		pr_warn("Invalid deviceName %s\n", dev_name);
 }
 
 struct smpro_misc {
