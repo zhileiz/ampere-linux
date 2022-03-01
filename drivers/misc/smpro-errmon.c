@@ -261,7 +261,7 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 				     char *buf, int channel)
 {
 	struct smpro_errmon *errmon = dev_get_drvdata(dev);
-	unsigned char err_data[MAX_READ_BLOCK_LENGTH + 2];
+	unsigned char err_data[MAX_READ_BLOCK_LENGTH];
 	unsigned char msg[MAX_MSG_LEN] = {'\0'};
 	struct smpro_error_hdr err_info;
 	s32 err_count = 1, err_length = 0;
@@ -274,8 +274,7 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 		goto done;
 
 	err_info = smpro_error_table[channel];
-
-	memset(err_data, 0xff, MAX_READ_BLOCK_LENGTH + 2);
+	memset(err_data, 0xff, MAX_READ_BLOCK_LENGTH);
 
 	ret = regmap_read(errmon->regmap, err_info.err_count, &err_count);
 	/* Error count is the low byte */
