@@ -97,7 +97,6 @@
 /* I2C read block data constant */
 #define MAX_READ_BLOCK_LENGTH	48
 #define NUM_I2C_MESSAGES	2
-#define MAX_READ_ERROR		35
 #define MAX_MSG_LEN		128
 
 #define RAS_SMPRO_ERRS		0
@@ -144,20 +143,21 @@ struct smpro_error_hdr {
 	u8 err_count;	/* Number of the RAS errors */
 	u8 err_len;	/* Number of data bytes */
 	u8 err_data;	/* Start of 48-byte data */
+	u8 max_err_cnt;	/* Max num of errors */
 };
 /*
  * Included Address of registers to get Count, Length of data and Data
  * of the 48 bytes error data
  */
 struct smpro_error_hdr smpro_error_table[NUM_48BYTES_ERR_TYPE] = {
-	{CORE_CE_ERR_CNT_REG, CORE_CE_ERR_LEN_REG, CORE_CE_ERR_DATA_REG},
-	{CORE_UE_ERR_CNT_REG, CORE_UE_ERR_LEN_REG, CORE_UE_ERR_DATA_REG},
-	{MEM_CE_ERR_CNT_REG, MEM_CE_ERR_LEN_REG, MEM_CE_ERR_DATA_REG},
-	{MEM_UE_ERR_CNT_REG, MEM_UE_ERR_LEN_REG, MEM_UE_ERR_DATA_REG},
-	{PCIE_CE_ERR_CNT_REG, PCIE_CE_ERR_LEN_REG, PCIE_CE_ERR_DATA_REG},
-	{PCIE_UE_ERR_CNT_REG, PCIE_UE_ERR_LEN_REG, PCIE_UE_ERR_DATA_REG},
-	{OTHER_CE_ERR_CNT_REG, OTHER_CE_ERR_LEN_REG, OTHER_CE_ERR_DATA_REG},
-	{OTHER_UE_ERR_CNT_REG, OTHER_UE_ERR_LEN_REG, OTHER_UE_ERR_DATA_REG},
+	{CORE_CE_ERR_CNT_REG, CORE_CE_ERR_LEN_REG, CORE_CE_ERR_DATA_REG, 32},
+	{CORE_UE_ERR_CNT_REG, CORE_UE_ERR_LEN_REG, CORE_UE_ERR_DATA_REG, 32},
+	{MEM_CE_ERR_CNT_REG, MEM_CE_ERR_LEN_REG, MEM_CE_ERR_DATA_REG, 16},
+	{MEM_UE_ERR_CNT_REG, MEM_UE_ERR_LEN_REG, MEM_UE_ERR_DATA_REG, 16},
+	{PCIE_CE_ERR_CNT_REG, PCIE_CE_ERR_LEN_REG, PCIE_CE_ERR_DATA_REG, 96},
+	{PCIE_UE_ERR_CNT_REG, PCIE_UE_ERR_LEN_REG, PCIE_UE_ERR_DATA_REG, 96},
+	{OTHER_CE_ERR_CNT_REG, OTHER_CE_ERR_LEN_REG, OTHER_CE_ERR_DATA_REG, 8},
+	{OTHER_UE_ERR_CNT_REG, OTHER_UE_ERR_LEN_REG, OTHER_UE_ERR_DATA_REG, 8},
 };
 
 /*
@@ -404,7 +404,9 @@ static ssize_t smpro_error_data_read(struct device *dev,
 	memset(err_data, 0xff, MAX_READ_BLOCK_LENGTH + 2);
 
 	ret = regmap_read(errmon->regmap, err_info.err_count, &err_count);
-	if (ret || err_count <= 0)
+	/* Error count is the low byte */
+	err_count &= 0xff;
+	if (ret || err_count <= 0 || err_count > err_info.max_err_cnt)
 		goto done;
 
 	/* Bit 8 indentifies the overflow status of one error type */
@@ -415,12 +417,6 @@ static ssize_t smpro_error_data_read(struct device *dev,
 		strcat(msg, "\n");
 		strncat(buf, msg, strlen(msg));
 	}
-
-	/* Error count is the low byte */
-	err_count = err_count & 0xff;
-
-	if (err_count > MAX_READ_ERROR)
-		err_count = MAX_READ_ERROR;
 
 	for (i = 0; i < err_count; i++) {
 		ret = regmap_read(errmon->regmap, err_info.err_len, &err_length);
