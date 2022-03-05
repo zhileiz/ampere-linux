@@ -80,10 +80,6 @@
 #define OTHER_UE_ERR_LEN	0xD9
 #define OTHER_UE_ERR_DATA	0xDA
 
-/* Event Source Registers */
-#define EVENT_SRC1		0x62
-#define EVENT_SRC2		0x63
-
 /* Event Data Registers */
 #define VRD_WARN_FAULT_EVENT_DATA	0x78
 #define VRD_HOT_EVENT_DATA		0x79
@@ -177,18 +173,13 @@ enum EVENT_TYPES {
 	NUM_EVENTS_TYPE,
 };
 
-struct smpro_event_hdr {
-	u8 event_src;	/* Source register of event type */
-	u8 event_data;	/* Data register of event type */
-};
-
 /* Included Address of event source and data registers */
-struct smpro_event_hdr smpro_event_table[NUM_EVENTS_TYPE] = {
-	{EVENT_SRC1, VRD_WARN_FAULT_EVENT_DATA},
-	{EVENT_SRC1, VRD_HOT_EVENT_DATA},
-	{EVENT_SRC2, DIMM_HOT_EVENT_DATA},
-	{EVENT_SRC2, DIMM_2X_REFRESH_EVENT_DATA},
-	{EVENT_SRC2, BOOT_STAGE_DIMM_SYSDROME_ERR},
+static u8 smpro_event_table[NUM_EVENTS_TYPE] = {
+	VRD_WARN_FAULT_EVENT_DATA,
+	VRD_HOT_EVENT_DATA,
+	DIMM_HOT_EVENT_DATA,
+	DIMM_2X_REFRESH_EVENT_DATA,
+	BOOT_STAGE_DIMM_SYSDROME_ERR,
 };
 
 static ssize_t smpro_event_data_read(struct device *dev,
@@ -197,7 +188,6 @@ static ssize_t smpro_event_data_read(struct device *dev,
 {
 	struct smpro_errmon *errmon = dev_get_drvdata(dev);
 	unsigned char msg[MAX_MSG_LEN] = {'\0'};
-	struct smpro_event_hdr event_info;
 	s32 event_data = 0;
 	int ret;
 
@@ -205,8 +195,7 @@ static ssize_t smpro_event_data_read(struct device *dev,
 	if (channel >= NUM_EVENTS_TYPE)
 		goto done;
 
-	event_info = smpro_event_table[channel];
-	ret = regmap_read(errmon->regmap, event_info.event_data, &event_data);
+	ret = regmap_read(errmon->regmap, smpro_event_table[channel], &event_data);
 	if (ret)
 		goto done;
 
@@ -214,7 +203,7 @@ static ssize_t smpro_event_data_read(struct device *dev,
 	strncat(buf, msg, ret);
 	/* Clear event after read */
 	if (event_data != 0)
-		regmap_write(errmon->regmap, event_info.event_data, event_data);
+		regmap_write(errmon->regmap, smpro_event_table[channel], event_data);
 done:
 	return strlen(buf);
 }
