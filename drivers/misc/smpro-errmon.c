@@ -188,7 +188,7 @@ static ssize_t smpro_event_data_read(struct device *dev,
 {
 	struct smpro_errmon *errmon = dev_get_drvdata(dev);
 	unsigned char msg[MAX_MSG_LEN] = {'\0'};
-	s32 event_data = 0;
+	s32 event_data;
 	int ret;
 
 	*buf = 0;
@@ -213,10 +213,9 @@ static ssize_t smpro_event_dimm_syndrome_read(struct device *dev, struct device_
 {
 	struct smpro_errmon *errmon = dev_get_drvdata(dev);
 	unsigned char msg[MAX_MSG_LEN] = {'\0'};
-	s32 event_data = 0;
-	s32 id = 0;
+	s32 event_data;
 	u8 boot_stage;
-	int ret;
+	int id, ret;
 
 	*buf = 0;
 	/* check if boot stage is DDR_INIT_PROGRESS */
@@ -253,10 +252,8 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 	unsigned char err_data[MAX_READ_BLOCK_LENGTH];
 	unsigned char msg[MAX_MSG_LEN] = {'\0'};
 	struct smpro_error_hdr *err_info;
-	s32 err_count = 1, err_length = 0;
-	u8 i = 0;
-	int len;
-	int ret;
+	s32 err_count, err_length;
+	int ret, len, i;
 
 	*buf = 0;
 	if (channel >= NUM_48BYTES_ERR_TYPE)
@@ -327,7 +324,7 @@ done:
 static s32 smpro_internal_err_get_info(struct regmap *regmap, u8 addr, u8 addr1,
 				       u8 addr2, u8 addr3, u8 subtype, char *buf)
 {
-	unsigned int ret_hi = 0, ret_lo = 0, data_lo = 0, data_hi = 0;
+	unsigned int ret_hi, ret_lo, data_lo, data_hi;
 	int ret;
 
 	ret = regmap_read(regmap, addr, &ret_lo);
