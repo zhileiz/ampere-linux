@@ -120,7 +120,7 @@ struct smpro_error_hdr {
  * Included Address of registers to get Count, Length of data and Data
  * of the 48 bytes error data
  */
-struct smpro_error_hdr smpro_error_table[NUM_48BYTES_ERR_TYPE] = {
+static struct smpro_error_hdr smpro_error_table[NUM_48BYTES_ERR_TYPE] = {
 	{CORE_CE_ERR_CNT, CORE_CE_ERR_LEN, CORE_CE_ERR_DATA, 32},
 	{CORE_UE_ERR_CNT, CORE_UE_ERR_LEN, CORE_UE_ERR_DATA, 32},
 	{MEM_CE_ERR_CNT, MEM_CE_ERR_LEN, MEM_CE_ERR_DATA, 16},
@@ -145,7 +145,7 @@ struct smpro_int_error_hdr {
 	u8 warn_info_high;
 };
 
-struct smpro_int_error_hdr list_smpro_int_error_hdr[2] = {
+static struct smpro_int_error_hdr list_smpro_int_error_hdr[2] = {
 	{
 	 ERR_SMPRO_TYPE,
 	 ERR_SMPRO_INFO_LO, ERR_SMPRO_INFO_HI,
@@ -252,7 +252,7 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 	struct smpro_errmon *errmon = dev_get_drvdata(dev);
 	unsigned char err_data[MAX_READ_BLOCK_LENGTH];
 	unsigned char msg[MAX_MSG_LEN] = {'\0'};
-	struct smpro_error_hdr err_info;
+	struct smpro_error_hdr *err_info;
 	s32 err_count = 1, err_length = 0;
 	u8 i = 0;
 	int len;
@@ -262,10 +262,10 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 	if (channel >= NUM_48BYTES_ERR_TYPE)
 		goto done;
 
-	err_info = smpro_error_table[channel];
+	err_info = &smpro_error_table[channel];
 	memset(err_data, 0xff, MAX_READ_BLOCK_LENGTH);
 
-	ret = regmap_read(errmon->regmap, err_info.err_count, &err_count);
+	ret = regmap_read(errmon->regmap, err_info->err_count, &err_count);
 	/* Error count is the low byte */
 	err_count &= 0xff;
 	if (ret || err_count <= 0 || err_count > err_info.max_err_cnt)
@@ -280,14 +280,14 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 	}
 
 	for (i = 0; i < err_count; i++) {
-		ret = regmap_read(errmon->regmap, err_info.err_len, &err_length);
+		ret = regmap_read(errmon->regmap, err_info->err_len, &err_length);
 		if (ret || err_length <= 0)
 			break;
 
 		if (err_length > MAX_READ_BLOCK_LENGTH)
 			err_length = MAX_READ_BLOCK_LENGTH;
 
-		ret = regmap_noinc_read(errmon->regmap, err_info.err_data, err_data, err_length);
+		ret = regmap_noinc_read(errmon->regmap, err_info->err_data, err_data, err_length);
 		if (ret < 0)
 			break;
 
@@ -313,7 +313,7 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 				*(u64 *)&err_data[32], *(u64 *)&err_data[40]);
 
 		/* go to next error */
-		ret = regmap_write(errmon->regmap, err_info.err_count, 0x100);
+		ret = regmap_write(errmon->regmap, err_info->err_count, 0x100);
 		if (ret)
 			break;
 
@@ -372,7 +372,7 @@ static ssize_t smpro_internal_err_read(struct device *dev, struct device_attribu
 				       char *buf, int channel)
 {
 	struct smpro_errmon *errmon = dev_get_drvdata(dev);
-	struct smpro_int_error_hdr err_info;
+	struct smpro_int_error_hdr *err_info;
 	unsigned char msg[MAX_MSG_LEN] = {'\0'};
 	unsigned int err_type;
 	unsigned int value;
@@ -392,15 +392,15 @@ static ssize_t smpro_internal_err_read(struct device *dev, struct device_attribu
 	      (channel == RAS_PMPRO_ERRS && (value & BIT(1)))))
 		goto done;
 
-	err_info = list_smpro_int_error_hdr[channel];
-	ret = regmap_read(errmon->regmap, err_info.err_type, &err_type);
+	err_info = &list_smpro_int_error_hdr[channel];
+	ret = regmap_read(errmon->regmap, err_info->err_type, &err_type);
 	if (ret)
 		goto done;
 
 	/* Warning type */
 	if (err_type & BIT(0)) {
-		ret = smpro_internal_err_get_info(errmon->regmap, err_info.warn_info_low,
-						  err_info.warn_info_high, 0xff, 0xff, 1, msg);
+		ret = smpro_internal_err_get_info(errmon->regmap, err_info->warn_info_low,
+						  err_info->warn_info_high, 0xff, 0xff, 1, msg);
 		if (ret < 0)
 			goto done;
 
@@ -410,10 +410,10 @@ static ssize_t smpro_internal_err_read(struct device *dev, struct device_attribu
 	/* Error with data type */
 	if (err_type & BIT(2)) {
 		ret = smpro_internal_err_get_info(errmon->regmap,
-						  err_info.err_info_low,
-						  err_info.err_info_high,
-						  err_info.err_data_low,
-						  err_info.err_data_high, 4, msg);
+						  err_info->err_info_low,
+						  err_info->err_info_high,
+						  err_info->err_data_low,
+						  err_info->err_data_high, 4, msg);
 		if (ret < 0)
 			goto done;
 
@@ -422,8 +422,8 @@ static ssize_t smpro_internal_err_read(struct device *dev, struct device_attribu
 	/* Error type */
 	else if (err_type & BIT(1)) {
 		ret = smpro_internal_err_get_info(errmon->regmap,
-						  err_info.err_info_low,
-						  err_info.err_info_high,
+						  err_info->err_info_low,
+						  err_info->err_info_high,
 						  0xff, 0xff, 2, msg);
 		if (ret < 0)
 			goto done;
@@ -432,7 +432,7 @@ static ssize_t smpro_internal_err_read(struct device *dev, struct device_attribu
 	}
 
 	/* clear the read errors */
-	regmap_write(errmon->regmap, err_info.err_type, err_type);
+	regmap_write(errmon->regmap, err_info->err_type, err_type);
 
 done:
 	return strlen(buf);
