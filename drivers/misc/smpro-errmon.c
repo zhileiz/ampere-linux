@@ -260,7 +260,6 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 		goto done;
 
 	err_info = &smpro_error_table[channel];
-	memset(err_data, 0xff, MAX_READ_BLOCK_LENGTH);
 
 	ret = regmap_read(errmon->regmap, err_info->err_count, &err_count);
 	/* Error count is the low byte */
@@ -284,6 +283,7 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 		if (err_length > MAX_READ_BLOCK_LENGTH)
 			err_length = MAX_READ_BLOCK_LENGTH;
 
+		memset(err_data, 0x00, MAX_READ_BLOCK_LENGTH);
 		ret = regmap_noinc_read(errmon->regmap, err_info->err_data, err_data, err_length);
 		if (ret < 0)
 			break;
