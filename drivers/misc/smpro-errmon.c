@@ -264,7 +264,7 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 	ret = regmap_read(errmon->regmap, err_info->err_count, &err_count);
 	/* Error count is the low byte */
 	err_count &= 0xff;
-	if (ret || err_count <= 0 || err_count > err_info.max_err_cnt)
+	if (ret || err_count > err_info->max_err_cnt)
 		goto done;
 
 	/* Bit 8 indentifies the overflow status of one error type */
