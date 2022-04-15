@@ -282,7 +282,9 @@ static int smpro_read_power(struct device *dev, u32 attr, int channel, long *val
 		if (ret)
 			return ret;
 
-		*val_pwr = val * 1000000 + val_mw * 1000;
+		/* 10-bit value */
+		*val_pwr = (val & 0x3ff) * 1000000 + (val_mw & 0x3ff) * 1000;
+
 		return 0;
 
 	default:
